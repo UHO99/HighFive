@@ -47,11 +47,15 @@ public class CouponController {
 		return ResponseEntity.ok(ApiResponse.success(couponService.getCoupon(couponId)));
 	}
 
-	// 쿠폰 선택 UI(모니터링 대시보드 등)에서 쓰는 전체 목록 조회
-	@LogDescription("전체 쿠폰 목록 조회 (관리자)")
+	// 쿠폰 선택 UI(모니터링 대시보드, 쿠폰 오픈 다이얼로그 등)에서 쓰는 목록 조회.
+	// status를 안 주면 전체, 주면 그 상태만 - 쿠폰이 아무리 많아도 OPEN/READY는 소수라
+	// 필터를 걸면 응답 크기가 전체 쿠폰 수와 무관하게 작게 유지된다.
+	@LogDescription("쿠폰 목록 조회 (관리자)")
 	@GetMapping("/api/admin/coupons")
-	public ResponseEntity<ApiResponse<List<CouponSummary>>> listCoupons() {
-		return ResponseEntity.ok(ApiResponse.success(couponService.listAll()));
+	public ResponseEntity<ApiResponse<List<CouponSummary>>> listCoupons(
+			@RequestParam(required = false) CouponStatus status) {
+		List<CouponSummary> coupons = status != null ? couponService.listByStatus(status) : couponService.listAll();
+		return ResponseEntity.ok(ApiResponse.success(coupons));
 	}
 
 	// 수동 OPEN : READY -> OPEN + Redis 재고 초기화 (스케줄러와 동일 로직 공유)

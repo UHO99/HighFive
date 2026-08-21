@@ -1,5 +1,7 @@
 package com.mycom.myapp.team5.global.common.util;
 
+import com.mycom.myapp.team5.domain.test.controller.DummyDataController;
+
 import java.io.BufferedWriter;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -62,19 +64,24 @@ public class DummyDataGenerator {
     private static final DateTimeFormatter FMT =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
+    /** 적재된 users 건수와 단계별 소요시간(대시보드 시각화용). */
+    public record Result(long userCount, long csvGenMs, long loadMs) {}
+
     public static void main(String[] args) throws Exception {
         run(null);
     }
 
     /**
      * dataSource가 있으면(Spring 컨텍스트 안) 그 커넥션을 쓰고, null이면 단독 실행용 접속을 쓴다.
-     * @return 적재된 users 건수
      */
-    public static long run(DataSource dataSource) throws Exception {
+    public static Result run(DataSource dataSource) throws Exception {
+        long t0 = System.currentTimeMillis();
         generateCsv();
+        long t1 = System.currentTimeMillis();
         long rows = load(dataSource);
+        long t2 = System.currentTimeMillis();
         verify(dataSource);
-        return rows;
+        return new Result(rows, t1 - t0, t2 - t1);
     }
 
     // ── 1) CSV 생성 ─────────────────────────────────────

@@ -1,4 +1,4 @@
-package com.mycom.myapp.team5.domain.k6test.dto;
+package com.mycom.myapp.team5.domain.test.dto;
 
 import com.mycom.myapp.team5.global.common.enums.K6Scenario;
 

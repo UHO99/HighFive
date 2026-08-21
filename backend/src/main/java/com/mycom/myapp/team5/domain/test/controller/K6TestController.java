@@ -1,9 +1,9 @@
-package com.mycom.myapp.team5.domain.k6test.controller;
+package com.mycom.myapp.team5.domain.test.controller;
 
-import com.mycom.myapp.team5.domain.k6test.dto.K6RunRequest;
-import com.mycom.myapp.team5.domain.k6test.dto.K6ScenarioResponse;
-import com.mycom.myapp.team5.domain.k6test.dto.K6StatusResponse;
-import com.mycom.myapp.team5.domain.k6test.service.K6TestService;
+import com.mycom.myapp.team5.domain.test.dto.K6RunRequest;
+import com.mycom.myapp.team5.domain.test.dto.K6ScenarioResponse;
+import com.mycom.myapp.team5.domain.test.dto.K6StatusResponse;
+import com.mycom.myapp.team5.domain.test.service.K6TestService;
 import com.mycom.myapp.team5.global.aspect.LogDescription;
 import com.mycom.myapp.team5.global.common.dto.ApiResponse;
 import jakarta.validation.Valid;

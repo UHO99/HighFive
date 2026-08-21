@@ -7,6 +7,7 @@
 import http from 'k6/http';
 import { check } from 'k6';
 import { Counter } from 'k6/metrics';
+import exec from 'k6/execution';
 
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
 const COUPON_ID = __ENV.COUPON_ID || '1';
@@ -34,8 +35,12 @@ export const options = {
 };
 
 export default function () {
-    const USER_POOL_SIZE = Number(__ENV.USER_POOL_SIZE || 20_000);
-    const userId = ((__VU * 1000 + __ITER) % USER_POOL_SIZE) + 1;
+    // (__VU * 1000 + __ITER) % 20000 was the old formula - VU가 20,000까지 올라가면
+    // VU*1000 mod 20000의 경우의 수가 20개뿐이라 서로 다른 VU 수백~수천 개가 같은 userId로
+    // 동시에 요청을 쏴서 "중복 발급" 거부가 실제 부하와 무관하게 대량으로 발생했다.
+    // iterationInTest는 전체 실행 동안 VU를 넘나들며 절대 겹치지 않는 값이라 이 문제가 없다.
+    const USER_POOL_SIZE = Number(__ENV.USER_POOL_SIZE || 1_000_000);
+    const userId = (exec.scenario.iterationInTest % USER_POOL_SIZE) + 1;
     const res = http.post(`${BASE_URL}/${COUPON_ID}/issue?userId=${userId}`); // Kafka
     // const res = http.post(`${BASE_URL}/${COUPON_ID}/issue?userId=${userId}`); // Redis
     // const res = http.post(`${BASE_URL}/${COUPON_ID}/issue?userId=${userId}`); // CRUD

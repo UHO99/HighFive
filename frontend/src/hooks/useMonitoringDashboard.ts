@@ -84,6 +84,8 @@ export interface DashboardVals {
   testRunning: boolean;
   elapsedText: string;
   testButtonLabel: string;
+  /** 실행 중인(또는 방금 끝난) 시나리오 파일명 - 서버 상태에서 그대로 가져온다. 새로고침해도 안 사라진다. */
+  scenarioFile: string | null;
 }
 
 function formatDelay(ms: number): string {
@@ -162,12 +164,13 @@ function toVals(data: MonitoringDashboardResponse, now: number, k6Status: K6Stat
     testRunning: k6Status.running,
     elapsedText,
     testButtonLabel: k6Status.running ? "테스트 중지" : "테스트 시작",
+    scenarioFile: k6Status.scenarioFile,
   };
 }
 
 export interface UseMonitoringDashboardResult {
   vals: DashboardVals;
-  startTest: (scenarioId: string) => Promise<void>;
+  startTest: (scenarioId: string, targetCouponId: number) => Promise<void>;
   stopTest: () => Promise<void>;
   error: string | null;
 }
@@ -240,10 +243,12 @@ export function useMonitoringDashboard(couponId: number): UseMonitoringDashboard
     };
   }, []);
 
-  const startTest = useCallback(async (scenarioId: string) => {
-    const next = await runK6Scenario(scenarioId, couponId);
+  // couponId(이 훅이 모니터링 중인 쿠폰)와 별개로 targetCouponId를 명시적으로 받는다 - 대시보드에
+  // 보이는 쿠폰과 다른 쿠폰을 대상으로 테스트를 시작할 수도 있어서(ScenarioDialog의 쿠폰 선택).
+  const startTest = useCallback(async (scenarioId: string, targetCouponId: number) => {
+    const next = await runK6Scenario(scenarioId, targetCouponId);
     setK6Status(next);
-  }, [couponId]);
+  }, []);
 
   const stopTest = useCallback(async () => {
     const next = await stopK6Scenario();

@@ -1,4 +1,4 @@
-package com.mycom.myapp.team5.domain.k6test.exception;
+package com.mycom.myapp.team5.domain.test.exception;
 
 import com.mycom.myapp.team5.global.exception.BaseException;
 

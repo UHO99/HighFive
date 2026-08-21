@@ -175,15 +175,34 @@ body {
   color: #8b8fa3;
 }
 
-.coupon-select {
-  font: 600 13px/1 "Inter", sans-serif;
+.coupon-chip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  max-width: 420px;
+}
+
+.coupon-chip-empty {
+  font: 500 12.5px/1 "Inter", sans-serif;
+  color: #8b8fa3;
+}
+
+.coupon-chip {
+  font: 600 12.5px/1 "Inter", sans-serif;
   color: #3a3d4d;
   background: #fff;
   border: 1px solid #e7e9f0;
   border-radius: 999px;
-  padding: 8px 14px;
-  max-width: 260px;
+  padding: 7px 13px;
   cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.coupon-chip.active {
+  border-color: #ff6a3d;
+  background: #fff6f2;
+  color: #ff6a3d;
 }
 
 .status-pill {
@@ -596,7 +615,80 @@ body {
   box-shadow: 0 6px 16px rgba(23, 27, 46, 0.25);
 }
 
+.fab-action:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
 /* ---------- scenario dialog ---------- */
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  font: 600 12px/1 "Inter", sans-serif;
+  color: #5b5f72;
+}
+
+.form-input {
+  font: 500 13.5px/1 "Inter", sans-serif;
+  color: #171b2e;
+  background: #fff;
+  border: 1.5px solid #e7e9f0;
+  border-radius: 10px;
+  padding: 9px 12px;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #ff6a3d;
+}
+
+.form-input:disabled {
+  background: #f7f8fb;
+  color: #8b8fa3;
+}
+
+.form-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 500 12.5px/1.4 "Inter", sans-serif;
+  color: #5b5f72;
+  cursor: pointer;
+}
+
+.form-checkbox input {
+  accent-color: #ff6a3d;
+}
+
+.dialog-tabs {
+  display: flex;
+  gap: 4px;
+  background: #f7f8fb;
+  border-radius: 999px;
+  padding: 4px;
+}
+
+.dialog-tab {
+  flex: 1;
+  font: 700 12.5px/1 "Inter", sans-serif;
+  color: #8b8fa3;
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  padding: 8px 0;
+  cursor: pointer;
+}
+
+.dialog-tab.active {
+  background: #171b2e;
+  color: #fff;
+}
 
 .dialog-overlay {
   position: fixed;
@@ -757,4 +849,260 @@ body {
   background: #ff6a3d;
   color: #fff;
   box-shadow: 0 6px 16px rgba(255, 106, 61, 0.3);
+}
+
+.dialog-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+  box-shadow: none;
+}
+
+/* ---------- mode toggle ---------- */
+
+.mode-toggle {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #fff;
+  border: 1px solid #e7e9f0;
+  border-radius: 999px;
+  padding: 4px;
+  box-shadow: 0 4px 14px rgba(23, 27, 46, 0.1);
+}
+
+.mode-toggle-sep {
+  color: #d8dae3;
+  font-size: 12px;
+}
+
+.mode-toggle-btn {
+  font: 700 12.5px/1 "Inter", sans-serif;
+  color: #8b8fa3;
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  padding: 8px 18px;
+  cursor: pointer;
+}
+
+.mode-toggle-btn.active {
+  background: #171b2e;
+  color: #fff;
+}
+
+/* ---------- user page ---------- */
+
+.user-shell {
+  height: 100vh;
+  width: 100%;
+  background: #f3f4f8;
+  font-family: "Inter", system-ui, sans-serif;
+  color: #1a1f36;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  padding: 70px 24px 24px;
+}
+
+.user-shell-center {
+  align-items: center;
+  justify-content: center;
+}
+
+.user-login-card {
+  width: min(360px, 100%);
+  background: #fff;
+  border: 1px solid #e7e9f0;
+  border-radius: 16px;
+  padding: 32px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: center;
+  box-shadow: 0 20px 50px rgba(23, 27, 46, 0.1);
+}
+
+.user-login-title {
+  margin: 0;
+  font: 700 22px/1.3 "Inter", sans-serif;
+}
+
+.user-login-subtitle {
+  margin: 0 0 8px;
+  font: 400 13px/1.5 "Inter", sans-serif;
+  color: #8b8fa3;
+}
+
+.user-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 640px;
+  width: 100%;
+  margin: 0 auto 16px;
+}
+
+.user-id-badge {
+  font: 700 14px/1 "JetBrains Mono", monospace;
+  color: #171b2e;
+  background: #fff;
+  border: 1px solid #e7e9f0;
+  border-radius: 999px;
+  padding: 8px 16px;
+}
+
+.user-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  max-width: 640px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.user-ring-panel {
+  width: 100%;
+  background: #fff;
+  border: 1px solid #e7e9f0;
+  border-radius: 16px;
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.user-coupon-name {
+  font: 700 15px/1.3 "Inter", sans-serif;
+  color: #171b2e;
+}
+
+.user-message {
+  font: 500 12.5px/1.4 "Inter", sans-serif;
+  color: #5b5f72;
+  text-align: center;
+}
+
+.user-empty {
+  font: 500 13px/1.5 "Inter", sans-serif;
+  color: #8b8fa3;
+  padding: 20px 0;
+}
+
+.stock-ring-value {
+  font: 700 30px/1 "Inter", sans-serif;
+  fill: #171b2e;
+}
+
+.stock-ring-total {
+  font: 600 13px/1 "Inter", sans-serif;
+  fill: #8b8fa3;
+}
+
+.user-history-panel {
+  width: 100%;
+  background: #fff;
+  border: 1px solid #e7e9f0;
+  border-radius: 16px;
+  padding: 20px;
+}
+
+.user-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.user-history-item {
+  border: 1px solid #e7e9f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.user-history-item-main {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.user-history-coupon-name {
+  font: 700 13.5px/1.3 "Inter", sans-serif;
+  color: #171b2e;
+}
+
+.user-history-rank {
+  font: 700 12px/1 "JetBrains Mono", monospace;
+  color: #ff6a3d;
+}
+
+.user-history-item-meta {
+  display: flex;
+  gap: 12px;
+  font: 500 11.5px/1 "Inter", sans-serif;
+  color: #8b8fa3;
+}
+
+/* ---------- admin coupon history (mock) ---------- */
+
+.dialog-panel-wide {
+  width: min(720px, calc(100vw - 48px));
+}
+
+.dialog-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.mock-badge {
+  font: 700 10.5px/1 "Inter", sans-serif;
+  color: #e0821f;
+  background: #fff4e6;
+  border-radius: 999px;
+  padding: 4px 10px;
+}
+
+.history-table-wrap {
+  overflow: auto;
+  max-height: 360px;
+  border: 1px solid #e7e9f0;
+  border-radius: 10px;
+}
+
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font: 500 12.5px/1 "Inter", sans-serif;
+}
+
+.history-table th,
+.history-table td {
+  text-align: left;
+  padding: 9px 12px;
+  border-bottom: 1px solid #f0f1f5;
+  white-space: nowrap;
+}
+
+.history-table th {
+  color: #8b8fa3;
+  font-weight: 700;
+  background: #f7f8fb;
+  position: sticky;
+  top: 0;
+}
+
+.history-table td {
+  color: #3a3d4d;
 }

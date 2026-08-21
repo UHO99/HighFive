@@ -1,7 +1,7 @@
 package com.mycom.myapp.team5.global.common.enums;
 
-import com.mycom.myapp.team5.domain.k6test.exception.K6ErrorCode;
-import com.mycom.myapp.team5.domain.k6test.exception.K6TestException;
+import com.mycom.myapp.team5.domain.test.exception.K6ErrorCode;
+import com.mycom.myapp.team5.domain.test.exception.K6TestException;
 import lombok.Getter;
 
 /**
@@ -20,7 +20,11 @@ public enum K6Scenario {
     REDIS("redis", "redis_test.js", "Redis Stream 파이프라인",
             "Redis Stream 기반 배치 insert 경로 대상. 램프업을 완만하게(30s) 잡아 초반 튐을 줄인다.", "30s", "30s", "20,000 VU"),
     KAFKA("kafka", "kafka_test.js", "Kafka 비교 시나리오",
-            "초기에 Kafka 기반 구현과 비교하려고 만든 시나리오 (현재 운영 경로는 Redis Stream).", "10s", "30s", "20,000 VU");
+            "초기에 Kafka 기반 구현과 비교하려고 만든 시나리오 (현재 운영 경로는 Redis Stream).", "10s", "30s", "20,000 VU"),
+    SMALL_SCALE("small-scale", "small-scale-concurrency.js", "소규모 동시성 검증",
+            "재고의 2배를 요청해 초과 발급이 없는지 확인하는 기능 검증용 시나리오. "
+                    + "대상 쿠폰을 재고(STOCK, 기본 20)와 같은 수량으로 미리 OPEN해두고, 그 쿠폰에 기존 발급 이력이 없어야 한다.",
+            "-", "~수 초 (shared-iterations)", "STOCK×2 요청");
 
     private final String id;
     private final String file;

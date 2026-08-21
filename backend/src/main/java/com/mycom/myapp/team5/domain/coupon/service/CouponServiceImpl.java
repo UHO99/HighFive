@@ -110,4 +110,9 @@ public class CouponServiceImpl implements CouponService {
 		return couponRepository.findAll().stream().sorted(Comparator.comparing(Coupon::getId)).map(CouponSummary::from).toList();
 	}
 
+	@Override
+	public List<CouponSummary> listByStatus(CouponStatus status) {
+		return couponRepository.findByStatus(status).stream().sorted(Comparator.comparing(Coupon::getId)).map(CouponSummary::from).toList();
+	}
+
 }

@@ -40,10 +40,14 @@ public class CouponStatusServiceImpl implements CouponStatusService {
 		// 3) 상태 변경 (dirty checking -> 트랜잭션 커밋 시 UPDATE)
 		coupon.open();
 
-		// 4) Redis 재고 초기화 : 기존 initStock() 재사용
+		// 4) 발급 이력 SET을 먼저 비운다 - closeCoupon이 정상적으로 지웠다면 원래 비어있지만,
+		// 이 정리 로직이 생기기 전에 CLOSE된 쿠폰과 id가 겹치는 경우까지 방어한다.
+		stringRedisTemplate.delete(CouponStockKeys.issuedSetKey(couponId));
+
+		// 5) Redis 재고 초기화 : 기존 initStock() 재사용
 		couponStockRedisService.initStock(couponId, coupon.getTotalQuantity());
 
-		// 5) Redis Stream 구독 즉시 트리거
+		// 6) Redis Stream 구독 즉시 트리거
 		eventPublisher.publishEvent(new CouponOpenedEvent(couponId));
 	}
 
@@ -58,9 +62,14 @@ public class CouponStatusServiceImpl implements CouponStatusService {
 		}
 		
 		coupon.close();
-		
-		// CLOSE 시 재고 키 정리 (발급 파트가 더 이상 차감하지 못하도록)
+
+		// CLOSE 시 재고 키 정리 (발급 파트가 더 이상 차감하지 못하도록).
+		// 발급 이력 SET(issuedSetKey)도 같이 지운다 - 안 지우면, 나중에 같은 id를 재사용하는 새
+		// 쿠폰(예: 더미데이터 재적재로 coupon 테이블이 TRUNCATE돼서 auto_increment가 리셋된 뒤
+		// 생성된 쿠폰)이 이 쿠폰의 leftover 발급 기록을 그대로 물려받는다 - 방금 오픈했는데 Redis
+		// 발급 건수가 0이 아니게 보이는 원인이 이거였다.
 		stringRedisTemplate.delete(CouponStockKeys.stockKey(couponId));
+		stringRedisTemplate.delete(CouponStockKeys.issuedSetKey(couponId));
 	}
 
 	@Override

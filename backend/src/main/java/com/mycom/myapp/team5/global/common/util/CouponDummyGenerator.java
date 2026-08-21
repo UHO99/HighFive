@@ -59,16 +59,22 @@ public class CouponDummyGenerator {
     /** 적재된 coupon / coupon_issue 건수. */
     public record Counts(long couponCount, long issueCount) {}
 
+    /** 적재 건수와 단계별 소요시간(대시보드 시각화용). */
+    public record Result(long couponCount, long issueCount, long csvGenMs, long loadMs) {}
+
     public static void main(String[] args) throws Exception {
         run(null);
     }
 
     /** dataSource가 있으면(Spring 컨텍스트 안) 그 커넥션을 쓰고, null이면 단독 실행용 접속을 쓴다. */
-    public static Counts run(DataSource dataSource) throws Exception {
+    public static Result run(DataSource dataSource) throws Exception {
+        long t0 = System.currentTimeMillis();
         generateCsv();
+        long t1 = System.currentTimeMillis();
         Counts counts = load(dataSource);
+        long t2 = System.currentTimeMillis();
         verify(dataSource);
-        return counts;
+        return new Result(counts.couponCount(), counts.issueCount(), t1 - t0, t2 - t1);
     }
 
     // ── 1) CSV 생성 ─────────────────────────────────────

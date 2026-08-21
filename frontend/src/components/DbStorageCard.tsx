@@ -1,11 +1,17 @@
 import type { DashboardVals } from "../hooks/useMonitoringDashboard";
 import type { DummyDataCounts } from "../lib/api";
+import { formatMs } from "../lib/format";
 
 const FMT = new Intl.NumberFormat("ko-KR");
 
 interface Props {
   vals: DashboardVals;
   dummyDataCounts: DummyDataCounts | null;
+}
+
+function throughput(count: number, ms: number): string {
+  if (ms <= 0) return "-";
+  return `${FMT.format(Math.round((count / ms) * 1000))}건/s`;
 }
 
 export function DbStorageCard({ vals, dummyDataCounts }: Props) {
@@ -65,6 +71,47 @@ export function DbStorageCard({ vals, dummyDataCounts }: Props) {
           </div>
         </div>
       )}
+
+      {dummyDataCounts?.totalMs != null &&
+        dummyDataCounts.userLoadMs != null &&
+        dummyDataCounts.couponIssueLoadMs != null && (
+          <>
+            <span className="section-label">이번 적재 소요시간 (총 {formatMs(dummyDataCounts.totalMs)})</span>
+            <div className="latency-rows">
+              <div className="latency-line">
+                <span className="latency-tag">회원</span>
+                <div className="bar-track">
+                  <div
+                    className="bar-fill"
+                    style={{
+                      background: "#5b6bd6",
+                      width: `${Math.min(100, (dummyDataCounts.userLoadMs / dummyDataCounts.totalMs) * 100)}%`,
+                    }}
+                  />
+                </div>
+                <span className="latency-value">
+                  {formatMs(dummyDataCounts.userLoadMs)} · {throughput(dummyDataCounts.userCount, dummyDataCounts.userLoadMs)}
+                </span>
+              </div>
+              <div className="latency-line">
+                <span className="latency-tag">쿠폰</span>
+                <div className="bar-track">
+                  <div
+                    className="bar-fill"
+                    style={{
+                      background: "#171b2e",
+                      width: `${Math.min(100, (dummyDataCounts.couponIssueLoadMs / dummyDataCounts.totalMs) * 100)}%`,
+                    }}
+                  />
+                </div>
+                <span className="latency-value">
+                  {formatMs(dummyDataCounts.couponIssueLoadMs)} ·{" "}
+                  {throughput(dummyDataCounts.couponIssueCount, dummyDataCounts.couponIssueLoadMs)}
+                </span>
+              </div>
+            </div>
+          </>
+        )}
     </div>
   );
 }

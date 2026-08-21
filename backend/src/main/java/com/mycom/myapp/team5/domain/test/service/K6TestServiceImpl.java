@@ -1,9 +1,9 @@
-package com.mycom.myapp.team5.domain.k6test.service;
+package com.mycom.myapp.team5.domain.test.service;
 
-import com.mycom.myapp.team5.domain.k6test.dto.K6ScenarioResponse;
-import com.mycom.myapp.team5.domain.k6test.dto.K6StatusResponse;
-import com.mycom.myapp.team5.domain.k6test.exception.K6ErrorCode;
-import com.mycom.myapp.team5.domain.k6test.exception.K6TestException;
+import com.mycom.myapp.team5.domain.test.dto.K6ScenarioResponse;
+import com.mycom.myapp.team5.domain.test.dto.K6StatusResponse;
+import com.mycom.myapp.team5.domain.test.exception.K6ErrorCode;
+import com.mycom.myapp.team5.domain.test.exception.K6TestException;
 import com.mycom.myapp.team5.global.common.enums.K6Scenario;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -84,15 +84,24 @@ public class K6TestServiceImpl implements K6TestService {
         }
 
         try {
-            Process stopProcess = new ProcessBuilder("docker", "stop", CONTAINER_NAME)
+            // docker stop은 SIGTERM 후 컨테이너 자체 grace period(기본 10s)까지 기다렸다가 SIGKILL한다 -
+            // k6가 그 사이 20,000 VU를 정리하느라 응답이 몇 초씩 느려질 수 있어서, "중지" 버튼은 바로
+            // 죽이는 docker kill(SIGKILL 즉시)을 쓴다. 실행 중이던 요청들이 곧바로 끊기지만, 관리자가
+            // "지금 당장 멈춰라"라고 누른 버튼이니 그게 맞는 동작이다.
+            Process killProcess = new ProcessBuilder("docker", "kill", CONTAINER_NAME)
                     .redirectErrorStream(true)
                     .redirectOutput(ProcessBuilder.Redirect.DISCARD)
                     .start();
-            if (!stopProcess.waitFor(10, TimeUnit.SECONDS)) {
-                stopProcess.destroyForcibly();
+            if (!killProcess.waitFor(5, TimeUnit.SECONDS)) {
+                killProcess.destroyForcibly();
             }
+
+            // docker kill 호출 자체는 신호만 보내고 바로 리턴하므로, watch() 스레드가 원본 docker run
+            // 프로세스의 종료를 감지해서 current를 갱신할 때까지 아주 짧게(최대 2s) 기다렸다가 응답한다 -
+            // 안 기다리면 이 응답에서조차 running:true가 찍혀서 "버튼 눌렀는데 아직도 실행 중"으로 보인다.
+            waitUntilStopped(2000);
         } catch (IOException e) {
-            log.error("docker stop 실행 실패", e);
+            log.error("docker kill 실행 실패", e);
             throw new K6TestException(K6ErrorCode.STOP_FAILED);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -100,6 +109,18 @@ public class K6TestServiceImpl implements K6TestService {
         }
 
         return status();
+    }
+
+    private void waitUntilStopped(long timeoutMs) throws InterruptedException {
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        while (System.currentTimeMillis() < deadline) {
+            synchronized (lock) {
+                if (current == null || current.exitCode() != null) {
+                    return;
+                }
+            }
+            Thread.sleep(100);
+        }
     }
 
     @Override

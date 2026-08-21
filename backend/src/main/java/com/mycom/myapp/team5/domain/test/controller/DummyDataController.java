@@ -1,8 +1,13 @@
-package com.mycom.myapp.team5.global.common.util;
+package com.mycom.myapp.team5.domain.test.controller;
 
 import java.util.List;
-import javax.sql.DataSource;
 
+import com.mycom.myapp.team5.domain.test.dto.DummyDataStatus;
+import com.mycom.myapp.team5.domain.test.exception.DummyDataErrorCode;
+import com.mycom.myapp.team5.domain.test.exception.DummyDataException;
+import com.mycom.myapp.team5.domain.test.service.DummyDataLoadService;
+import com.mycom.myapp.team5.global.common.util.DummyDataAll;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -31,23 +36,30 @@ public class DummyDataController {
     private final CouponRepository couponRepository;
     private final CouponIssueRepository couponIssueRepository;
     private final UserRepository userRepository;
-    private final DataSource dataSource;
+    private final DummyDataLoadService dummyDataLoadService;
 
     @GetMapping("/api/admin/dummy-data/counts")
     public ResponseEntity<ApiResponse<DummyDataAll.Counts>> counts() {
-        DummyDataAll.Counts counts = new DummyDataAll.Counts(
+        DummyDataAll.Counts counts = DummyDataAll.Counts.snapshot(
                 userRepository.count(), couponRepository.count(), couponIssueRepository.count());
         return ResponseEntity.ok(ApiResponse.success(counts));
     }
 
+    // 적재 진행 상태 - 새로고침해도 "적재 중"인지 알 수 있도록 폴링용으로 둔다(로컬 UI 상태가 아님).
+    @GetMapping("/api/admin/dummy-data/status")
+    public ResponseEntity<ApiResponse<DummyDataStatus>> status() {
+        return ResponseEntity.ok(ApiResponse.success(dummyDataLoadService.status()));
+    }
+
+    // 적재는 수십 초 걸리므로 백그라운드로 시작만 시키고 바로 202를 반환한다 - 진행/완료 여부는
+    // /status를 폴링해서 확인한다.
     @PostMapping("/api/admin/dummy-data/reload")
-    public ResponseEntity<ApiResponse<DummyDataAll.Counts>> reload() throws Exception {
+    public ResponseEntity<ApiResponse<DummyDataStatus>> reload() {
         List<Coupon> open = couponRepository.findByStatus(CouponStatus.OPEN);
         if (!open.isEmpty()) {
             throw new DummyDataException(DummyDataErrorCode.OPEN_COUPON_EXISTS);
         }
 
-        DummyDataAll.Counts counts = DummyDataAll.run(dataSource);
-        return ResponseEntity.ok(ApiResponse.success(counts));
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(ApiResponse.success(dummyDataLoadService.start()));
     }
 }

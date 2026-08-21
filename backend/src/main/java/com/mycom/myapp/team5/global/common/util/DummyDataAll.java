@@ -1,5 +1,7 @@
 package com.mycom.myapp.team5.global.common.util;
 
+import com.mycom.myapp.team5.domain.test.controller.DummyDataController;
+
 import javax.sql.DataSource;
 
 /**
@@ -21,8 +23,18 @@ import javax.sql.DataSource;
  */
 public class DummyDataAll {
 
-    /** 적재된 회원 / 쿠폰 / 발급 이력 건수. */
-    public record Counts(long userCount, long couponCount, long couponIssueCount) {}
+    /**
+     * 적재된 회원 / 쿠폰 / 발급 이력 건수 + 단계별 소요시간(대시보드 시각화용).
+     * {@code *LoadMs}는 {@link #snapshot}(단순 DB 조회)일 땐 null - 방금 재적재한 응답에만 채워진다.
+     */
+    public record Counts(
+            long userCount, long couponCount, long couponIssueCount,
+            Long userLoadMs, Long couponIssueLoadMs, Long totalMs
+    ) {
+        public static Counts snapshot(long userCount, long couponCount, long couponIssueCount) {
+            return new Counts(userCount, couponCount, couponIssueCount, null, null, null);
+        }
+    }
 
     public static void main(String[] args) throws Exception {
         run(null);
@@ -31,12 +43,18 @@ public class DummyDataAll {
     /** dataSource가 있으면(Spring 컨텍스트 안) 그 커넥션을 쓰고, null이면 단독 실행용 접속을 쓴다. */
     public static Counts run(DataSource dataSource) throws Exception {
         System.out.println("========== 1) 회원 더미데이터 ==========");
-        long userCount = DummyDataGenerator.run(dataSource);
+        DummyDataGenerator.Result userResult = DummyDataGenerator.run(dataSource);
 
         System.out.println();
         System.out.println("========== 2) 쿠폰 / 발급 이력 더미데이터 ==========");
-        CouponDummyGenerator.Counts couponCounts = CouponDummyGenerator.run(dataSource);
+        CouponDummyGenerator.Result couponResult = CouponDummyGenerator.run(dataSource);
 
-        return new Counts(userCount, couponCounts.couponCount(), couponCounts.issueCount());
+        long userLoadMs = userResult.csvGenMs() + userResult.loadMs();
+        long couponIssueLoadMs = couponResult.csvGenMs() + couponResult.loadMs();
+
+        return new Counts(
+                userResult.userCount(), couponResult.couponCount(), couponResult.issueCount(),
+                userLoadMs, couponIssueLoadMs, userLoadMs + couponIssueLoadMs
+        );
     }
 }

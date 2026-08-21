@@ -1,7 +1,7 @@
-package com.mycom.myapp.team5.domain.k6test.service;
+package com.mycom.myapp.team5.domain.test.service;
 
-import com.mycom.myapp.team5.domain.k6test.dto.K6ScenarioResponse;
-import com.mycom.myapp.team5.domain.k6test.dto.K6StatusResponse;
+import com.mycom.myapp.team5.domain.test.dto.K6ScenarioResponse;
+import com.mycom.myapp.team5.domain.test.dto.K6StatusResponse;
 
 import java.util.List;
 

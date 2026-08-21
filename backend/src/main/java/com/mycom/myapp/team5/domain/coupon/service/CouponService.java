@@ -4,6 +4,7 @@ import com.mycom.myapp.team5.domain.coupon.dto.CouponRequest;
 import com.mycom.myapp.team5.domain.coupon.dto.CouponResponse;
 import com.mycom.myapp.team5.domain.coupon.dto.CouponSummary;
 import com.mycom.myapp.team5.domain.coupon.dto.CouponUpdateRequest;
+import com.mycom.myapp.team5.global.common.enums.CouponStatus;
 
 import java.util.List;
 
@@ -26,4 +27,10 @@ public interface CouponService {
     void validateIssueable(long couponId);
 
     List<CouponSummary> listAll();
+
+    /**
+     * 상태별 쿠폰 목록 - 대시보드 모니터링 선택지(OPEN만)나 오픈 대상 선택지(READY만)처럼
+     * 전체 쿠폰 수와 무관하게 항상 작은 부분집합만 필요한 화면에서 쓴다.
+     */
+    List<CouponSummary> listByStatus(CouponStatus status);
 }

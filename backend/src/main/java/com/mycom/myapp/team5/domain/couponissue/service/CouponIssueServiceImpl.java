@@ -40,7 +40,7 @@ public class CouponIssueServiceImpl implements CouponIssueService{
 		).stream().collect(Collectors.toMap(Coupon::getId, Function.identity()));
 		
         return issues.stream()
-                .map(issue -> MyCouponResponse.of(issue, couponMap.get(issue.getCouponId())))
+                .map(issue -> MyCouponResponse.of(issue, couponMap.get(issue.getCouponId()), rankOf(issue)))
                 .toList();
 	}
 
@@ -49,10 +49,16 @@ public class CouponIssueServiceImpl implements CouponIssueService{
 	public MyCouponResponse getMyCoupon(long userId, long issueId) {
 		CouponIssue issue = couponIssueRepository.findByIdAndUserId(issueId, userId)
 				.orElseThrow(() -> new CouponException(CouponErrorCode.COUPON_ISSUE_NOT_FOUND));
-		
+
 		Coupon coupon = couponRepository.findById(issue.getCouponId())
 				.orElseThrow(() -> new CouponException(CouponErrorCode.COUPON_NOT_FOUND));
-		return MyCouponResponse.of(issue, coupon);
+		return MyCouponResponse.of(issue, coupon, rankOf(issue));
+	}
+
+	// 발급 id 오름차순 = 발급 순서라, 같은 쿠폰에서 자기 id 이하 건수를 세면 그게 곧 자기 순번이다.
+	// 사용자 1명이 보유한 쿠폰 수는 보통 한두 개라 목록 조회에서도 N+1 부담이 크지 않다.
+	private long rankOf(CouponIssue issue) {
+		return couponIssueRepository.countByCouponIdAndIdLessThanEqual(issue.getCouponId(), issue.getId());
 	}
 
 	@Override
