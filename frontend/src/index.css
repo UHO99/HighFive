@@ -623,6 +623,11 @@ body {
 
 /* ---------- scenario dialog ---------- */
 
+.scale-input-row {
+  display: flex;
+  gap: 12px;
+}
+
 .form-field {
   display: flex;
   flex-direction: column;

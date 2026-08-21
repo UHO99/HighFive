@@ -4,13 +4,12 @@ import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 
+import com.mycom.myapp.team5.domain.coupon.dto.*;
+import com.mycom.myapp.team5.domain.couponissue.repository.CouponIssueRepository;
+import com.mycom.myapp.team5.global.redis.CouponStockRedisService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.mycom.myapp.team5.domain.coupon.dto.CouponRequest;
-import com.mycom.myapp.team5.domain.coupon.dto.CouponResponse;
-import com.mycom.myapp.team5.domain.coupon.dto.CouponSummary;
-import com.mycom.myapp.team5.domain.coupon.dto.CouponUpdateRequest;
 import com.mycom.myapp.team5.domain.coupon.entity.Coupon;
 import com.mycom.myapp.team5.domain.coupon.exception.CouponErrorCode;
 import com.mycom.myapp.team5.domain.coupon.exception.CouponException;
@@ -24,6 +23,8 @@ import lombok.RequiredArgsConstructor;
 public class CouponServiceImpl implements CouponService {
 
 	private final CouponRepository couponRepository;
+	private final CouponStockRedisService couponStockRedisService;
+	private final CouponIssueRepository couponIssueRepository;
 
 	@Override
 	public CouponResponse getExampleById(Long id) {
@@ -92,18 +93,63 @@ public class CouponServiceImpl implements CouponService {
 		return granted;
 	}
 
+	/**
+	 * U001: 쿠폰 목록 조회.
+	 */
 	@Override
-	public void validateIssueable(long couponId) {
-		// 1) 쿠폰 존재 확인 -> 없으면 CP001
-		Coupon coupon = couponRepository.findById(couponId).orElseThrow(() -> new CouponException(CouponErrorCode.COUPON_NOT_FOUND));
+	@Transactional(readOnly = true)
+	public List<CouponResponse> getCoupons() {
+		return couponRepository.findAll().stream()
+				.map(CouponResponse::from)
+				.toList();
+	}
 
-		// 2) OPEN 상태가 아니면 발급 불가 -> CP002
-		//		(Redis 키 유무로 간접 판정하던 기존 방식 대신 DB 상태를 직접 확인.
-		//		 Redis 재시작 직후 재고 키가 아직 복구되지 않아도 OPEN 이면 발급 허용)
+	/**
+	 * A005: 단건 현황 (DB 발급 건수 + Redis 잔여).
+	 */
+	@Override
+	@Transactional(readOnly = true)
+	public CouponOverviewResponse getOverview(long couponId) {
+		Coupon coupon = couponRepository.findById(couponId)
+				.orElseThrow(() -> new CouponException(CouponErrorCode.COUPON_NOT_FOUND));
+		return toOverview(coupon);
+	}
+
+	/**
+	 * A005: 전체 현황 목록.
+	 */
+	@Override
+	@Transactional(readOnly = true)
+	public List<CouponOverviewResponse> getOverviews() {
+		return couponRepository.findAll().stream()
+				.map(this::toOverview)
+				.toList();
+	}
+
+	private CouponOverviewResponse toOverview(Coupon coupon) {
+		long issued = resolveIssuedQuantity(coupon);
+		Integer redisRemaining = couponStockRedisService.getStock(coupon.getId());
+		return CouponOverviewResponse.of(coupon, issued, redisRemaining);
+	}
+
+	private long resolveIssuedQuantity(Coupon coupon) {
+		if (coupon.getIssuedQuantity() != null) {
+			return coupon.getIssuedQuantity();
+		}
+		return couponIssueRepository.countByCouponId(coupon.getId());
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public void validateIssueable(long couponId) {
+		Coupon coupon = couponRepository.findById(couponId)
+				.orElseThrow(() -> new CouponException(CouponErrorCode.COUPON_NOT_FOUND));
+
 		if (coupon.getStatus() != CouponStatus.OPEN) {
 			throw new CouponException(CouponErrorCode.COUPON_NOT_OPEN);
 		}
 	}
+
 
 	@Override
 	public List<CouponSummary> listAll() {

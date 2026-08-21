@@ -34,7 +34,8 @@ public class K6TestController {
     @LogDescription("k6 부하테스트 실행")
     @PostMapping("/run")
     public ResponseEntity<ApiResponse<K6StatusResponse>> run(@Valid @RequestBody K6RunRequest request) {
-        K6StatusResponse status = k6TestService.start(request.scenarioId(), request.couponId());
+        K6StatusResponse status = k6TestService.start(
+                request.scenarioId(), request.couponId(), request.stock(), request.maxVus());
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ApiResponse.success(status));
     }
 

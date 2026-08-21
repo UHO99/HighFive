@@ -95,7 +95,7 @@ public class CouponIssueScenarioTest {
         long userId = createUser();
         long couponId = createOpenCoupon(10);
 
-        mockMvc.perform(post("/{couponId}/issue", couponId).param("userId", String.valueOf(userId))).andExpect(status().isAccepted());
+        mockMvc.perform(post("/coupons/{couponId}/issue", couponId).param("userId", String.valueOf(userId))).andExpect(status().isAccepted());
 
         await()
                 .atMost(Duration.ofSeconds(15))
@@ -123,7 +123,7 @@ public class CouponIssueScenarioTest {
         for (long userId : userIds) {
             executor.execute(() -> {
                 try {
-                    mockMvc.perform(post("/{couponId}/issue", couponId).param("userId", String.valueOf(userId)));
+                    mockMvc.perform(post("/coupons/{couponId}/issue", couponId).param("userId", String.valueOf(userId)));
                 } catch (Exception e) {
                     // 품절(204)/중복(409)도 정상 응답이므로 여기서는 무시하고, 최종 DB 건수로만 판정한다.
                 }

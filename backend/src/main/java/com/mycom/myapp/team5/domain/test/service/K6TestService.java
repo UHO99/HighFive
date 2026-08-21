@@ -9,7 +9,7 @@ public interface K6TestService {
 
     List<K6ScenarioResponse> listScenarios();
 
-    K6StatusResponse start(String scenarioId, long couponId);
+    K6StatusResponse start(String scenarioId, long couponId, Integer stock, Integer maxVus);
 
     K6StatusResponse stop();
 

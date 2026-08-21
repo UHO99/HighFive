@@ -268,6 +268,8 @@ export interface K6ScenarioDto {
   rampUp: string;
   hold: string;
   targetVus: string;
+  /** true면 실행 전에 재고(stock)/동시접속(maxVus)을 숫자로 입력받아야 한다. */
+  configurable: boolean;
 }
 
 /** backend K6StatusResponse(domain/k6test/dto)와 1:1로 대응한다. */
@@ -297,11 +299,17 @@ export async function fetchK6Scenarios(): Promise<K6ScenarioDto[]> {
   return parseApiResponse<K6ScenarioDto[]>(res, "k6 시나리오 목록 조회 실패");
 }
 
-export async function runK6Scenario(scenarioId: string, couponId: number): Promise<K6StatusResponse> {
+/** stock/maxVus는 configurable 시나리오(동시성 정합성 검증)에서만 의미가 있다 - 그 외엔 생략해도 된다. */
+export async function runK6Scenario(
+  scenarioId: string,
+  couponId: number,
+  stock?: number,
+  maxVus?: number
+): Promise<K6StatusResponse> {
   const res = await fetch(`${API_BASE}/api/admin/k6/run`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ scenarioId, couponId }),
+    body: JSON.stringify({ scenarioId, couponId, stock, maxVus }),
   });
   return parseApiResponse<K6StatusResponse>(res, "k6 실행 실패");
 }
@@ -336,13 +344,29 @@ export async function fetchMyCoupons(userId: number): Promise<MyCouponResponse[]
 }
 
 /**
- * 쿠폰 발급 신청 - CouponController.requestIssue(), k6 스크립트가 부하테스트용으로 때리는 것과
- * 동일한 엔드포인트를 사용자 화면에서 직접 호출한다. /api 접두어가 없는 경로다.
+ * 쿠폰 발급 신청 - CouponController.requestIssue() (/coupons/{id}/issue).
  */
 export async function requestCouponIssue(couponId: number, userId: number): Promise<void> {
-  const res = await fetch(`${API_BASE}/${couponId}/issue?userId=${userId}`, { method: "POST" });
+  const res = await fetch(`${API_BASE}/coupons/${couponId}/issue?userId=${userId}`, { method: "POST" });
   if (!res.ok) {
     const body = await res.json().catch(() => null);
     throw new Error(body?.message ?? `발급 신청 실패 (HTTP ${res.status})`);
   }
+}
+
+/** 시나리오 7: 관리자 — 특정 쿠폰의 전체 발급 이력. */
+export interface CouponIssueHistoryResponse {
+  issueId: number;
+  userId: number;
+  couponId: number;
+  status: "ISSUED" | "USED" | "CANCELED" | "EXPIRED";
+  issuedAt: string;
+  usedAt: string | null;
+  canceledAt: string | null;
+  expiredAt: string | null;
+}
+
+export async function fetchCouponIssues(couponId: number): Promise<CouponIssueHistoryResponse[]> {
+  const res = await fetch(`${API_BASE}/api/admin/coupons/${couponId}/issues`);
+  return parseApiResponse<CouponIssueHistoryResponse[]>(res, "쿠폰 발급 이력 조회 실패");
 }
