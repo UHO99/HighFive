@@ -1,9 +1,11 @@
 package com.mycom.myapp.team5.domain.monitoring.service;
 
+import com.mycom.myapp.team5.domain.coupon.dto.CouponConsistencyStatusResponse;
 import com.mycom.myapp.team5.domain.coupon.entity.Coupon;
 import com.mycom.myapp.team5.domain.coupon.exception.CouponErrorCode;
 import com.mycom.myapp.team5.domain.coupon.exception.CouponException;
 import com.mycom.myapp.team5.domain.coupon.repository.CouponRepository;
+import com.mycom.myapp.team5.domain.coupon.service.sync.CouponConsistencyStatusHolder;
 import com.mycom.myapp.team5.domain.couponissue.repository.CouponIssueRepository;
 import com.mycom.myapp.team5.domain.monitoring.dto.MonitoringDashboardResponse;
 import com.mycom.myapp.team5.domain.monitoring.dto.MonitoringDashboardResponse.ApiResponseStats;
@@ -49,6 +51,7 @@ public class MonitoringServiceImpl implements MonitoringService {
     private final HttpMetricsRecorder httpMetricsRecorder;
     private final CouponIssueMetricsRecorder couponIssueMetricsRecorder;
     private final DbInsertMetricsRecorder dbInsertMetricsRecorder;
+    private final CouponConsistencyStatusHolder consistencyStatusHolder;
 
     @Override
     public void resetMetrics() {
@@ -79,6 +82,24 @@ public class MonitoringServiceImpl implements MonitoringService {
                 stockStatus(coupon),
                 streamStatus(couponId),
                 dbStorage()
+        );
+    }
+
+    @Override
+    public CouponConsistencyStatusResponse getConsistencyStatus() {
+        CouponConsistencyStatusHolder.SyncSnapshot sync = consistencyStatusHolder.sync();
+        CouponConsistencyStatusHolder.VerifySnapshot verify = consistencyStatusHolder.verify();
+
+        return new CouponConsistencyStatusResponse(
+                new CouponConsistencyStatusResponse.Sync(
+                        sync.lastRunAt(), CouponConsistencyStatusHolder.SYNC_INTERVAL_MS,
+                        sync.targetCount(), sync.syncedCount()
+                ),
+                new CouponConsistencyStatusResponse.Verify(
+                        verify.lastRunAt(), CouponConsistencyStatusHolder.VERIFY_INTERVAL_MS,
+                        verify.targetCount(), verify.confirmedCount(), verify.mismatchCount(),
+                        consistencyStatusHolder.mismatchHistory()
+                )
         );
     }
 
