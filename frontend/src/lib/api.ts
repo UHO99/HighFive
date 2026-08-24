@@ -425,3 +425,21 @@ export async function fetchFairnessTimeline(couponId: number): Promise<CouponFai
   const res = await fetch(`${API_BASE}/api/admin/coupons/${couponId}/fairness/timeline`);
   return parseApiResponse<CouponFairnessTimelineEntry[]>(res, "선착순 타임라인 조회 실패");
 }
+
+/**
+ * backend CouponFairnessReport(domain/coupon/dto)와 1:1로 대응한다.
+ * fairness-log 전체(최근 20건이 아니라 코폰이 열린 뒤 전체 시도)를 훑어서, 품절 판정 이후에
+ * 성공이 끼어든 적(inversion, 새치기)이 있는지 센다. inversionCount === 0이면 fair === true.
+ */
+export interface CouponFairnessReport {
+  couponId: number;
+  totalAttempts: number;
+  inversionCount: number;
+  fair: boolean;
+}
+
+/** AdminCouponController.getCouponFairness() - analyzeFairness()를 그대로 노출. */
+export async function fetchCouponFairness(couponId: number): Promise<CouponFairnessReport> {
+  const res = await fetch(`${API_BASE}/api/admin/coupons/${couponId}/fairness`);
+  return parseApiResponse<CouponFairnessReport>(res, "선착순 공정성 검증 조회 실패");
+}
