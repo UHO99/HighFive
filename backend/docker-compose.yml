@@ -48,6 +48,7 @@ services:
     networks:
       - highfive-net
     environment:
+      TZ: Asia/Seoul
       SPRING_PROFILES_ACTIVE: docker
       SPRING_DATASOURCE_USERNAME: ${DB_USER:-ureca}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-ureca}
