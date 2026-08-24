@@ -25,6 +25,7 @@ services:
     networks:
       - highfive-net
     environment:
+      TZ: Asia/Seoul
       MYSQL_DATABASE: highfive
       MYSQL_USER: ${DB_USER:-ureca}
       MYSQL_PASSWORD: ${DB_PASSWORD:-ureca}
