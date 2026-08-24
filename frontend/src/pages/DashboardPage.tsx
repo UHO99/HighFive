@@ -6,6 +6,7 @@ import { ApiResponseCard } from "../components/ApiResponseCard";
 import { CouponStatusCard } from "../components/CouponStatusCard";
 import { RedisStockCard } from "../components/RedisStockCard";
 import { DbStorageCard } from "../components/DbStorageCard";
+import { CouponIssueHistoryCard } from "../components/CouponIssueHistoryCard";
 import { FloatingActionMenu } from "../components/FloatingActionMenu";
 import { useMonitoringDashboard } from "../hooks/useMonitoringDashboard";
 import {
@@ -18,7 +19,7 @@ const DEFAULT_COUPON_ID = 1;
 const POLL_INTERVAL_MS = 10_000;
 const DUMMY_STATUS_POLL_INTERVAL_MS = 2000;
 
-const IDLE_DUMMY_STATUS: DummyDataStatus = { loading: false, startedAt: null, finishedAt: null, lastResult: null, lastError: null };
+const IDLE_DUMMY_STATUS: DummyDataStatus = { loading: false, startedAt: null, finishedAt: null, before: null, lastResult: null, lastError: null };
 
 type DbCounts = Pick<DummyDataCounts, "userCount" | "couponCount" | "couponIssueCount">;
 type ReloadTiming = Pick<DummyDataCounts, "userLoadMs" | "couponIssueLoadMs" | "totalMs">;
@@ -26,7 +27,7 @@ type ReloadTiming = Pick<DummyDataCounts, "userLoadMs" | "couponIssueLoadMs" | "
 export function DashboardPage() {
   const [coupons, setCoupons] = useState<CouponSummary[]>([]);
   const [couponId, setCouponId] = useState(DEFAULT_COUPON_ID);
-  const { vals, startTest, stopTest, error } = useMonitoringDashboard(couponId);
+  const { vals, startTest, stopTest, error, couponMissing } = useMonitoringDashboard(couponId);
   const [dbCounts, setDbCounts] = useState<DbCounts | null>(null);
   // 재적재 시점의 소요시간은 폴링으로 안 지워진다 - GET counts는 이 값을 모르니(null) 마지막으로
   // 성공한 재적재 값을 그대로 들고 있는다.
@@ -221,6 +222,7 @@ export function DashboardPage() {
         <DashboardHeader
           vals={vals}
           error={error}
+          couponMissing={couponMissing}
           coupons={coupons}
           couponId={couponId}
           onCouponChange={setCouponId}
@@ -235,7 +237,8 @@ export function DashboardPage() {
 
         <div className="row">
           <RedisStockCard vals={vals} onDrainPending={handleDrainPending} />
-          <DbStorageCard vals={vals} dummyDataCounts={dummyDataCounts} />
+          <DbStorageCard vals={vals} dummyDataCounts={dummyDataCounts} beforeCounts={dummyStatus.before} />
+          <CouponIssueHistoryCard couponId={couponId} />
         </div>
       </div>
 
