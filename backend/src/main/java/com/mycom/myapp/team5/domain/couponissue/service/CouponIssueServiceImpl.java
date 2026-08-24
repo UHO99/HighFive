@@ -1,5 +1,6 @@
 package com.mycom.myapp.team5.domain.couponissue.service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -12,20 +13,23 @@ import com.mycom.myapp.team5.domain.coupon.entity.Coupon;
 import com.mycom.myapp.team5.domain.coupon.exception.CouponErrorCode;
 import com.mycom.myapp.team5.domain.coupon.exception.CouponException;
 import com.mycom.myapp.team5.domain.coupon.repository.CouponRepository;
+import com.mycom.myapp.team5.domain.couponissue.dto.CouponFairnessTimelineEntry;
 import com.mycom.myapp.team5.domain.couponissue.dto.CouponIssueHistoryResponse;
 import com.mycom.myapp.team5.domain.couponissue.dto.MyCouponResponse;
 import com.mycom.myapp.team5.domain.couponissue.entity.CouponIssue;
 import com.mycom.myapp.team5.domain.couponissue.repository.CouponIssueRepository;
 import com.mycom.myapp.team5.global.common.enums.CouponIssueStatus;
+import com.mycom.myapp.team5.global.redis.CouponStockRedisService;
 
 import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
 public class CouponIssueServiceImpl implements CouponIssueService{
-	
+
 	private final CouponIssueRepository couponIssueRepository;
 	private final CouponRepository couponRepository;
+	private final CouponStockRedisService couponStockRedisService;
 
 	@Override
 	@Transactional(readOnly=true)
@@ -95,6 +99,42 @@ public class CouponIssueServiceImpl implements CouponIssueService{
 		return couponIssueRepository.findByCouponIdOrderByIssuedAtDesc(couponId).stream()
 				.map(CouponIssueHistoryResponse::from)
 				.toList();
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<CouponFairnessTimelineEntry> getFairnessTimeline(long couponId) {
+		if (!couponRepository.existsById(couponId)) {
+			throw new CouponException(CouponErrorCode.COUPON_NOT_FOUND);
+		}
+
+		List<CouponStockRedisService.FairnessLogEntry> logEntries =
+				couponStockRedisService.fairnessLog(couponId);
+		if (logEntries.isEmpty()) {
+			return List.of();
+		}
+
+		// SUCCESS 건만 DB 행이 있다 - 그 userId들만 모아 한 번에 조회 (N+1 방지)
+		List<Long> successUserIds = logEntries.stream()
+				.filter(e -> "SUCCESS".equals(e.outcome()))
+				.map(CouponStockRedisService.FairnessLogEntry::userId)
+				.toList();
+		Map<Long, CouponIssue> issueByUserId = successUserIds.isEmpty()
+				? Map.of()
+				: couponIssueRepository.findByCouponIdAndUserIdIn(couponId, successUserIds).stream()
+						.collect(Collectors.toMap(CouponIssue::getUserId, Function.identity()));
+
+		List<CouponFairnessTimelineEntry> result = new ArrayList<>(logEntries.size());
+		for (CouponStockRedisService.FairnessLogEntry entry : logEntries) {
+			CouponIssue issue = issueByUserId.get(entry.userId());
+			result.add(new CouponFairnessTimelineEntry(
+					entry.rank(), entry.userId(), entry.outcome(),
+					issue != null ? issue.getStatus() : null,
+					issue != null ? issue.getIssuedAt() : null
+			));
+		}
+
+		return result;
 	}
 
 }

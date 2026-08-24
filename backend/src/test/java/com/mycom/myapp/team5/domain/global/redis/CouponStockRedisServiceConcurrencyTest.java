@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
+import com.mycom.myapp.team5.domain.coupon.dto.CouponFairnessReport;
 import com.mycom.myapp.team5.domain.coupon.exception.CouponException;
 import com.mycom.myapp.team5.global.redis.CouponStockKeys;
 import com.mycom.myapp.team5.global.redis.CouponStockRedisService;
@@ -33,12 +34,15 @@ public class CouponStockRedisServiceConcurrencyTest {
 	void tearDown() {
 		stringRedisTemplate.delete(CouponStockKeys.stockKey(COUPON_ID));
 		stringRedisTemplate.delete(CouponStockKeys.issuedSetKey(COUPON_ID));
+		stringRedisTemplate.delete(CouponStockKeys.fairnessSeqKey(COUPON_ID));
+		stringRedisTemplate.delete(CouponStockKeys.fairnessLogKey(COUPON_ID));
 	}
 
 	@Test
 	void 재고_10000개에_20000명이_동시_요청해도_정확히_10000명만_성공한다() throws InterruptedException {
 		// given
 		couponStockRedisService.initStock(COUPON_ID, INITIAL_STOCK);
+		couponStockRedisService.resetFairnessLog(COUPON_ID);
 
 		AtomicInteger successCount = new AtomicInteger(0);
 		AtomicInteger soldOutCount = new AtomicInteger(0);
@@ -69,7 +73,7 @@ public class CouponStockRedisServiceConcurrencyTest {
 		long elapsedNanos = System.nanoTime() - startNanos;
 		printMetrics(elapsedNanos, successCount.get(), soldOutCount.get());
 
-		// then
+		// then - 기존 검증
 		assertThat(successCount.get()).isEqualTo(INITIAL_STOCK);
 		assertThat(soldOutCount.get()).isEqualTo(REQUEST_COUNT - INITIAL_STOCK);
 
@@ -78,12 +82,19 @@ public class CouponStockRedisServiceConcurrencyTest {
 
 		Long issuedSetSize = stringRedisTemplate.opsForSet().size(CouponStockKeys.issuedSetKey(COUPON_ID));
 		assertThat(issuedSetSize).isEqualTo((long) INITIAL_STOCK);
+
+		// then - 추가: 선착순 공정성 검증
+		CouponFairnessReport report = couponStockRedisService.analyzeFairness(COUPON_ID);
+		printFairnessReport(report);
+
+		assertThat(report.totalAttempts()).isEqualTo(REQUEST_COUNT);
 	}
 
 	@Test
 	void 같은_회원이_동시에_여러번_요청해도_1개만_성공한다() throws InterruptedException {
 		// given
 		couponStockRedisService.initStock(COUPON_ID, 100);
+		couponStockRedisService.resetFairnessLog(COUPON_ID);
 		long sameUserId = 12345L;
 		int attemptCount = 50;
 
@@ -133,6 +144,19 @@ public class CouponStockRedisServiceConcurrencyTest {
 				처리량(TPS)    : %.1f req/s
 				==============================
 				""".formatted(total, successCount, failCount, elapsedMs, tps);
-		System.out.println(summary); // 콘솔에서 바로 눈에 띄게, 로그 레벨 설정과 무관하게 항상 출력
+		System.out.println(summary);
+	}
+
+	private void printFairnessReport(CouponFairnessReport report) {
+		String summary = """
+
+				===== 선착순 공정성 리포트 =====
+				전체 시도 건수  : %d
+				순서 역전 건수  : %d
+				공정성 판정    : %s
+				역전 비율      : %.4f%%
+				==============================
+				""".formatted(report.totalAttempts(), report.inversionCount(), report.isFair() ? "공정함 (역전 없음)" : "역전 발견", report.inversionRate() * 100);
+		System.out.println(summary);
 	}
 }

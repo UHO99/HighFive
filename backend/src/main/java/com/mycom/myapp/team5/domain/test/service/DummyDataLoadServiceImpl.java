@@ -27,12 +27,12 @@ public class DummyDataLoadServiceImpl implements DummyDataLoadService {
     private volatile DummyDataStatus current = DummyDataStatus.idle();
 
     @Override
-    public DummyDataStatus start(DummyDataAll.Counts before) {
+    public DummyDataStatus start() {
         synchronized (lock) {
             if (current.loading()) {
                 throw new DummyDataException(DummyDataErrorCode.ALREADY_LOADING);
             }
-            current = new DummyDataStatus(true, Instant.now(), null, before, current.lastResult(), null);
+            current = new DummyDataStatus(true, Instant.now(), null, DummyDataAll.SEED_BASELINE, current.lastResult(), null);
         }
 
         Thread thread = new Thread(this::runLoad, "dummy-data-load");
@@ -46,14 +46,14 @@ public class DummyDataLoadServiceImpl implements DummyDataLoadService {
         try {
             DummyDataAll.Counts result = DummyDataAll.run(dataSource);
             synchronized (lock) {
-                current = new DummyDataStatus(false, current.startedAt(), Instant.now(), current.before(), result, null);
+                current = new DummyDataStatus(false, current.startedAt(), Instant.now(), DummyDataAll.SEED_BASELINE, result, null);
             }
             log.info("더미데이터 적재 완료 - userCount={} couponCount={} couponIssueCount={}",
                     result.userCount(), result.couponCount(), result.couponIssueCount());
         } catch (Exception e) {
             log.error("더미데이터 적재 실패", e);
             synchronized (lock) {
-                current = new DummyDataStatus(false, current.startedAt(), Instant.now(), current.before(), current.lastResult(), e.getMessage());
+                current = new DummyDataStatus(false, current.startedAt(), Instant.now(), DummyDataAll.SEED_BASELINE, current.lastResult(), e.getMessage());
             }
         }
     }
