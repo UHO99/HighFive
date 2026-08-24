@@ -38,6 +38,9 @@ public interface CouponIssueRepository extends JpaRepository<CouponIssue, Long> 
     // 시나리오 7: 관리자 — 특정 쿠폰의 전체 발급 이력 (최근 발급 순)
     List<CouponIssue> findByCouponIdOrderByIssuedAtDesc(Long couponId);
 
+    // (관리자) 선착순 타임라인 - Redis fairness-log에서 뽑은 userId들의 DB 행을 한 번에 조회 (N+1 방지)
+    List<CouponIssue> findByCouponIdAndUserIdIn(Long couponId, List<Long> userIds);
+
     // "몇 번째로 발급받았는지" - 발급 id는 auto-increment라 오름차순 = 발급 순서.
     long countByCouponIdAndIdLessThanEqual(Long couponId, Long id);
 
