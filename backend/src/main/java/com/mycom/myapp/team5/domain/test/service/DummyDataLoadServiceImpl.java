@@ -27,7 +27,7 @@ public class DummyDataLoadServiceImpl implements DummyDataLoadService {
     private volatile DummyDataStatus current = DummyDataStatus.idle();
 
     @Override
-    public DummyDataStatus start() {
+    public DummyDataStatus start(DummyDataAll.Counts before) {
         synchronized (lock) {
             if (current.loading()) {
                 throw new DummyDataException(DummyDataErrorCode.ALREADY_LOADING);
