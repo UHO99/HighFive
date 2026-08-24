@@ -3,5 +3,6 @@
 .gradle/
 .DS_Store
 application-dev.properties
+backend/.env
 .gitmessage.txt
 .project

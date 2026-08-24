@@ -11,6 +11,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * S012 - CLOSE된 쿠폰의 재고를 coupon_issue 실 발급 건수 기준으로 동기화한다.
@@ -27,29 +29,46 @@ public class CouponStockSyncService {
     @Scheduled(fixedDelay = 5000)
     public void syncClosedCoupons() {
         List<Coupon> targets = couponRepository.findByStatusAndIssuedQuantityIsNull(CouponStatus.CLOSE);
-        for (Coupon coupon : targets) {
-            syncIfDrained(coupon.getId());
+        if (targets.isEmpty()) {
+            return;
+        }
+
+        // Redis PEL 확인은 스트림별로 따로 물어봐야 하지만(멀티키 XPENDING이 없음), DB 카운트는
+        // 드레인된 쿠폰들만 모아 한 번의 GROUP BY 쿼리로 묶어 N+1을 없앤다.
+        List<Coupon> drained = targets.stream()
+                .filter(coupon -> isDrained(coupon.getId()))
+                .toList();
+        if (drained.isEmpty()) {
+            log.info("정합성 동기화 대기 - 드레인된 쿠폰 없음. 대상={}건", targets.size());
+            return;
+        }
+
+        Map<Long, Long> issuedCounts = countIssued(drained);
+        for (Coupon coupon : drained) {
+            long issuedCount = issuedCounts.getOrDefault(coupon.getId(), 0L);
+            Integer before = coupon.getIssuedQuantity();
+            coupon.syncIssuedQuantity((int) issuedCount);
+            couponRepository.save(coupon);
+            log.info("쿠폰 정합성 동기화 완료 - couponId={}, issuedQuantity(전={}, 후={})",
+                    coupon.getId(), before, issuedCount);
         }
     }
 
-    public void syncIfDrained(long couponId) {
-        Coupon coupon = couponRepository.findById(couponId).orElse(null);
-        if (coupon == null || coupon.getStatus() != CouponStatus.CLOSE || coupon.getIssuedQuantity() != null) {
-            return;
-        }
-
-        if (!pendingChecker.isDrained(couponId)) {
+    private boolean isDrained(long couponId) {
+        boolean drained = pendingChecker.isDrained(couponId);
+        if (!drained) {
             log.info("정합성 동기화 대기 - Redis Stream에 미처리 건이 남아있음. couponId={}", couponId);
-            return;
         }
+        return drained;
+    }
 
-        Integer before = coupon.getIssuedQuantity();
-        long issuedCount = couponIssueRepository.countByCouponId(couponId);
-        coupon.syncIssuedQuantity((int) issuedCount);
-        couponRepository.save(coupon);
-
-        log.info("쿠폰 정합성 동기화 완료 - couponId={}, issuedQuantity(전={}, 후={})",
-                couponId, before, issuedCount);
+    private Map<Long, Long> countIssued(List<Coupon> coupons) {
+        List<Long> couponIds = coupons.stream().map(Coupon::getId).toList();
+        return couponIssueRepository.countGroupedByCouponIds(couponIds).stream()
+                .collect(Collectors.toMap(
+                        CouponIssueRepository.CouponIssueCount::getCouponId,
+                        CouponIssueRepository.CouponIssueCount::getIssuedCount
+                ));
     }
 
 }

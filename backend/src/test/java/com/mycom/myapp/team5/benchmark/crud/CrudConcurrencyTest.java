@@ -20,7 +20,10 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -82,6 +85,15 @@ public class CrudConcurrencyTest {
         AtomicInteger maxThreadsAwaitingConnection = new AtomicInteger();
 
         HikariPoolMXBean poolMXBean = ((HikariDataSource) dataSource).getHikariPoolMXBean();
+
+        AtomicLong peakUsedBytes = new AtomicLong();
+        Runtime runtime = Runtime.getRuntime();
+        ScheduledExecutorService memorySampler = Executors.newSingleThreadScheduledExecutor();
+        memorySampler.scheduleAtFixedRate(() -> {
+            long used = runtime.totalMemory() - runtime.freeMemory();
+            peakUsedBytes.accumulateAndGet(used, Math::max);
+        }, 0, 100, TimeUnit.MILLISECONDS);
+
         long wallStart = System.nanoTime();
 
         // when: 컨트롤러 없이 서비스 재고 차감 직접 호출 (동기 — Awaitility 불필요)
@@ -109,6 +121,7 @@ public class CrudConcurrencyTest {
         executorService.shutdown();
 
         long wallElapsedMs = (System.nanoTime() - wallStart) / 1_000_000;
+        memorySampler.shutdownNow();
 
         // then: 최종 재고 == 0, 성공 발급 == INITIAL_STOCK, 오버셀(음수) 없음
         Coupon result = couponRepository.findById(couponId).orElseThrow();
@@ -119,7 +132,9 @@ public class CrudConcurrencyTest {
         assertThat(successCount.get()).isEqualTo(INITIAL_STOCK);
 
         printReport(wallElapsedMs, result.getTotalQuantity(), successCount.get(),
-                maxThreadsAwaitingConnection.get() > 0, latencies);
+
+                maxThreadsAwaitingConnection.get() > 0, latencies, peakUsedBytes.get());
+
     }
 
     private void printReport(
@@ -127,7 +142,8 @@ public class CrudConcurrencyTest {
             int finalStock,
             int successCount,
             boolean connectionPoolWaitOccurred,
-            ConcurrentLinkedQueue<Long> latenciesNanos
+            ConcurrentLinkedQueue<Long> latenciesNanos,
+            long peakUsedBytes
     ) {
         List<Long> sorted = new ArrayList<>(latenciesNanos);
         Collections.sort(sorted);
@@ -148,6 +164,7 @@ public class CrudConcurrencyTest {
         System.out.printf("평균 / p50 / p95 / p99 / 최대 (ms): %.3f / %.3f / %.3f / %.3f / %.3f%n",
                 avgMs, p50, p95, p99, max);
         System.out.printf("커넥션 풀 대기   : %s%n", connectionPoolWaitOccurred ? "YES" : "NO");
+        System.out.printf("피크 힙 사용량   : %.1f MB%n", peakUsedBytes / 1024.0 / 1024.0);
         System.out.println("===========================================");
     }
 

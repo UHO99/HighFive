@@ -67,4 +67,6 @@ tasks.named('test') {
 	testLogging {
 		showStandardStreams = true
 	}
+	// 10만 가상 스레드 동시성 벤치마크가 기본 512m 힙으로는 OOM 나서 늘림
+	maxHeapSize = "4g"
 }

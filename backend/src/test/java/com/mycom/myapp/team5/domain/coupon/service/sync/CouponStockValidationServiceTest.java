@@ -6,6 +6,7 @@ import com.mycom.myapp.team5.domain.couponissue.repository.CouponIssueRepository
 import com.mycom.myapp.team5.domain.user.entity.User;
 import com.mycom.myapp.team5.domain.user.repository.UserRepository;
 import com.mycom.myapp.team5.global.redis.CouponIssueStreamProducer;
+import com.mycom.myapp.team5.global.redis.CouponStockRedisService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,6 +48,9 @@ public class CouponStockValidationServiceTest {
 
     @Autowired
     private CouponStockValidationService couponStockValidationService;
+
+    @Autowired
+    private CouponStockRedisService couponStockRedisService;
 
     @MockitoSpyBean
     private MismatchNotifier mismatchNotifier;
@@ -109,6 +113,9 @@ public class CouponStockValidationServiceTest {
         coupon = couponRepository.save(coupon);
         long couponId = coupon.getId();
         createdCouponIds.add(couponId);
+        // couponIssueStreamProducer.requestIssue()가 발급 전 Redis 재고를 확인하므로
+        // 실제 서비스(CouponStatusServiceImpl.openCoupon())가 하는 initStock()을 여기서도 해줘야 한다.
+        couponStockRedisService.initStock(couponId, REQUEST_COUNT);
 
         ExecutorService executorService = Executors.newVirtualThreadPerTaskExecutor();
         for (long userId : userIds) {

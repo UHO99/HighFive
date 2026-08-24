@@ -1,27 +1,15 @@
-import { RouterProvider } from 'react-router'
-import { router } from './routes'
-import { AuthProvider, useAuth } from './context/AuthContext'
-import { ToastProvider } from './context/ToastContext'
-import { LoadingSpinner } from './components/ui/LoadingSpinner'
+import { useState } from "react";
+import { ModeToggle } from "./components/ModeToggle";
+import { DashboardPage } from "./pages/DashboardPage";
+import { UserPage } from "./pages/UserPage";
 
-function AppRouter() {
-  const { initializing } = useAuth()
-  if (initializing) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <LoadingSpinner size="lg" label="세션 확인 중..." />
-      </div>
-    )
-  }
-  return <RouterProvider router={router} />
-}
+export function App() {
+  const [mode, setMode] = useState<"admin" | "user">("admin");
 
-export default function App() {
   return (
-    <AuthProvider>
-      <ToastProvider>
-        <AppRouter />
-      </ToastProvider>
-    </AuthProvider>
-  )
+    <>
+      <ModeToggle mode={mode} onChange={setMode} />
+      {mode === "admin" ? <DashboardPage /> : <UserPage />}
+    </>
+  );
 }

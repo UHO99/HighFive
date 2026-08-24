@@ -1,0 +1,8 @@
+build
+.gradle
+out
+*.log
+k6
+docs
+
+src/main/resources/application-dev.properties

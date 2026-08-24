@@ -11,12 +11,13 @@ import java.util.Map;
 public class CouponIssueStreamProducer {
 
     private final StringRedisTemplate stringRedisTemplate;
+    private final CouponStockRedisService couponStockRedisService;
 
     public void requestIssue(long couponId, long userId) {
+        couponStockRedisService.issue(couponId, userId);
         stringRedisTemplate.opsForStream().add(
                 CouponStreamKeys.streamKey(couponId),
-                Map.of("couponId", String.valueOf(couponId), "userId", String.valueOf(userId))
-        );
+                Map.of("couponId", String.valueOf(couponId), "userId", String.valueOf(userId)));
     }
 
 }

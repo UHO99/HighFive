@@ -1,7 +1,10 @@
 package com.mycom.myapp.team5.global.redis;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Range;
 import org.springframework.data.redis.RedisSystemException;
+import org.springframework.data.redis.connection.stream.PendingMessage;
+import org.springframework.data.redis.connection.stream.PendingMessages;
 import org.springframework.data.redis.connection.stream.PendingMessagesSummary;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
@@ -29,6 +32,25 @@ public class CouponStreamPendingChecker {
 
     public boolean isDrained(long couponId) {
         return pendingCount(couponId) == 0;
+    }
+
+    // 모니터링 대시보드용 - PEL에 남은 메시지들 중 마지막 전달 이후 가장 오래 기다린 건의 지연(ms).
+    // pendingCount()와 같은 예외 처리 방침(스트림/그룹이 없으면 지연 없음으로 취급)을 따른다.
+    public long maxLagMillis(long couponId) {
+        try {
+            PendingMessages messages = stringRedisTemplate.opsForStream()
+                    .pending(CouponStreamKeys.streamKey(couponId), CouponStreamKeys.CONSUMER_GROUP, Range.unbounded(), 10_000L);
+            if (messages == null || messages.isEmpty()) {
+                return 0;
+            }
+            long max = 0;
+            for (PendingMessage message : messages) {
+                max = Math.max(max, message.getElapsedTimeSinceLastDelivery().toMillis());
+            }
+            return max;
+        } catch (RedisSystemException e) {
+            return 0;
+        }
     }
 
 }

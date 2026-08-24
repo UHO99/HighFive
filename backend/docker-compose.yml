@@ -1,39 +1,74 @@
-services:
-#  kafka:
-#      image: confluentinc/cp-kafka:latest
-#      hostname: kafka
-#      container_name: kafka
-#      ports:
-#        - "9092:9092"
-#        - "29092:29092"
-#      environment:
-#        KAFKA_NODE_ID: 1
-#        KAFKA_PROCESS_ROLES: broker,controller
-#        KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
-#        KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-#        KAFKA_LISTENERS: PLAINTEXT://kafka:29092,CONTROLLER://kafka:9093,PLAINTEXT_HOST://0.0.0.0:9092
-#        KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
-#        KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
-#        KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-#        KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-#        CLUSTER_ID: "MkU30EVBNTcwNTJENDM2Qk"
-#      volumes:
-#        - kafka-data:/var/lib/kafka/data
-#  kafka-ui:
-#    image: provectuslabs/kafka-ui:latest
-#    ports:
-#      - "8090:8080"
-#    environment:
-#      KAFKA_CLUSTERS_0_NAME: local
-#      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
-#    depends_on:
-#      - kafka
+networks:
+  highfive-net:
+    name: highfive-net
 
+services:
   redis:
     image: redis:latest
     container_name: redis
     ports:
       - "6379:6379"
+    networks:
+      - highfive-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mysql:
+    image: mysql:8.0.40
+    container_name: mysql
+    command: --local-infile=1
+    ports:
+      - "3308:3306"
+    networks:
+      - highfive-net
+    environment:
+      MYSQL_DATABASE: highfive
+      MYSQL_USER: ${DB_USER:-ureca}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-ureca}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u${DB_USER:-ureca}", "-p${DB_PASSWORD:-ureca}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: backend
+    ports:
+      - "8080:8080"
+    networks:
+      - highfive-net
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_USERNAME: ${DB_USER:-ureca}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-ureca}
+    volumes:
+      # 부하테스트 "테스트 시작" 버튼 -> K6TestService 가 호스트 도커 데몬에 형제 컨테이너(highfive-k6)를
+      # 띄우기 위한 소켓. 백엔드 컨테이너에 호스트 수준 도커 권한을 주는 것이므로(Docker-outside-of-Docker),
+      # 로컬/데모 용도로만 사용한다.
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # k6 스크립트를 구워넣은 이미지를 만들기만 하는 서비스 - profiles로 빼뒀기 때문에
+  # `docker compose up -d`에는 안 딸려 올라오고, `docker compose build k6`로만 이미지를 만든다.
+  # K6TestService가 이 이미지(highfive-k6:latest)로 형제 컨테이너를 실행한다.
+  k6:
+    build:
+      context: ./k6
+    image: highfive-k6:latest
+    profiles: ["build-only"]
 
 volumes:
-  kafka-data:
+  mysql-data:
