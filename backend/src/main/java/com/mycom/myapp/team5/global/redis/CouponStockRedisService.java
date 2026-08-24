@@ -98,14 +98,9 @@ public class CouponStockRedisService {
 	/** fairness-log 한 줄("순번:userId:결과")을 파싱한 값. */
 	public record FairnessLogEntry(long rank, long userId, String outcome) { }
 
-	/**
-	 * 대시보드 "쿠폰 발급 이력 · 선착순" 카드용 - 순번(seq) 오름차순 전체(첫 시도부터). 이 seq는
-	 * Lua 스크립트 안에서 재고 차감/1인1매 검사와 같은 원자적 연산으로 매겨지므로, DB의 issued_at(비동기
-	 * Stream 배치 반영이라 순서가 흔들릴 수 있음)보다 실제 처리 순서를 더 정확히 보여준다. 건수 제한이
-	 * 없으므로 화면에서는 스크롤로 전체를 훑어보는 걸 전제로 한다.
-	 */
-	public List<FairnessLogEntry> fairnessLog(long couponId) {
-		Set<String> raw = redisTemplate.opsForZSet().range(CouponStockKeys.fairnessLogKey(couponId), 0, -1);
+	public List<FairnessLogEntry> fairnessLog(long couponId, long afterRank, int limit) {
+		Set<String> raw = redisTemplate.opsForZSet().rangeByScore(
+				CouponStockKeys.fairnessLogKey(couponId), afterRank + 1, Double.POSITIVE_INFINITY, 0, limit + 1);
 		if (raw == null) {
 			return List.of();
 		}
