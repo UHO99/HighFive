@@ -4,6 +4,8 @@ import type { CouponSummary } from "../lib/api";
 interface Props {
   vals: DashboardVals;
   error?: string | null;
+  /** couponId가 DB에 없어서 404 - 오픈된 쿠폰이 없을 때 정상적으로 발생하므로 error와 분리해서 다룬다. */
+  couponMissing?: boolean;
   coupons: CouponSummary[];
   couponId: number;
   onCouponChange: (couponId: number) => void;
@@ -16,7 +18,7 @@ interface Props {
  * 오픈 자체는 FloatingActionMenu의 "쿠폰 오픈" 다이얼로그에서 READY 쿠폰 중 골라 하므로
  * 여기서는 "지금 뭘 보고 있나"만 다룬다.
  */
-export function DashboardHeader({ vals, error, coupons, couponId, onCouponChange, loadingData }: Props) {
+export function DashboardHeader({ vals, error, couponMissing, coupons, couponId, onCouponChange, loadingData }: Props) {
   return (
     <div className="main-header">
       <div>
@@ -24,6 +26,7 @@ export function DashboardHeader({ vals, error, coupons, couponId, onCouponChange
         <span className="main-subtitle">
           대규모 트래픽 선착순 쿠폰 발급 시스템 · 최종 갱신 {vals.clockText}
           {error && <span style={{ color: "#dc2626" }}> · 백엔드 연결 실패 ({error})</span>}
+          {!error && couponMissing && <span style={{ color: "#8b8fa3" }}> · 모니터링할 쿠폰 없음</span>}
         </span>
       </div>
 
