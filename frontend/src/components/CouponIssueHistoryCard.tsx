@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
-import { fetchFairnessTimeline, type CouponFairnessTimelineEntry } from "../lib/api";
+import {
+  fetchCouponFairness, fetchFairnessTimeline,
+  type CouponFairnessReport, type CouponFairnessTimelineEntry,
+} from "../lib/api";
 
 const POLL_INTERVAL_MS = 3000;
 
@@ -44,11 +47,13 @@ interface Props {
  */
 export function CouponIssueHistoryCard({ couponId }: Props) {
   const [rows, setRows] = useState<CouponFairnessTimelineEntry[]>([]);
+  const [fairness, setFairness] = useState<CouponFairnessReport | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     setRows([]);
+    setFairness(null);
     setError(null);
 
     const load = () => {
@@ -62,6 +67,15 @@ export function CouponIssueHistoryCard({ couponId }: Props) {
         .catch((e) => {
           if (!cancelled) setError(e instanceof Error ? e.message : "선착순 타임라인 조회 실패");
         });
+
+      // 타임라인과 별개 호출 - 하나가 실패해도 다른 하나는 계속 갱신되게 둔다.
+      fetchCouponFairness(couponId)
+        .then((next) => {
+          if (!cancelled) setFairness(next);
+        })
+        .catch(() => {
+          // 조회 실패는 마지막으로 알던 배지를 그대로 유지한다.
+        });
     };
 
     load();
@@ -74,7 +88,20 @@ export function CouponIssueHistoryCard({ couponId }: Props) {
 
   return (
     <div className="card card-wide">
-      <span className="card-title">쿠폰 발급 이력 · 선착순</span>
+      <div className="card-title-row">
+        <span className="card-title card-title-tight">쿠폰 발급 이력 · 선착순</span>
+        {fairness && (
+          <span
+            className="overissue-badge"
+            style={{
+              background: fairness.fair ? "#e9f9ee" : "#fff4e6",
+              color: fairness.fair ? "#16a34a" : "#e0821f",
+            }}
+          >
+            {fairness.fair ? "공정" : `새치기 ${fairness.inversionCount}건`} · 전체 {fairness.totalAttempts}건 시도
+          </span>
+        )}
+      </div>
 
       {error ? (
         <span className="dialog-error">{error}</span>
