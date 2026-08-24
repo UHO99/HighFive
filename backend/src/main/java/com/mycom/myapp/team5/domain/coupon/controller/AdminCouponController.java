@@ -1,5 +1,6 @@
 package com.mycom.myapp.team5.domain.coupon.controller;
 
+import com.mycom.myapp.team5.domain.coupon.dto.CouponFairnessReport;
 import com.mycom.myapp.team5.domain.coupon.dto.CouponOverviewResponse;
 import com.mycom.myapp.team5.domain.coupon.dto.CouponRequest;
 import com.mycom.myapp.team5.domain.coupon.dto.CouponResponse;
@@ -7,11 +8,13 @@ import com.mycom.myapp.team5.domain.coupon.dto.CouponSummary;
 import com.mycom.myapp.team5.domain.coupon.dto.CouponUpdateRequest;
 import com.mycom.myapp.team5.domain.coupon.service.CouponService;
 import com.mycom.myapp.team5.domain.coupon.service.CouponStatusService;
+import com.mycom.myapp.team5.domain.couponissue.dto.CouponFairnessTimelineEntry;
 import com.mycom.myapp.team5.domain.couponissue.dto.CouponIssueHistoryResponse;
 import com.mycom.myapp.team5.domain.couponissue.service.CouponIssueService;
 import com.mycom.myapp.team5.global.aspect.LogDescription;
 import com.mycom.myapp.team5.global.common.dto.ApiResponse;
 import com.mycom.myapp.team5.global.common.enums.CouponStatus;
+import com.mycom.myapp.team5.global.redis.CouponStockRedisService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -27,7 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /**
- * A003/A004/A005 관리자 쿠폰 API + 대시보드용 open/close/목록 + 시나리오 7 발급 내역.
+ * A003/A004/A005 관리자 쿠폰 API + 대시보드용 open/close/목록 + 시나리오 7 발급 내역 + 선착순 검증.
  */
 @RestController
 @RequiredArgsConstructor
@@ -36,6 +39,7 @@ public class AdminCouponController {
     private final CouponService couponService;
     private final CouponStatusService couponStatusService;
     private final CouponIssueService couponIssueService;
+    private final CouponStockRedisService couponStockRedisService;
 
     // --- A003/A004/A005: /admin/coupons ---
 
@@ -114,5 +118,29 @@ public class AdminCouponController {
             @PathVariable(name = "couponId") long couponId
     ) {
         return ResponseEntity.ok(ApiResponse.success(couponIssueService.getIssuesByCouponId(couponId)));
+    }
+
+    /**
+     * 선착순 공정성 검증 - Redis fairness-log 기반 inversion 감지.
+     */
+    @LogDescription("쿠폰 선착순 공정성 검증 (관리자)")
+    @GetMapping("/api/admin/coupons/{couponId}/fairness")
+    public ResponseEntity<ApiResponse<CouponFairnessReport>> getCouponFairness(
+            @PathVariable(name = "couponId") long couponId
+    ) {
+        couponService.getCoupon(couponId);
+        return ResponseEntity.ok(ApiResponse.success(couponStockRedisService.analyzeFairness(couponId)));
+    }
+
+    /**
+     * 대시보드 "쿠폰 발급 이력 · 선착순" 카드용 타임라인.
+     */
+    @LogDescription("쿠폰 선착순 타임라인 조회 (관리자)")
+    @GetMapping("/api/admin/coupons/{couponId}/fairness/timeline")
+    public ResponseEntity<ApiResponse<List<CouponFairnessTimelineEntry>>> getFairnessTimeline(
+            @PathVariable(name = "couponId") long couponId
+    ) {
+        couponService.getCoupon(couponId);
+        return ResponseEntity.ok(ApiResponse.success(couponIssueService.getFairnessTimeline(couponId)));
     }
 }

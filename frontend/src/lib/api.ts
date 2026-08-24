@@ -95,9 +95,18 @@ export interface MonitoringDashboardResponse {
   };
 }
 
+/**
+ * couponId가 DB에 아예 없을 때(CouponErrorCode.COUPON_NOT_FOUND) 백엔드가 던지는 404 - 오픈된 쿠폰이
+ * 하나도 없는 정상 상태에서도 발생하므로, 진짜 연결 실패(네트워크 오류/5xx)와 구분해서 다뤄야 한다.
+ */
+export class MonitoringCouponNotFoundError extends Error {}
+
 export async function fetchMonitoringDashboard(couponId: number): Promise<MonitoringDashboardResponse> {
   const res = await fetch(`${API_BASE}/api/admin/monitoring/coupons/${couponId}`);
 
+  if (res.status === 404) {
+    throw new MonitoringCouponNotFoundError(`쿠폰 #${couponId}을(를) 찾을 수 없습니다`);
+  }
   if (!res.ok) {
     throw new Error(`모니터링 조회 실패 (HTTP ${res.status})`);
   }
@@ -154,6 +163,8 @@ export interface DummyDataStatus {
   loading: boolean;
   startedAt: string | null;
   finishedAt: string | null;
+  /** 이번 적재를 시작하기 직전 DB 스냅샷 - Before/After 비교용. 새 적재를 시작할 때마다 갱신된다. */
+  before: DummyDataCounts | null;
   lastResult: DummyDataCounts | null;
   lastError: string | null;
 }
@@ -344,6 +355,8 @@ export async function fetchMyCoupons(userId: number): Promise<MyCouponResponse[]
 }
 
 /**
+\n
+/**
  * 쿠폰 발급 신청 - CouponController.requestIssue() (/coupons/{id}/issue).
  */
 export async function requestCouponIssue(couponId: number, userId: number): Promise<void> {
@@ -366,7 +379,4 @@ export interface CouponIssueHistoryResponse {
   expiredAt: string | null;
 }
 
-export async function fetchCouponIssues(couponId: number): Promise<CouponIssueHistoryResponse[]> {
-  const res = await fetch(`${API_BASE}/api/admin/coupons/${couponId}/issues`);
-  return parseApiResponse<CouponIssueHistoryResponse[]>(res, "쿠폰 발급 이력 조회 실패");
-}
+\n\n

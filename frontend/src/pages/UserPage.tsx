@@ -176,7 +176,7 @@ function UserPanel({ userId, onLogout }: { userId: number; onLogout: () => void 
           )}
         </div>
 
-        <MyIssuanceList coupons={myCoupons} />
+        <MyIssuanceList userId={userId} coupons={myCoupons} onChanged={refreshMyCoupons} />
       </div>
     </div>
   );
