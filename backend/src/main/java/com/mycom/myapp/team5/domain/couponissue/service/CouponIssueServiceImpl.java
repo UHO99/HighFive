@@ -14,6 +14,7 @@ import com.mycom.myapp.team5.domain.coupon.exception.CouponErrorCode;
 import com.mycom.myapp.team5.domain.coupon.exception.CouponException;
 import com.mycom.myapp.team5.domain.coupon.repository.CouponRepository;
 import com.mycom.myapp.team5.domain.couponissue.dto.CouponFairnessTimelineEntry;
+import com.mycom.myapp.team5.domain.couponissue.dto.CouponFairnessTimelinePage;
 import com.mycom.myapp.team5.domain.couponissue.dto.CouponIssueHistoryResponse;
 import com.mycom.myapp.team5.domain.couponissue.dto.MyCouponResponse;
 import com.mycom.myapp.team5.domain.couponissue.entity.CouponIssue;
@@ -26,8 +27,6 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class CouponIssueServiceImpl implements CouponIssueService{
-
-	private static final int FAIRNESS_TIMELINE_LIMIT = 20;
 
 	private final CouponIssueRepository couponIssueRepository;
 	private final CouponRepository couponRepository;
@@ -105,16 +104,20 @@ public class CouponIssueServiceImpl implements CouponIssueService{
 
 	@Override
 	@Transactional(readOnly = true)
-	public List<CouponFairnessTimelineEntry> getFairnessTimeline(long couponId) {
+	public CouponFairnessTimelinePage getFairnessTimeline(long couponId, long afterRank, int limit) {
 		if (!couponRepository.existsById(couponId)) {
 			throw new CouponException(CouponErrorCode.COUPON_NOT_FOUND);
 		}
 
-		List<CouponStockRedisService.FairnessLogEntry> logEntries =
-				couponStockRedisService.recentFairnessLog(couponId, FAIRNESS_TIMELINE_LIMIT);
-		if (logEntries.isEmpty()) {
-			return List.of();
+		// limit+1건을 받아 hasMore를 판단하고, 실제로 내려줄 건 앞의 limit건만 자른다.
+		List<CouponStockRedisService.FairnessLogEntry> fetched =
+				couponStockRedisService.fairnessLog(couponId, afterRank, limit);
+		if (fetched.isEmpty()) {
+			return new CouponFairnessTimelinePage(List.of(), afterRank, false);
 		}
+		boolean hasMore = fetched.size() > limit;
+		List<CouponStockRedisService.FairnessLogEntry> logEntries =
+				hasMore ? fetched.subList(0, limit) : fetched;
 
 		// SUCCESS 건만 DB 행이 있다 - 그 userId들만 모아 한 번에 조회 (N+1 방지)
 		List<Long> successUserIds = logEntries.stream()
@@ -136,7 +139,8 @@ public class CouponIssueServiceImpl implements CouponIssueService{
 			));
 		}
 
-		return result;
+		long nextCursor = logEntries.get(logEntries.size() - 1).rank();
+		return new CouponFairnessTimelinePage(result, nextCursor, hasMore);
 	}
 
 }
