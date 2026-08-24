@@ -355,6 +355,30 @@ export async function fetchMyCoupons(userId: number): Promise<MyCouponResponse[]
 }
 
 /**
+ * 내 쿠폰 사용 - CouponIssueController.useCoupon(). 본인 소유가 아니거나(CI002) 이미
+ * USED/CANCELED/EXPIRED 상태면(CI003, 409) 거부된다.
+ */
+export async function useMyCoupon(issueId: number, userId: number): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/my/coupons/${issueId}/use?userId=${userId}`, { method: "POST" });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.message ?? `쿠폰 사용 실패 (HTTP ${res.status})`);
+  }
+}
+
+/**
+ * 내 쿠폰 취소 - CouponIssueController.cancelCoupon(). 본인 소유가 아니거나(CI002) 이미
+ * USED/CANCELED/EXPIRED 상태면(CI003, 409) 거부된다.
+ */
+export async function cancelMyCoupon(issueId: number, userId: number): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/my/coupons/${issueId}/cancel?userId=${userId}`, { method: "POST" });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.message ?? `쿠폰 취소 실패 (HTTP ${res.status})`);
+  }
+}
+
+/**
  * 쿠폰 발급 신청 - CouponController.requestIssue() (/coupons/{id}/issue).
  */
 export async function requestCouponIssue(couponId: number, userId: number): Promise<void> {
@@ -380,4 +404,24 @@ export interface CouponIssueHistoryResponse {
 export async function fetchCouponIssues(couponId: number): Promise<CouponIssueHistoryResponse[]> {
   const res = await fetch(`${API_BASE}/api/admin/coupons/${couponId}/issues`);
   return parseApiResponse<CouponIssueHistoryResponse[]>(res, "쿠폰 발급 이력 조회 실패");
+}
+
+/**
+ * backend CouponFairnessTimelineEntry(domain/couponissue/dto)와 1:1로 대응한다.
+ * rank는 Redis fairness-log의 원자적 처리 순번 - DB issued_at(비동기 배치 반영)보다 실제 처리
+ * 순서를 정확히 반영한다. outcome이 SUCCESS가 아니면(SOLDOUT/DUPLICATE) DB 행 자체가 없어서
+ * status/issuedAt이 null이다.
+ */
+export interface CouponFairnessTimelineEntry {
+  rank: number;
+  userId: number;
+  outcome: "SUCCESS" | "SOLDOUT" | "DUPLICATE";
+  status: "ISSUED" | "USED" | "CANCELED" | "EXPIRED" | null;
+  issuedAt: string | null;
+}
+
+/** AdminCouponController.getFairnessTimeline() - Redis 처리 순서 기준 최근 20건(최신이 맨 앞). */
+export async function fetchFairnessTimeline(couponId: number): Promise<CouponFairnessTimelineEntry[]> {
+  const res = await fetch(`${API_BASE}/api/admin/coupons/${couponId}/fairness/timeline`);
+  return parseApiResponse<CouponFairnessTimelineEntry[]>(res, "선착순 타임라인 조회 실패");
 }

@@ -238,7 +238,7 @@ export function DashboardPage() {
         <div className="row">
           <RedisStockCard vals={vals} onDrainPending={handleDrainPending} />
           <DbStorageCard vals={vals} dummyDataCounts={dummyDataCounts} beforeCounts={dummyStatus.before} />
-          <CouponIssueHistoryCard />
+          <CouponIssueHistoryCard couponId={couponId} />
         </div>
       </div>
 

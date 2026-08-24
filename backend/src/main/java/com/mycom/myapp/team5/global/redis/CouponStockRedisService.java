@@ -95,6 +95,27 @@ public class CouponStockRedisService {
 		redisTemplate.delete(CouponStockKeys.fairnessLogKey(couponId));
 	}
 
+	/** fairness-log 한 줄("순번:userId:결과")을 파싱한 값. */
+	public record FairnessLogEntry(long rank, long userId, String outcome) { }
+
+	/**
+	 * 대시보드 "쿠폰 발급 이력 · 선착순" 카드용 - 최근 순번(seq) 역순으로 최대 limit건. 이 seq는
+	 * Lua 스크립트 안에서 재고 차감/1인1매 검사와 같은 원자적 연산으로 매겨지므로, DB의 issued_at(비동기
+	 * Stream 배치 반영이라 순서가 흔들릴 수 있음)보다 실제 처리 순서를 더 정확히 보여준다.
+	 */
+	public List<FairnessLogEntry> recentFairnessLog(long couponId, int limit) {
+		Set<String> raw = redisTemplate.opsForZSet().reverseRange(CouponStockKeys.fairnessLogKey(couponId), 0, limit - 1);
+		if (raw == null) {
+			return List.of();
+		}
+		return raw.stream()
+				.map(entry -> {
+					String[] parts = entry.split(":", 3);
+					return new FairnessLogEntry(Long.parseLong(parts[0]), Long.parseLong(parts[1]), parts[2]);
+				})
+				.toList();
+	}
+
 	public CouponFairnessReport analyzeFairness(long couponId) {
 		Set<String> entries = redisTemplate.opsForZSet().range(CouponStockKeys.fairnessLogKey(couponId), 0, -1); // 순번(score) 오름차순
 

@@ -1082,6 +1082,37 @@ body {
   color: #ff6a3d;
 }
 
+.user-history-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.user-history-btn {
+  font: 700 12px/1 "Inter", sans-serif;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  background: #ff6a3d;
+  color: #fff;
+}
+
+.user-history-btn.ghost {
+  background: #f7f7fa;
+  color: #5b5f72;
+}
+
+.user-history-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.user-history-error {
+  font: 500 11.5px/1.4 "Inter", sans-serif;
+  color: #dc2626;
+}
+
 .user-history-item-meta {
   display: flex;
   gap: 12px;
