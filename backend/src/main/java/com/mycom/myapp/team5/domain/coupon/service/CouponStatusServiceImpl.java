@@ -21,19 +21,18 @@ import lombok.RequiredArgsConstructor;
 public class CouponStatusServiceImpl implements CouponStatusService {
 
 	private final CouponRepository couponRepository;
-	private final CouponStockRedisService couponStockRedisService;			// 기존 코드 재사용
-	private final StringRedisTemplate stringRedisTemplate;					// CLOSE 시 키 삭제
-	private final ApplicationEventPublisher eventPublisher;				// OPEN 시 Redis Stream 구독 즉시 트리거
+	private final CouponStockRedisService couponStockRedisService; // 기존 코드 재사용
+	private final StringRedisTemplate stringRedisTemplate; // CLOSE 시 키 삭제
+	private final ApplicationEventPublisher eventPublisher; // OPEN 시 Redis Stream 구독 즉시 트리거
 
 	@Override
 	@Transactional
 	public void openCoupon(long couponId) {
 		// 1) 비관적 락 조회 -> 동시 open 요청이 직렬화되어 한 번만 반영하여 멱등성 보장
-		Coupon coupon = couponRepository.findByIdForUpdate(couponId)
-				.orElseThrow(() -> new CouponException(CouponErrorCode.COUPON_NOT_FOUND));
+		Coupon coupon = couponRepository.findByIdForUpdate(couponId).orElseThrow(() -> new CouponException(CouponErrorCode.COUPON_NOT_FOUND));
 
 		// 2) 전이 규칙 검증 : READY가 아니면 409
-		if(!coupon.getStatus().canTransitTo(CouponStatus.OPEN)) {
+		if (!coupon.getStatus().canTransitTo(CouponStatus.OPEN)) {
 			throw new CouponException(CouponErrorCode.COUPON_STATUS_CONFLICT);
 		}
 
@@ -47,6 +46,8 @@ public class CouponStatusServiceImpl implements CouponStatusService {
 		// 5) Redis 재고 초기화 : 기존 initStock() 재사용
 		couponStockRedisService.initStock(couponId, coupon.getTotalQuantity());
 
+		couponStockRedisService.resetFairnessLog(couponId); // 추가
+
 		// 6) Redis Stream 구독 즉시 트리거
 		eventPublisher.publishEvent(new CouponOpenedEvent(couponId));
 	}
@@ -54,13 +55,12 @@ public class CouponStatusServiceImpl implements CouponStatusService {
 	@Override
 	@Transactional
 	public void closeCoupon(long couponId) {
-		Coupon coupon = couponRepository.findByIdForUpdate(couponId)
-				.orElseThrow(() -> new CouponException(CouponErrorCode.COUPON_NOT_FOUND));
-		
-		if(!coupon.getStatus().canTransitTo(CouponStatus.CLOSE)) {
+		Coupon coupon = couponRepository.findByIdForUpdate(couponId).orElseThrow(() -> new CouponException(CouponErrorCode.COUPON_NOT_FOUND));
+
+		if (!coupon.getStatus().canTransitTo(CouponStatus.CLOSE)) {
 			throw new CouponException(CouponErrorCode.COUPON_STATUS_CONFLICT);
 		}
-		
+
 		coupon.close();
 
 		// CLOSE 시 재고 키 정리 (발급 파트가 더 이상 차감하지 못하도록).
@@ -74,9 +74,7 @@ public class CouponStatusServiceImpl implements CouponStatusService {
 
 	@Override
 	public CouponStatus getStatus(long couponId) {
-		return couponRepository.findById(couponId)
-				.orElseThrow(() -> new CouponException(CouponErrorCode.COUPON_NOT_FOUND))
-				.getStatus();
+		return couponRepository.findById(couponId).orElseThrow(() -> new CouponException(CouponErrorCode.COUPON_NOT_FOUND)).getStatus();
 	}
 
 }
