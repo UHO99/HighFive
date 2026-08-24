@@ -118,11 +118,17 @@ export async function resetMonitoringMetrics(): Promise<void> {
   }
 }
 
-/** backend DummyDataAll.Counts와 1:1로 대응한다. */
+/**
+ * backend DummyDataAll.Counts와 1:1로 대응한다.
+ * *LoadMs는 GET counts(단순 조회)일 땐 null - 방금 재적재(loadDummyData)한 응답에만 채워진다.
+ */
 export interface DummyDataCounts {
   userCount: number;
   couponCount: number;
   couponIssueCount: number;
+  userLoadMs: number | null;
+  couponIssueLoadMs: number | null;
+  totalMs: number | null;
 }
 
 /** 지금 DB에 실제로 있는 건수 - 새로고침 직후에도 마지막 적재 결과를 알 수 있다. */
@@ -140,21 +146,30 @@ export async function fetchDummyDataCounts(): Promise<DummyDataCounts> {
   return body.data;
 }
 
-/** 더미데이터를 재적재한다 - OPEN 쿠폰이 있으면 백엔드가 거부한다(진행 중 캠페인과 TRUNCATE 충돌 방지). */
-export async function loadDummyData(): Promise<DummyDataCounts> {
+/**
+ * 적재 진행 상태 - 적재는 수십 초 걸려서 백엔드가 백그라운드로 돌리고 이 상태를 폴링용으로 둔다.
+ * 새로고침해도 loading이 서버 상태 그대로라 "적재 중"이 사라지지 않는다(로컬 UI 상태가 아님).
+ */
+export interface DummyDataStatus {
+  loading: boolean;
+  startedAt: string | null;
+  finishedAt: string | null;
+  lastResult: DummyDataCounts | null;
+  lastError: string | null;
+}
+
+export async function fetchDummyDataStatus(): Promise<DummyDataStatus> {
+  const res = await fetch(`${API_BASE}/api/admin/dummy-data/status`);
+  return parseApiResponse<DummyDataStatus>(res, "더미데이터 상태 조회 실패");
+}
+
+/**
+ * 더미데이터 재적재를 "시작"만 시킨다 - OPEN 쿠폰이 있으면 백엔드가 거부하고(진행 중 캠페인과 TRUNCATE
+ * 충돌 방지), 이미 적재 중이어도 거부한다. 완료 여부/결과는 fetchDummyDataStatus() 폴링으로 안다.
+ */
+export async function loadDummyData(): Promise<DummyDataStatus> {
   const res = await fetch(`${API_BASE}/api/admin/dummy-data/reload`, { method: "POST" });
-  if (!res.ok) {
-    // 실패 응답은 ErrorResponse{code,message,timestamp} 형태 - message만 꺼내 보여준다.
-    const body = await res.json().catch(() => null);
-    throw new Error(body?.message ?? `데이터 적재 실패 (HTTP ${res.status})`);
-  }
-
-  const body: ApiResponse<DummyDataCounts> = await res.json();
-  if (!body.success || !body.data) {
-    throw new Error(body.message ?? "데이터 적재 실패");
-  }
-
-  return body.data;
+  return parseApiResponse<DummyDataStatus>(res, "데이터 적재 실패");
 }
 
 /**
@@ -184,8 +199,13 @@ export interface CouponSummary {
   totalQuantity: number;
 }
 
-export async function fetchCoupons(): Promise<CouponSummary[]> {
-  const res = await fetch(`${API_BASE}/api/admin/coupons`);
+/**
+ * status를 안 주면 전체, 주면 그 상태만 - 쿠폰이 아무리 많아도 OPEN/READY는 소수라 필터를 걸면
+ * 응답 크기가 전체 쿠폰 수와 무관하게 작게 유지된다(대시보드 선택지/오픈 대상 목록에서 이 필터를 씀).
+ */
+export async function fetchCoupons(status?: CouponStatus): Promise<CouponSummary[]> {
+  const qs = status ? `?status=${status}` : "";
+  const res = await fetch(`${API_BASE}/api/admin/coupons${qs}`);
   if (!res.ok) {
     throw new Error(`쿠폰 목록 조회 실패 (HTTP ${res.status})`);
   }
@@ -198,6 +218,47 @@ export async function fetchCoupons(): Promise<CouponSummary[]> {
   return body.data;
 }
 
+/** backend CouponResponse(domain/coupon/dto)와 1:1로 대응한다. */
+export interface CouponDetail {
+  id: number;
+  name: string;
+  totalQuantity: number;
+  startAt: string | null;
+  endAt: string | null;
+  status: CouponStatus;
+}
+
+/**
+ * 관리자 쿠폰 생성 - AdminCouponController.create(). READY로만 등록되고 Redis 재고는 안 건드린다
+ * (initStock은 openCoupon 시점에 별도로 일어남 - 아래 openCoupon 참고).
+ */
+export async function createCoupon(name: string, totalQuantity: number): Promise<CouponDetail> {
+  const res = await fetch(`${API_BASE}/admin/coupons`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, totalQuantity }),
+  });
+  return parseApiResponse<CouponDetail>(res, "쿠폰 생성 실패");
+}
+
+/** 관리자 쿠폰 수동 오픈 - CouponController.openCoupon(). READY→OPEN 전환 + Redis 재고 초기화까지 여기서 됨. */
+export async function openCoupon(couponId: number): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/admin/coupons/${couponId}/open`, { method: "POST" });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.message ?? `쿠폰 오픈 실패 (HTTP ${res.status})`);
+  }
+}
+
+/** 관리자 쿠폰 수동 클로즈 - CouponController.closeCoupon(). OPEN→CLOSE 전환 + Redis 재고/발급 SET 정리. */
+export async function closeCoupon(couponId: number): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/admin/coupons/${couponId}/close`, { method: "POST" });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.message ?? `쿠폰 클로즈 실패 (HTTP ${res.status})`);
+  }
+}
+
 /** backend K6ScenarioResponse(domain/k6test/dto)와 1:1로 대응한다. backend K6Scenario enum이 유일한 소스. */
 export interface K6ScenarioDto {
   id: string;
@@ -207,6 +268,8 @@ export interface K6ScenarioDto {
   rampUp: string;
   hold: string;
   targetVus: string;
+  /** true면 실행 전에 재고(stock)/동시접속(maxVus)을 숫자로 입력받아야 한다. */
+  configurable: boolean;
 }
 
 /** backend K6StatusResponse(domain/k6test/dto)와 1:1로 대응한다. */
@@ -236,11 +299,17 @@ export async function fetchK6Scenarios(): Promise<K6ScenarioDto[]> {
   return parseApiResponse<K6ScenarioDto[]>(res, "k6 시나리오 목록 조회 실패");
 }
 
-export async function runK6Scenario(scenarioId: string, couponId: number): Promise<K6StatusResponse> {
+/** stock/maxVus는 configurable 시나리오(동시성 정합성 검증)에서만 의미가 있다 - 그 외엔 생략해도 된다. */
+export async function runK6Scenario(
+  scenarioId: string,
+  couponId: number,
+  stock?: number,
+  maxVus?: number
+): Promise<K6StatusResponse> {
   const res = await fetch(`${API_BASE}/api/admin/k6/run`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ scenarioId, couponId }),
+    body: JSON.stringify({ scenarioId, couponId, stock, maxVus }),
   });
   return parseApiResponse<K6StatusResponse>(res, "k6 실행 실패");
 }
@@ -253,4 +322,51 @@ export async function stopK6Scenario(): Promise<K6StatusResponse> {
 export async function fetchK6Status(): Promise<K6StatusResponse> {
   const res = await fetch(`${API_BASE}/api/admin/k6/status`);
   return parseApiResponse<K6StatusResponse>(res, "k6 상태 조회 실패");
+}
+
+/** backend MyCouponResponse(domain/couponissue/dto)와 1:1로 대응한다. */
+export interface MyCouponResponse {
+  issueId: number;
+  couponId: number;
+  couponName: string;
+  status: "ISSUED" | "USED" | "CANCELED" | "EXPIRED";
+  rank: number;
+  issuedAt: string;
+  usedAt: string | null;
+  cancelAt: string | null;
+  expiredAt: string | null;
+}
+
+/** CouponIssueController.getMyCoupons() - 최근 발급 순. */
+export async function fetchMyCoupons(userId: number): Promise<MyCouponResponse[]> {
+  const res = await fetch(`${API_BASE}/api/my/coupons?userId=${userId}`);
+  return parseApiResponse<MyCouponResponse[]>(res, "발급 이력 조회 실패");
+}
+
+/**
+ * 쿠폰 발급 신청 - CouponController.requestIssue() (/coupons/{id}/issue).
+ */
+export async function requestCouponIssue(couponId: number, userId: number): Promise<void> {
+  const res = await fetch(`${API_BASE}/coupons/${couponId}/issue?userId=${userId}`, { method: "POST" });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.message ?? `발급 신청 실패 (HTTP ${res.status})`);
+  }
+}
+
+/** 시나리오 7: 관리자 — 특정 쿠폰의 전체 발급 이력. */
+export interface CouponIssueHistoryResponse {
+  issueId: number;
+  userId: number;
+  couponId: number;
+  status: "ISSUED" | "USED" | "CANCELED" | "EXPIRED";
+  issuedAt: string;
+  usedAt: string | null;
+  canceledAt: string | null;
+  expiredAt: string | null;
+}
+
+export async function fetchCouponIssues(couponId: number): Promise<CouponIssueHistoryResponse[]> {
+  const res = await fetch(`${API_BASE}/api/admin/coupons/${couponId}/issues`);
+  return parseApiResponse<CouponIssueHistoryResponse[]>(res, "쿠폰 발급 이력 조회 실패");
 }

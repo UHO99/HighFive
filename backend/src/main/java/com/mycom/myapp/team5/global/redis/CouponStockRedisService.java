@@ -42,6 +42,17 @@ public class CouponStockRedisService {
     }
 
     /**
+     * Redis 잔여 재고. 키가 없으면 null (미오픈/미적재).
+     */
+    public Integer getStock(long couponId) {
+        String value = redisTemplate.opsForValue().get(CouponStockKeys.stockKey(couponId));
+        if (value == null) {
+            return null;
+        }
+        return Integer.valueOf(value);
+    }
+
+    /**
      * 발급을 시도한다. 성공하면 조용히 반환하고(Redis 안에서 재고 차감+1인1매 기록이 끝난 상태),
      * 실패 사유별로 다른 CouponException을 던진다.
      */

@@ -13,3 +13,7 @@ export function jitter(v: number, pct: number): number {
 export function colorFor(v: number, warn: number, danger: number): string {
   return v >= danger ? "#dc2626" : v >= warn ? "#e0821f" : "#16a34a";
 }
+
+export function formatMs(ms: number): string {
+  return ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(1)}s`;
+}

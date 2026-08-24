@@ -1,4 +1,4 @@
-// 쿠폰 발급 컨트롤러(POST /{couponId}/issue) 의 "요청 수락" 속도를 측정하는 k6 스크립트.
+// 쿠폰 발급 컨트롤러(POST /coupons/{couponId}/issue) 의 "요청 수락" 속도를 측정하는 k6 스크립트.
 
 // 실행 예:
 //   k6 run k6/kafka_test.js
@@ -35,9 +35,9 @@ export const options = {
 
 export default function () {
     const userId = `${__VU}_${__ITER}`;
-    const res = http.post(`${BASE_URL}/${COUPON_ID}/issue?userId=${userId}`); // Kafka
-    // const res = http.post(`${BASE_URL}/${COUPON_ID}/issue?userId=${userId}`); // Redis
-    // const res = http.post(`${BASE_URL}/${COUPON_ID}/issue?userId=${userId}`); // CRUD
+    const res = http.post(`${BASE_URL}/coupons/${COUPON_ID}/issue?userId=${userId}`); // Kafka
+    // const res = http.post(`${BASE_URL}/coupons/${COUPON_ID}/issue?userId=${userId}`); // Redis
+    // const res = http.post(`${BASE_URL}/coupons/${COUPON_ID}/issue?userId=${userId}`); // CRUD
 
     const ok = check(res, {
         '202 Accepted': (r) => r.status === 202,
@@ -51,6 +51,6 @@ export default function () {
 }
 
 export function teardown() {
-    const res = http.get(`${BASE_URL}/${COUPON_ID}`);
+    const res = http.get(`${BASE_URL}/coupons/${COUPON_ID}`);
     console.log(`[teardown] GET /${COUPON_ID} -> status=${res.status} body=${res.body}`);
 }

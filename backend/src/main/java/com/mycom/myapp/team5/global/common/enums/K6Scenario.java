@@ -1,7 +1,7 @@
 package com.mycom.myapp.team5.global.common.enums;
 
-import com.mycom.myapp.team5.domain.k6test.exception.K6ErrorCode;
-import com.mycom.myapp.team5.domain.k6test.exception.K6TestException;
+import com.mycom.myapp.team5.domain.test.exception.K6ErrorCode;
+import com.mycom.myapp.team5.domain.test.exception.K6TestException;
 import lombok.Getter;
 
 /**
@@ -16,11 +16,15 @@ import lombok.Getter;
 public enum K6Scenario {
 
     API("api", "api_test.js", "기본 발급 API 부하테스트",
-            "발급 엔드포인트의 요청 수락 속도를 측정하는 표준 시나리오.", "10s", "30s", "20,000 VU"),
+            "발급 엔드포인트의 요청 수락 속도를 측정하는 표준 시나리오.", "10s", "30s", "20,000 VU", false),
     REDIS("redis", "redis_test.js", "Redis Stream 파이프라인",
-            "Redis Stream 기반 배치 insert 경로 대상. 램프업을 완만하게(30s) 잡아 초반 튐을 줄인다.", "30s", "30s", "20,000 VU"),
+            "Redis Stream 기반 배치 insert 경로 대상. 램프업을 완만하게(30s) 잡아 초반 튐을 줄인다.", "30s", "30s", "20,000 VU", false),
     KAFKA("kafka", "kafka_test.js", "Kafka 비교 시나리오",
-            "초기에 Kafka 기반 구현과 비교하려고 만든 시나리오 (현재 운영 경로는 Redis Stream).", "10s", "30s", "20,000 VU");
+            "초기에 Kafka 기반 구현과 비교하려고 만든 시나리오 (현재 운영 경로는 Redis Stream).", "10s", "30s", "20,000 VU", false),
+    SMALL_SCALE("small-scale", "concurrency_test.js", "동시성 정합성 검증",
+            "재고의 2배를 요청해 초과 발급이 없는지 확인하는 정합성 검증 시나리오. 재고/동시접속 규모를 직접 입력해서 실행. "
+                    + "대상 쿠폰을 입력한 재고 수량과 같게 미리 OPEN해두고, 그 쿠폰에 기존 발급 이력이 없어야 한다.",
+            "-", "~수 초 (shared-iterations)", "재고×2 요청", true);
 
     private final String id;
     private final String file;
@@ -29,9 +33,11 @@ public enum K6Scenario {
     private final String rampUp;
     private final String hold;
     private final String targetVus;
+    /** true면 프론트가 재고/동시접속 수(stock/maxVus)를 입력받아 K6RunRequest에 실어 보낸다. */
+    private final boolean configurable;
 
     K6Scenario(String id, String file, String scenarioName, String description,
-               String rampUp, String hold, String targetVus) {
+               String rampUp, String hold, String targetVus, boolean configurable) {
         this.id = id;
         this.file = file;
         this.scenarioName = scenarioName;
@@ -39,6 +45,7 @@ public enum K6Scenario {
         this.rampUp = rampUp;
         this.hold = hold;
         this.targetVus = targetVus;
+        this.configurable = configurable;
     }
 
     public static K6Scenario fromId(String id) {

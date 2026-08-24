@@ -22,11 +22,8 @@ public enum CouponErrorCode implements ErrorCode {
 	COUPON_ISSUE_DUPLICATE(HttpStatus.CONFLICT, "CI001", "쿠폰 중복 발급"),
 
 	COUPON_ISSUE_NOT_FOUND(HttpStatus.NOT_FOUND, "CI002", "쿠폰 발급 이력이 없습니다."),
-<<<<<<< HEAD
-	
+
 	COUPON_ISSUE_STATUS_CONFLICT(HttpStatus.CONFLICT, "CI003", "쿠폰 상태가 변경되어 사용할 수 없습니다."),
-=======
->>>>>>> refs/heads/develop
 
 	COUPON_INVENTORY_NOT_STOCKED(HttpStatus.CONFLICT, "RD001", "재고 미적재"),
 

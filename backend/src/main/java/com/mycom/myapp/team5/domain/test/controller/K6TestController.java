@@ -1,9 +1,9 @@
-package com.mycom.myapp.team5.domain.k6test.controller;
+package com.mycom.myapp.team5.domain.test.controller;
 
-import com.mycom.myapp.team5.domain.k6test.dto.K6RunRequest;
-import com.mycom.myapp.team5.domain.k6test.dto.K6ScenarioResponse;
-import com.mycom.myapp.team5.domain.k6test.dto.K6StatusResponse;
-import com.mycom.myapp.team5.domain.k6test.service.K6TestService;
+import com.mycom.myapp.team5.domain.test.dto.K6RunRequest;
+import com.mycom.myapp.team5.domain.test.dto.K6ScenarioResponse;
+import com.mycom.myapp.team5.domain.test.dto.K6StatusResponse;
+import com.mycom.myapp.team5.domain.test.service.K6TestService;
 import com.mycom.myapp.team5.global.aspect.LogDescription;
 import com.mycom.myapp.team5.global.common.dto.ApiResponse;
 import jakarta.validation.Valid;
@@ -34,7 +34,8 @@ public class K6TestController {
     @LogDescription("k6 부하테스트 실행")
     @PostMapping("/run")
     public ResponseEntity<ApiResponse<K6StatusResponse>> run(@Valid @RequestBody K6RunRequest request) {
-        K6StatusResponse status = k6TestService.start(request.scenarioId(), request.couponId());
+        K6StatusResponse status = k6TestService.start(
+                request.scenarioId(), request.couponId(), request.stock(), request.maxVus());
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ApiResponse.success(status));
     }
 

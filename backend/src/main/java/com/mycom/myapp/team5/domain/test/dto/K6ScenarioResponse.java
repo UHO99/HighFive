@@ -1,4 +1,4 @@
-package com.mycom.myapp.team5.domain.k6test.dto;
+package com.mycom.myapp.team5.domain.test.dto;
 
 import com.mycom.myapp.team5.global.common.enums.K6Scenario;
 
@@ -9,7 +9,8 @@ public record K6ScenarioResponse(
         String description,
         String rampUp,
         String hold,
-        String targetVus
+        String targetVus,
+        boolean configurable
 ) {
     public static K6ScenarioResponse from(K6Scenario scenario) {
         return new K6ScenarioResponse(
@@ -19,7 +20,8 @@ public record K6ScenarioResponse(
                 scenario.getDescription(),
                 scenario.getRampUp(),
                 scenario.getHold(),
-                scenario.getTargetVus()
+                scenario.getTargetVus(),
+                scenario.isConfigurable()
         );
     }
 }

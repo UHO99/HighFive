@@ -1,4 +1,4 @@
-package com.mycom.myapp.team5.domain.k6test.dto;
+package com.mycom.myapp.team5.domain.test.dto;
 
 import java.time.Instant;
 

@@ -1,12 +1,6 @@
 import type { DashboardVals } from "../hooks/useMonitoringDashboard";
 import type { CouponSummary } from "../lib/api";
 
-const STATUS_LABEL: Record<CouponSummary["status"], string> = {
-  READY: "대기",
-  OPEN: "오픈",
-  CLOSE: "마감",
-};
-
 interface Props {
   vals: DashboardVals;
   error?: string | null;
@@ -16,6 +10,12 @@ interface Props {
   loadingData: boolean;
 }
 
+/**
+ * coupons는 항상 OPEN 상태만 받는다(DashboardPage가 status=OPEN으로 필터해서 넘김) - 쿠폰이
+ * 아무리 많아져도 지금 실제로 열려있는 건 소수라, 드롭다운 대신 칩으로 그냥 다 펼쳐 보여준다.
+ * 오픈 자체는 FloatingActionMenu의 "쿠폰 오픈" 다이얼로그에서 READY 쿠폰 중 골라 하므로
+ * 여기서는 "지금 뭘 보고 있나"만 다룬다.
+ */
 export function DashboardHeader({ vals, error, coupons, couponId, onCouponChange, loadingData }: Props) {
   return (
     <div className="main-header">
@@ -28,19 +28,24 @@ export function DashboardHeader({ vals, error, coupons, couponId, onCouponChange
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <select
-          className="coupon-select"
-          value={couponId}
-          onChange={(e) => onCouponChange(Number(e.target.value))}
-          aria-label="모니터링할 쿠폰 선택"
-        >
-          {coupons.length === 0 && <option value={couponId}>#{couponId}</option>}
-          {coupons.map((c) => (
-            <option key={c.id} value={c.id}>
-              #{c.id} · {c.name} · {STATUS_LABEL[c.status]}
-            </option>
-          ))}
-        </select>
+        <div className="coupon-chip-row" role="radiogroup" aria-label="모니터링할 OPEN 쿠폰 선택">
+          {coupons.length === 0 ? (
+            <span className="coupon-chip-empty">오픈된 쿠폰 없음</span>
+          ) : (
+            coupons.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                role="radio"
+                aria-checked={c.id === couponId}
+                className={`coupon-chip ${c.id === couponId ? "active" : ""}`}
+                onClick={() => onCouponChange(c.id)}
+              >
+                #{c.id} · {c.name}
+              </button>
+            ))
+          )}
+        </div>
 
         {loadingData && (
           <div className="status-pill">
