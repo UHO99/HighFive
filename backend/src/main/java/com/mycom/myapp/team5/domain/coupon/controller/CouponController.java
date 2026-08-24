@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -21,12 +22,25 @@ import com.mycom.myapp.team5.global.redis.CouponIssueStreamProducer;
 import lombok.RequiredArgsConstructor;
 
 @RestController
+@RequestMapping("/coupons")
 @RequiredArgsConstructor
 public class CouponController {
 
 	private final CouponService couponService;
 	private final CouponStatusService couponStatusService; // 상태 전환 서비스 추가
 	private final CouponIssueStreamProducer producer;
+
+	@LogDescription("쿠폰 목록 조회")
+	@GetMapping
+	public ResponseEntity<ApiResponse<List<CouponResponse>>> getCoupons() {
+		return ResponseEntity.ok(ApiResponse.success(couponService.getCoupons()));
+	}
+
+	@LogDescription("쿠폰 정보 조회")
+	@GetMapping("/{couponId}")
+	public ResponseEntity<ApiResponse<CouponResponse>> getCoupon(@PathVariable("couponId") long couponId) {
+		return ResponseEntity.ok(ApiResponse.success(couponService.getCoupon(couponId)));
+	}
 
 	@LogDescription("쿠폰 발급 요청")
 	@PostMapping("/{couponId}/issue")
@@ -41,19 +55,12 @@ public class CouponController {
 		return ResponseEntity.accepted().body(ApiResponse.successNoData());
 	}
 
-	@LogDescription("쿠폰 정보 조회")
-	@GetMapping("/{couponId}")
-	public ResponseEntity<ApiResponse<CouponResponse>> getStock(@PathVariable("couponId") long couponId) {
-		return ResponseEntity.ok(ApiResponse.success(couponService.getCoupon(couponId)));
-	}
-
 	// 쿠폰 선택 UI(모니터링 대시보드, 쿠폰 오픈 다이얼로그 등)에서 쓰는 목록 조회.
 	// status를 안 주면 전체, 주면 그 상태만 - 쿠폰이 아무리 많아도 OPEN/READY는 소수라
 	// 필터를 걸면 응답 크기가 전체 쿠폰 수와 무관하게 작게 유지된다.
 	@LogDescription("쿠폰 목록 조회 (관리자)")
 	@GetMapping("/api/admin/coupons")
-	public ResponseEntity<ApiResponse<List<CouponSummary>>> listCoupons(
-			@RequestParam(required = false) CouponStatus status) {
+	public ResponseEntity<ApiResponse<List<CouponSummary>>> listCoupons(@RequestParam(required = false) CouponStatus status) {
 		List<CouponSummary> coupons = status != null ? couponService.listByStatus(status) : couponService.listAll();
 		return ResponseEntity.ok(ApiResponse.success(coupons));
 	}

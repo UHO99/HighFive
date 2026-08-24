@@ -3,6 +3,7 @@ import { colorFor, fmt } from "../lib/format";
 import {
   fetchK6Status,
   fetchMonitoringDashboard,
+  MonitoringCouponNotFoundError,
   runK6Scenario,
   stopK6Scenario,
   type K6StatusResponse,
@@ -67,7 +68,6 @@ export interface DashboardVals {
   overissueSuccessFmt: string;
   dbIssueCountFmt: string;
   overissueLabel: string; overissueBg: string; overissueFg: string;
-  s012SyncedFmt: string;
   s013ConfirmedLabel: string; s013ConfirmedBg: string; s013ConfirmedFg: string;
   redisStockFmt: string;
   issuedPct: number; issuedPctFmt: string;
@@ -141,8 +141,7 @@ function toVals(data: MonitoringDashboardResponse, now: number, k6Status: K6Stat
     overissueLabel: oi.matched ? "일치" : "반영 지연",
     overissueBg: oi.matched ? "#e9f9ee" : "#fff4e6",
     overissueFg: oi.matched ? "#16a34a" : "#e0821f",
-    s012SyncedFmt: oi.recordedIssuedQuantity === null ? "미동기화" : fmt(oi.recordedIssuedQuantity),
-    s013ConfirmedLabel: oi.consistencyConfirmed ? "확정" : "미확정",
+    s013ConfirmedLabel: oi.consistencyConfirmed ? "동기화 검증 완료" : "동기화 검증 대기",
     s013ConfirmedBg: oi.consistencyConfirmed ? "#e9f9ee" : "#f7f8fb",
     s013ConfirmedFg: oi.consistencyConfirmed ? "#16a34a" : "#8b8fa3",
     redisStockFmt: `${fmt(ss.redisStockRemaining)} / ${fmt(ss.redisStockTotal)}`,
@@ -172,7 +171,10 @@ export interface UseMonitoringDashboardResult {
   vals: DashboardVals;
   startTest: (scenarioId: string, targetCouponId: number, stock?: number, maxVus?: number) => Promise<void>;
   stopTest: () => Promise<void>;
+  /** 진짜 연결 실패(네트워크 오류/5xx 등) - 헤더가 빨간 "백엔드 연결 실패"로 보여준다. */
   error: string | null;
+  /** couponId가 DB에 없어서 404 - 오픈된 쿠폰이 없을 때 정상적으로 발생하므로 error와 분리해서 다룬다. */
+  couponMissing: boolean;
 }
 
 export function useMonitoringDashboard(couponId: number): UseMonitoringDashboardResult {
@@ -180,6 +182,7 @@ export function useMonitoringDashboard(couponId: number): UseMonitoringDashboard
   const [now, setNow] = useState(Date.now());
   const [k6Status, setK6Status] = useState<K6StatusResponse>(ZERO_K6_STATUS);
   const [error, setError] = useState<string | null>(null);
+  const [couponMissing, setCouponMissing] = useState(false);
 
   const dataPollRef = useRef<number | null>(null);
   const clockTickRef = useRef<number | null>(null);
@@ -189,6 +192,7 @@ export function useMonitoringDashboard(couponId: number): UseMonitoringDashboard
     let cancelled = false;
     setData(ZERO_DASHBOARD);
     setError(null);
+    setCouponMissing(false);
 
     const poll = async () => {
       try {
@@ -196,10 +200,17 @@ export function useMonitoringDashboard(couponId: number): UseMonitoringDashboard
         if (!cancelled) {
           setData(next);
           setError(null);
+          setCouponMissing(false);
         }
       } catch (e) {
-        if (!cancelled) {
+        if (cancelled) return;
+        if (e instanceof MonitoringCouponNotFoundError) {
+          // 백엔드는 멀쩡하고, 그냥 지금 볼 쿠폰이 없는 것 - 연결 실패로 취급하지 않는다.
+          setError(null);
+          setCouponMissing(true);
+        } else {
           setError(e instanceof Error ? e.message : "모니터링 조회 실패");
+          setCouponMissing(false);
         }
       }
     };
@@ -255,5 +266,5 @@ export function useMonitoringDashboard(couponId: number): UseMonitoringDashboard
     setK6Status(next);
   }, []);
 
-  return { vals: toVals(data, now, k6Status), startTest, stopTest, error };
+  return { vals: toVals(data, now, k6Status), startTest, stopTest, error, couponMissing };
 }

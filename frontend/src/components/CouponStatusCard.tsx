@@ -64,15 +64,12 @@ export function CouponStatusCard({ vals }: { vals: DashboardVals }) {
         </span>
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 6 }}>
-        <span className="pel-delay-caption" style={{ marginTop: 0 }}>
-          S012 동기화값 {vals.s012SyncedFmt}
-        </span>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 6 }}>
         <span
           className="overissue-badge"
           style={{ background: vals.s013ConfirmedBg, color: vals.s013ConfirmedFg }}
         >
-          S013 {vals.s013ConfirmedLabel}
+          {vals.s013ConfirmedLabel}
         </span>
       </div>
     </div>

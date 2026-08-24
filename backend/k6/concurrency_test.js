@@ -49,10 +49,10 @@ export const options = {
 };
 
 export default function () {
-  // 매 요청마다 서로 다른 유저 → "여러 유저가 동시에" 상황을 재현
+  // 매 요청마다 서로 다른 유저 (users id: 1 ~ USER_COUNT)
   const userId = (exec.scenario.iterationInTest % USER_COUNT) + 1;
 
-  const res = http.post(`${BASE_URL}/${COUPON_ID}/issue?userId=${userId}`);
+  const res = http.post(`${BASE_URL}/coupons/${COUPON_ID}/issue?userId=${userId}`);
 
   switch (res.status) {
     case 202: issued.add(1); break;

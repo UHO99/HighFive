@@ -150,7 +150,10 @@ export function FloatingActionMenu({
       )}
 
       {couponHistoryDialogOpen && (
-        <CouponHistoryDialog onClose={() => setCouponHistoryDialogOpen(false)} />
+        <CouponHistoryDialog
+          couponId={couponId}
+          onClose={() => setCouponHistoryDialogOpen(false)}
+        />
       )}
     </>
   );
