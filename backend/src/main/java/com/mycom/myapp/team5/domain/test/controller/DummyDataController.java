@@ -49,20 +49,7 @@ public class DummyDataController {
     // before는 항상 DummyDataAll.SEED_BASELINE(고정 시드값)이라 여기서 따로 채울 게 없다.
     @GetMapping("/api/admin/dummy-data/status")
     public ResponseEntity<ApiResponse<DummyDataStatus>> status() {
-        DummyDataStatus status = dummyDataLoadService.status();
-
-        // before/lastResult 둘 다 null = 이 백엔드 프로세스가 뜬 뒤로 재적재를 한 번도 안 했다는 뜻.
-        // dummyDataLoadService.current는 메모리 상태라 백엔드가 재시작되면 사라지지만, DB(MySQL
-        // 볼륨)에는 이전에 적재해둔 데이터가 그대로 남아있을 수 있다 - 그 상태를 그대로 "초기 적재"
-        // 값으로 보여준다. DB가 실제로 비어 있으면(한 번도 적재 안 함) 0/0/0이 그대로 나온다.
-        if (status.before() == null && status.lastResult() == null) {
-            DummyDataAll.Counts initial = DummyDataAll.Counts.snapshot(
-                    userRepository.count(), couponRepository.count(), couponIssueRepository.count());
-            status = new DummyDataStatus(
-                    status.loading(), status.startedAt(), status.finishedAt(), initial, status.lastResult(), status.lastError());
-        }
-
-        return ResponseEntity.ok(ApiResponse.success(status));
+        return ResponseEntity.ok(ApiResponse.success(dummyDataLoadService.status()));
     }
 
     // 적재는 수십 초 걸리므로 백그라운드로 시작만 시키고 바로 202를 반환한다 - 진행/완료 여부는
@@ -74,10 +61,6 @@ public class DummyDataController {
             throw new DummyDataException(DummyDataErrorCode.OPEN_COUPON_EXISTS);
         }
 
-        // TRUNCATE로 지워지기 직전의 상태를 남겨서, 대시보드가 적재 전/후를 비교할 수 있게 한다.
-        DummyDataAll.Counts before = DummyDataAll.Counts.snapshot(
-                userRepository.count(), couponRepository.count(), couponIssueRepository.count());
-
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(ApiResponse.success(dummyDataLoadService.start(before)));
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(ApiResponse.success(dummyDataLoadService.start()));
     }
 }
