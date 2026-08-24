@@ -42,8 +42,10 @@ interface Props {
 /**
  * "재고 · Redis" 카드 옆 실시간 발급 이력 - GET /api/admin/coupons/{couponId}/fairness/timeline 폴링.
  * rank는 Redis fairness-log의 원자적 처리 순번(재고 차감과 같은 Lua 스크립트 안에서 매겨짐)이라
- * DB issued_at 기반 정렬보다 실제 처리 순서를 정확히 보여준다. SOLDOUT/DUPLICATE 건은 DB 행이
- * 없어서 발급시각/지연이 "-"로 표시된다.
+ * DB issued_at 기반 정렬보다 실제 처리 순서를 정확히 보여준다. 백엔드가 첫 시도부터 전체를 오름차순
+ * 으로 내려주므로(건수 제한 없음) 표는 세로 스크롤로 전체를 훑어보는 걸 전제로 한다. SOLDOUT/DUPLICATE
+ * 건은 DB 행이 없어서 발급시각이 "-"로 표시된다. 제목 옆 공정성 배지는 analyzeFairness()를 그대로
+ * 노출하는 GET .../fairness를 별도로 호출한다 - 집계 로직의 단일 소스는 백엔드에만 둔다.
  */
 export function CouponIssueHistoryCard({ couponId }: Props) {
   const [rows, setRows] = useState<CouponFairnessTimelineEntry[]>([]);

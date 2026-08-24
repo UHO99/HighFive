@@ -27,8 +27,6 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class CouponIssueServiceImpl implements CouponIssueService{
 
-	private static final int FAIRNESS_TIMELINE_LIMIT = 20;
-
 	private final CouponIssueRepository couponIssueRepository;
 	private final CouponRepository couponRepository;
 	private final CouponStockRedisService couponStockRedisService;
@@ -111,7 +109,7 @@ public class CouponIssueServiceImpl implements CouponIssueService{
 		}
 
 		List<CouponStockRedisService.FairnessLogEntry> logEntries =
-				couponStockRedisService.recentFairnessLog(couponId, FAIRNESS_TIMELINE_LIMIT);
+				couponStockRedisService.fairnessLog(couponId);
 		if (logEntries.isEmpty()) {
 			return List.of();
 		}
