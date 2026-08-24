@@ -1,91 +1,116 @@
-import { useMemo } from "react";
-import { formatMs } from "../lib/format";
+import { useEffect, useState } from "react";
+import { fetchFairnessTimeline, type CouponFairnessTimelineEntry } from "../lib/api";
 
-/**
- * "재고 · Redis" 카드 옆에 나란히 두는 발급 이력 카드 - 지금은 UI 레이아웃만 잡아둔 상태다.
- * 백엔드에 아직 선착순 순번/발급 간격을 내려주는 조회 API가 없어서(서버 쪽 선착순 발급 로직 자체와는
- * 별개), 실 데이터 연동 전까지는 목데이터로 모양만 보여준다. 실제 API가 생기면 이 파일의 mock 생성
- * 부분만 fetch 훅으로 교체하면 되고, 아래 표는 그대로 둬도 된다.
- */
-type MockStatus = "ISSUED" | "USED" | "CANCELED" | "EXPIRED";
+const POLL_INTERVAL_MS = 3000;
 
-interface MockRow {
-  issueId: number;
-  rank: number;
-  userId: number;
-  status: MockStatus;
-  issuedAt: string;
-  delayMs: number | null;
-}
-
-const STATUSES: MockStatus[] = ["ISSUED", "USED", "CANCELED", "EXPIRED"];
-const STATUS_LABEL: Record<MockStatus, string> = {
+const STATUS_LABEL: Record<NonNullable<CouponFairnessTimelineEntry["status"]>, string> = {
   ISSUED: "정상 발급",
   USED: "사용됨",
   CANCELED: "취소됨",
   EXPIRED: "만료됨",
 };
-const STATUS_COLOR: Record<MockStatus, string> = {
+const STATUS_COLOR: Record<NonNullable<CouponFairnessTimelineEntry["status"]>, string> = {
   ISSUED: "#16a34a",
   USED: "#5b6bd6",
   CANCELED: "#dc2626",
   EXPIRED: "#8b8fa3",
 };
+const OUTCOME_LABEL: Record<"SOLDOUT" | "DUPLICATE", string> = {
+  SOLDOUT: "품절 실패",
+  DUPLICATE: "중복 발급 실패",
+};
+const OUTCOME_COLOR: Record<"SOLDOUT" | "DUPLICATE", string> = {
+  SOLDOUT: "#e0821f",
+  DUPLICATE: "#dc2626",
+};
 
-function generateMockRows(count: number, topRank: number): MockRow[] {
-  const now = Date.now();
-  let cursor = now;
-  return Array.from({ length: count }, (_, i) => {
-    const delayMs = i === count - 1 ? null : Math.floor(Math.random() * 800) + 40;
-    if (i > 0 && delayMs !== null) cursor -= delayMs;
-    return {
-      issueId: 100_000 - i,
-      rank: topRank - i,
-      userId: Math.floor(Math.random() * 1_000_000) + 1,
-      status: STATUSES[Math.floor(Math.random() * STATUSES.length)],
-      issuedAt: new Date(cursor).toISOString(),
-      delayMs,
-    };
-  });
+function reasonLabel(row: CouponFairnessTimelineEntry): { text: string; color: string } {
+  if (row.outcome === "SUCCESS" && row.status) {
+    return { text: STATUS_LABEL[row.status], color: STATUS_COLOR[row.status] };
+  }
+  const outcome = row.outcome as "SOLDOUT" | "DUPLICATE";
+  return { text: OUTCOME_LABEL[outcome], color: OUTCOME_COLOR[outcome] };
 }
 
-export function CouponIssueHistoryCard() {
-  const rows = useMemo(() => generateMockRows(20, 8842), []);
+interface Props {
+  couponId: number;
+}
+
+/**
+ * "재고 · Redis" 카드 옆 실시간 발급 이력 - GET /api/admin/coupons/{couponId}/fairness/timeline 폴링.
+ * rank는 Redis fairness-log의 원자적 처리 순번(재고 차감과 같은 Lua 스크립트 안에서 매겨짐)이라
+ * DB issued_at 기반 정렬보다 실제 처리 순서를 정확히 보여준다. SOLDOUT/DUPLICATE 건은 DB 행이
+ * 없어서 발급시각/지연이 "-"로 표시된다.
+ */
+export function CouponIssueHistoryCard({ couponId }: Props) {
+  const [rows, setRows] = useState<CouponFairnessTimelineEntry[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setRows([]);
+    setError(null);
+
+    const load = () => {
+      fetchFairnessTimeline(couponId)
+        .then((next) => {
+          if (!cancelled) {
+            setRows(next);
+            setError(null);
+          }
+        })
+        .catch((e) => {
+          if (!cancelled) setError(e instanceof Error ? e.message : "선착순 타임라인 조회 실패");
+        });
+    };
+
+    load();
+    const timer = window.setInterval(load, POLL_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [couponId]);
 
   return (
     <div className="card card-wide">
-      <div className="card-title-row">
-        <span className="card-title card-title-tight">쿠폰 발급 이력 · 선착순</span>
-        <span className="mock-badge">Mock 데이터 - 실제 API 미구현</span>
-      </div>
+      <span className="card-title">쿠폰 발급 이력 · 선착순</span>
 
-      <div className="history-table-wrap history-table-wrap-compact">
-        <table className="history-table history-table-compact">
-          <thead>
-            <tr>
-              <th>건</th>
-              <th>순번</th>
-              <th>유저 / 사유</th>
-              <th>발급시각</th>
-              <th>지연</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => (
-              <tr key={r.issueId}>
-                <td>{i + 1}</td>
-                <td className="history-cell-mono">#{r.rank}</td>
-                <td>
-                  유저 {r.userId} ·{" "}
-                  <span style={{ color: STATUS_COLOR[r.status] }}>{STATUS_LABEL[r.status]}</span>
-                </td>
-                <td className="history-cell-mono">{new Date(r.issuedAt).toLocaleTimeString("ko-KR")}</td>
-                <td className="history-cell-mono">{r.delayMs === null ? "-" : formatMs(r.delayMs)}</td>
+      {error ? (
+        <span className="dialog-error">{error}</span>
+      ) : rows.length === 0 ? (
+        <span className="tile-label-md">발급 이력이 없습니다</span>
+      ) : (
+        <div className="history-table-wrap history-table-wrap-compact">
+          <table className="history-table history-table-compact">
+            <thead>
+              <tr>
+                <th>건</th>
+                <th>순번</th>
+                <th>유저 / 사유</th>
+                <th>발급시각</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {rows.map((r, i) => {
+                const reason = reasonLabel(r);
+                return (
+                  <tr key={`${r.rank}-${r.userId}`}>
+                    <td>{i + 1}</td>
+                    <td className="history-cell-mono">#{r.rank}</td>
+                    <td>
+                      유저 {r.userId} · <span style={{ color: reason.color }}>{reason.text}</span>
+                    </td>
+                    <td className="history-cell-mono">
+                      {r.issuedAt === null ? "-" : new Date(r.issuedAt).toLocaleTimeString("ko-KR")}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

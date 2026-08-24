@@ -46,6 +46,7 @@ public class DummyDataController {
     }
 
     // 적재 진행 상태 - 새로고침해도 "적재 중"인지 알 수 있도록 폴링용으로 둔다(로컬 UI 상태가 아님).
+    // before는 항상 DummyDataAll.SEED_BASELINE(고정 시드값)이라 여기서 따로 채울 게 없다.
     @GetMapping("/api/admin/dummy-data/status")
     public ResponseEntity<ApiResponse<DummyDataStatus>> status() {
         DummyDataStatus status = dummyDataLoadService.status();
