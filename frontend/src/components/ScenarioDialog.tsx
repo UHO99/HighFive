@@ -7,7 +7,7 @@ interface Props {
   coupons: CouponSummary[];
   defaultCouponId: number;
   onCancel: () => void;
-  onConfirm: (scenario: K6Scenario, couponId: number) => void;
+  onConfirm: (scenario: K6Scenario, couponId: number, stock?: number, maxVus?: number) => void;
 }
 
 export function ScenarioDialog({ coupons, defaultCouponId, onCancel, onConfirm }: Props) {
@@ -17,6 +17,13 @@ export function ScenarioDialog({ coupons, defaultCouponId, onCancel, onConfirm }
     coupons.some((c) => c.id === defaultCouponId) ? defaultCouponId : (coupons[0]?.id ?? null)
   );
   const [error, setError] = useState<string | null>(null);
+  const [maxVusInput, setMaxVusInput] = useState(50);
+
+  const selectedScenario = scenarios.find((s) => s.id === selectedId);
+  // 재고는 사용자가 또 입력할 값이 아니다 - 이미 선택한 쿠폰의 실제 재고를 그대로 쓴다.
+  // k6 스크립트에서 STOCK은 "쿠폰 재고를 설정"하는 게 아니라 "요청을 몇 번 보낼지"(STOCK×2) 계산용이라,
+  // 실제 재고와 다른 값을 넣으면 결과가 왜곡된다(둘이 따로 놀면 안 됨).
+  const selectedCoupon = coupons.find((c) => c.id === selectedCouponId);
 
   useEffect(() => {
     let cancelled = false;
@@ -96,6 +103,27 @@ export function ScenarioDialog({ coupons, defaultCouponId, onCancel, onConfirm }
           ))}
         </div>
 
+        {selectedScenario?.configurable && (
+          <div className="scale-input-row">
+            <div className="form-field">
+              <span className="form-label">재고 (선택한 쿠폰 기준)</span>
+              <span className="form-input" style={{ display: "inline-block" }}>
+                {selectedCoupon ? selectedCoupon.totalQuantity.toLocaleString() : "-"}
+              </span>
+            </div>
+            <label className="form-field">
+              <span className="form-label">동시접속</span>
+              <input
+                type="number"
+                min={1}
+                className="form-input"
+                value={maxVusInput}
+                onChange={(e) => setMaxVusInput(Number(e.target.value))}
+              />
+            </label>
+          </div>
+        )}
+
         <div className="dialog-actions">
           <button type="button" className="dialog-btn ghost" onClick={onCancel}>
             취소
@@ -107,7 +135,11 @@ export function ScenarioDialog({ coupons, defaultCouponId, onCancel, onConfirm }
             onClick={() => {
               const scenario = scenarios.find((s) => s.id === selectedId);
               if (!scenario || selectedCouponId === null) return;
-              onConfirm(scenario, selectedCouponId);
+              if (scenario.configurable) {
+                onConfirm(scenario, selectedCouponId, selectedCoupon?.totalQuantity, maxVusInput);
+              } else {
+                onConfirm(scenario, selectedCouponId);
+              }
             }}
           >
             실행

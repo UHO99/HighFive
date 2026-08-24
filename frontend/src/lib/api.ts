@@ -268,6 +268,8 @@ export interface K6ScenarioDto {
   rampUp: string;
   hold: string;
   targetVus: string;
+  /** true면 실행 전에 재고(stock)/동시접속(maxVus)을 숫자로 입력받아야 한다. */
+  configurable: boolean;
 }
 
 /** backend K6StatusResponse(domain/k6test/dto)와 1:1로 대응한다. */
@@ -297,11 +299,17 @@ export async function fetchK6Scenarios(): Promise<K6ScenarioDto[]> {
   return parseApiResponse<K6ScenarioDto[]>(res, "k6 시나리오 목록 조회 실패");
 }
 
-export async function runK6Scenario(scenarioId: string, couponId: number): Promise<K6StatusResponse> {
+/** stock/maxVus는 configurable 시나리오(동시성 정합성 검증)에서만 의미가 있다 - 그 외엔 생략해도 된다. */
+export async function runK6Scenario(
+  scenarioId: string,
+  couponId: number,
+  stock?: number,
+  maxVus?: number
+): Promise<K6StatusResponse> {
   const res = await fetch(`${API_BASE}/api/admin/k6/run`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ scenarioId, couponId }),
+    body: JSON.stringify({ scenarioId, couponId, stock, maxVus }),
   });
   return parseApiResponse<K6StatusResponse>(res, "k6 실행 실패");
 }
