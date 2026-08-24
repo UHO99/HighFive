@@ -96,6 +96,49 @@ export interface MonitoringDashboardResponse {
 }
 
 /**
+ * backend MismatchEvent(domain/coupon/dto)와 1:1로 대응한다. resolvedAt이 null이면 아직 미해소 -
+ * 해소되어도 목록에서 사라지지 않고 resolvedAt이 채워진 채로 계속 남아있는 이력이다.
+ */
+export interface MismatchHistoryEntry {
+  couponId: number;
+  detectedAt: string;
+  resolvedAt: string | null;
+  recordedIssuedQuantity: number | null;
+  actualIssuedCount: number;
+  pendingCount: number;
+}
+
+/**
+ * backend CouponConsistencyStatusResponse(domain/coupon/dto)와 1:1로 대응한다. couponId와 무관한
+ * 시스템 전체 상태라 모니터링 대시보드 조회(couponId 스코프)와 별도 경로다 - 오픈된 쿠폰이 없어서
+ * 그쪽이 실패하는 동안에도 이 값은 계속 갱신된다. 동기화/검증 배치가 사이클마다(대상이 0건이어도)
+ * lastRunAt을 갱신하므로, "지금 - lastRunAt"이 intervalMs의 몇 배를 넘으면 배치가 멈춘 것으로 볼 수
+ * 있다. verify는 CLOSE된 쿠폰만 대상으로 하므로 OPEN 쿠폰만 있을 땐 targetCount가 항상 0이다(정상).
+ */
+export interface CouponConsistencyStatusResponse {
+  sync: {
+    lastRunAt: string | null;
+    intervalMs: number;
+    targetCount: number;
+    syncedCount: number;
+  };
+  verify: {
+    lastRunAt: string | null;
+    intervalMs: number;
+    targetCount: number;
+    confirmedCount: number;
+    mismatchCount: number;
+    mismatchHistory: MismatchHistoryEntry[];
+  };
+}
+
+/** MonitoringController.getConsistencyStatus() - 동기화/검증 배치의 최근 실행 스냅샷. */
+export async function fetchConsistencyStatus(): Promise<CouponConsistencyStatusResponse> {
+  const res = await fetch(`${API_BASE}/api/admin/monitoring/consistency-status`);
+  return parseApiResponse<CouponConsistencyStatusResponse>(res, "정합성 동기화/검증 상태 조회 실패");
+}
+
+/**
  * couponId가 DB에 아예 없을 때(CouponErrorCode.COUPON_NOT_FOUND) 백엔드가 던지는 404 - 오픈된 쿠폰이
  * 하나도 없는 정상 상태에서도 발생하므로, 진짜 연결 실패(네트워크 오류/5xx)와 구분해서 다뤄야 한다.
  */
@@ -443,3 +486,4 @@ export async function fetchCouponFairness(couponId: number): Promise<CouponFairn
   const res = await fetch(`${API_BASE}/api/admin/coupons/${couponId}/fairness`);
   return parseApiResponse<CouponFairnessReport>(res, "선착순 공정성 검증 조회 실패");
 }
+

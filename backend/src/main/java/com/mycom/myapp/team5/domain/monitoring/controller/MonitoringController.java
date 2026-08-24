@@ -1,5 +1,6 @@
 package com.mycom.myapp.team5.domain.monitoring.controller;
 
+import com.mycom.myapp.team5.domain.coupon.dto.CouponConsistencyStatusResponse;
 import com.mycom.myapp.team5.domain.monitoring.dto.MonitoringDashboardResponse;
 import com.mycom.myapp.team5.domain.monitoring.service.MonitoringService;
 import com.mycom.myapp.team5.global.aspect.LogDescription;
@@ -23,6 +24,14 @@ public class MonitoringController {
     @GetMapping("/coupons/{couponId}")
     public ResponseEntity<ApiResponse<MonitoringDashboardResponse>> getDashboard(@PathVariable long couponId) {
         return ResponseEntity.ok(ApiResponse.success(monitoringService.getDashboard(couponId)));
+    }
+
+    // couponId와 무관한 시스템 전체 상태라 별도 경로로 둔다 - 오픈된 쿠폰이 없어 위 getDashboard()가
+    // 실패하는 동안에도 "정합성 동기화·검증" 카드는 계속 갱신되어야 하기 때문.
+    @LogDescription("정합성 동기화/검증 상태 조회")
+    @GetMapping("/consistency-status")
+    public ResponseEntity<ApiResponse<CouponConsistencyStatusResponse>> getConsistencyStatus() {
+        return ResponseEntity.ok(ApiResponse.success(monitoringService.getConsistencyStatus()));
     }
 
     // 대시보드 지표만 0으로 초기화한다 - Redis/DB 실 데이터는 건드리지 않는다(MonitoringService 참고).
