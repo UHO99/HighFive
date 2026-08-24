@@ -104,7 +104,7 @@ public class CouponStockRedisService {
 	 * Stream 배치 반영이라 순서가 흔들릴 수 있음)보다 실제 처리 순서를 더 정확히 보여준다.
 	 */
 	public List<FairnessLogEntry> recentFairnessLog(long couponId, int limit) {
-		Set<String> raw = redisTemplate.opsForZSet().reverseRange(CouponStockKeys.fairnessLogKey(couponId), 0, limit - 1);
+		Set<String> raw = redisTemplate.opsForZSet().range(CouponStockKeys.fairnessLogKey(couponId), 0, limit - 1);
 		if (raw == null) {
 			return List.of();
 		}
