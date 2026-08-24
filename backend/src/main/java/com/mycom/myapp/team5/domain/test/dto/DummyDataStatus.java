@@ -12,10 +12,12 @@ public record DummyDataStatus(
         boolean loading,
         Instant startedAt,
         Instant finishedAt,
+        /** 이번 적재를 "시작하기 직전" DB 스냅샷 - 대시보드 Before/After 비교용. 새로 시작할 때마다 갱신된다. */
+        DummyDataAll.Counts before,
         DummyDataAll.Counts lastResult,
         String lastError
 ) {
     public static DummyDataStatus idle() {
-        return new DummyDataStatus(false, null, null, null, null);
+        return new DummyDataStatus(false, null, null, null, null, null);
     }
 }

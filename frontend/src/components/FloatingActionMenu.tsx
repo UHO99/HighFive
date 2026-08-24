@@ -14,7 +14,7 @@ interface Props {
   dataReady: boolean;
   /** 지금 적재가 진행 중인지 - "데이터 적재" 버튼 중복 클릭만 막는다. */
   dataLoading: boolean;
-  onStartTest: (scenario: K6Scenario, couponId: number) => void;
+  onStartTest: (scenario: K6Scenario, couponId: number, stock?: number, maxVus?: number) => void;
   onStopTest: () => void;
   onLoadData: () => void;
   onResetMetrics: () => void;
@@ -133,9 +133,9 @@ export function FloatingActionMenu({
           coupons={coupons}
           defaultCouponId={couponId}
           onCancel={() => setDialogOpen(false)}
-          onConfirm={(scenario, targetCouponId) => {
+          onConfirm={(scenario, targetCouponId, stock, maxVus) => {
             setDialogOpen(false);
-            onStartTest(scenario, targetCouponId);
+            onStartTest(scenario, targetCouponId, stock, maxVus);
           }}
         />
       )}
@@ -150,7 +150,10 @@ export function FloatingActionMenu({
       )}
 
       {couponHistoryDialogOpen && (
-        <CouponHistoryDialog onClose={() => setCouponHistoryDialogOpen(false)} />
+        <CouponHistoryDialog
+          couponId={couponId}
+          onClose={() => setCouponHistoryDialogOpen(false)}
+        />
       )}
     </>
   );

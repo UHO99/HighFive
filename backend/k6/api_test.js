@@ -41,9 +41,7 @@ export default function () {
     // iterationInTest는 전체 실행 동안 VU를 넘나들며 절대 겹치지 않는 값이라 이 문제가 없다.
     const USER_POOL_SIZE = Number(__ENV.USER_POOL_SIZE || 1_000_000);
     const userId = (exec.scenario.iterationInTest % USER_POOL_SIZE) + 1;
-    const res = http.post(`${BASE_URL}/${COUPON_ID}/issue?userId=${userId}`); // Kafka
-    // const res = http.post(`${BASE_URL}/${COUPON_ID}/issue?userId=${userId}`); // Redis
-    // const res = http.post(`${BASE_URL}/${COUPON_ID}/issue?userId=${userId}`); // CRUD
+    const res = http.post(`${BASE_URL}/coupons/${COUPON_ID}/issue?userId=${userId}`);
 
     const ok = check(res, {
         '202 Accepted': (r) => r.status === 202,
@@ -57,6 +55,6 @@ export default function () {
 }
 
 export function teardown() {
-    const res = http.get(`${BASE_URL}/${COUPON_ID}`);
+    const res = http.get(`${BASE_URL}/coupons/${COUPON_ID}`);
     console.log(`[teardown] GET /${COUPON_ID} -> status=${res.status} body=${res.body}`);
 }

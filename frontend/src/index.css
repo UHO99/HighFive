@@ -151,7 +151,7 @@ body {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  padding: 18px 22px;
+  padding: 16px 20px;
   overflow: auto;
 }
 
@@ -231,12 +231,17 @@ body {
 
 /* ---------- rows / cards ---------- */
 
+/*
+ * flex:1로 뷰포트 남은 높이를 강제로 채우던 걸 content-driven(flex: 0 0 auto)으로 바꿨다 - 카드
+ * 안 내용이 적을 때 억지로 늘어나 위아래로 텅 빈 여백이 생기던 문제(컨테이너 내부가 "띄엄띄엄")를
+ * 없앤다. 전체 내용이 뷰포트보다 길어지면 .main의 overflow:auto로 스크롤된다.
+ */
 .row {
   display: flex;
-  gap: 12px;
-  flex: 1;
-  min-height: 0;
-  margin-bottom: 12px;
+  align-items: stretch;
+  gap: 10px;
+  flex: 0 0 auto;
+  margin-bottom: 10px;
 }
 
 .row:last-child {
@@ -249,10 +254,15 @@ body {
   background: #fff;
   border: 1px solid #e7e9f0;
   border-radius: 12px;
-  padding: 10px 12px;
+  padding: 9px 11px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+/* 발급 이력 테이블처럼 컬럼이 많은 카드에 같은 행의 다른 카드보다 더 많은 폭을 준다. */
+.card-wide {
+  flex: 1.7;
 }
 
 .card-title {
@@ -264,6 +274,27 @@ body {
 
 .card-title-tight {
   margin-bottom: 4px;
+}
+
+.card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.card-title-row .card-title {
+  margin-bottom: 0;
+}
+
+.mock-badge {
+  font: 700 10px/1 "Inter", sans-serif;
+  color: #e0821f;
+  background: #fff4e6;
+  border-radius: 999px;
+  padding: 3px 9px;
+  white-space: nowrap;
 }
 
 /* ---------- tiles ---------- */
@@ -622,6 +653,11 @@ body {
 }
 
 /* ---------- scenario dialog ---------- */
+
+.scale-input-row {
+  display: flex;
+  gap: 12px;
+}
 
 .form-field {
   display: flex;
@@ -1053,26 +1089,7 @@ body {
   color: #8b8fa3;
 }
 
-/* ---------- admin coupon history (mock) ---------- */
-
-.dialog-panel-wide {
-  width: min(720px, calc(100vw - 48px));
-}
-
-.dialog-title-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.mock-badge {
-  font: 700 10.5px/1 "Inter", sans-serif;
-  color: #e0821f;
-  background: #fff4e6;
-  border-radius: 999px;
-  padding: 4px 10px;
-}
+/* ---------- admin coupon issue history ---------- */
 
 .history-table-wrap {
   overflow: auto;
@@ -1105,4 +1122,73 @@ body {
 
 .history-table td {
   color: #3a3d4d;
+}
+
+/* 대시보드 카드에 그대로 박아넣는 버전 - 모달의 넉넉한 여백 대신 다른 카드들과 밀도를 맞춘다. */
+.history-table-wrap-compact {
+  max-height: 258px;
+}
+
+.history-table-compact th,
+.history-table-compact td {
+  padding: 6px 9px;
+  font-size: 11.5px;
+}
+
+.history-cell-mono {
+  font-family: "JetBrains Mono", monospace;
+}
+
+/* ---------- before / after (더미데이터 적재) ---------- */
+
+.ba-table-wrap {
+  border: 1px solid #e7e9f0;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.ba-table {
+  width: 100%;
+  border-collapse: collapse;
+  font: 500 11.5px/1 "Inter", sans-serif;
+}
+
+.ba-table th,
+.ba-table td {
+  text-align: right;
+  padding: 6px 9px;
+  border-bottom: 1px solid #f0f1f5;
+}
+
+.ba-table tr:last-child td {
+  border-bottom: none;
+}
+
+.ba-table th {
+  color: #8b8fa3;
+  font-weight: 700;
+  font-size: 10px;
+  background: #f7f8fb;
+}
+
+.ba-table th:first-child,
+.ba-table td:first-child {
+  text-align: left;
+}
+
+.ba-table td {
+  color: #171b2e;
+  font-family: "JetBrains Mono", monospace;
+  font-weight: 600;
+}
+
+.ba-row-label {
+  color: #5b5f72;
+  font-family: "Inter", sans-serif;
+  font-weight: 600;
+}
+
+.ba-delta-pos {
+  color: #ff6a3d;
 }

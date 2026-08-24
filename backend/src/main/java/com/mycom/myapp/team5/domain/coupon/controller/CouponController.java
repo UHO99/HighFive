@@ -3,11 +3,7 @@ package com.mycom.myapp.team5.domain.coupon.controller;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import com.mycom.myapp.team5.domain.coupon.dto.CouponResponse;
 import com.mycom.myapp.team5.domain.coupon.dto.CouponSummary;
@@ -21,12 +17,25 @@ import com.mycom.myapp.team5.global.redis.CouponIssueStreamProducer;
 import lombok.RequiredArgsConstructor;
 
 @RestController
+@RequestMapping("/coupons")
 @RequiredArgsConstructor
 public class CouponController {
 
 	private final CouponService couponService;
 	private final CouponStatusService couponStatusService; // 상태 전환 서비스 추가
 	private final CouponIssueStreamProducer producer;
+
+	@LogDescription("쿠폰 목록 조회")
+	@GetMapping
+	public ResponseEntity<ApiResponse<List<CouponResponse>>> getCoupons() {
+		return ResponseEntity.ok(ApiResponse.success(couponService.getCoupons()));
+	}
+
+	@LogDescription("쿠폰 정보 조회")
+	@GetMapping("/{couponId}")
+	public ResponseEntity<ApiResponse<CouponResponse>> getCoupon(@PathVariable long couponId) {
+		return ResponseEntity.ok(ApiResponse.success(couponService.getCoupon(couponId)));
+	}
 
 	@LogDescription("쿠폰 발급 요청")
 	@PostMapping("/{couponId}/issue")

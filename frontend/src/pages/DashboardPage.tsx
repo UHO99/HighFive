@@ -6,6 +6,7 @@ import { ApiResponseCard } from "../components/ApiResponseCard";
 import { CouponStatusCard } from "../components/CouponStatusCard";
 import { RedisStockCard } from "../components/RedisStockCard";
 import { DbStorageCard } from "../components/DbStorageCard";
+import { CouponIssueHistoryCard } from "../components/CouponIssueHistoryCard";
 import { FloatingActionMenu } from "../components/FloatingActionMenu";
 import { useMonitoringDashboard } from "../hooks/useMonitoringDashboard";
 import {
@@ -18,7 +19,7 @@ const DEFAULT_COUPON_ID = 1;
 const POLL_INTERVAL_MS = 10_000;
 const DUMMY_STATUS_POLL_INTERVAL_MS = 2000;
 
-const IDLE_DUMMY_STATUS: DummyDataStatus = { loading: false, startedAt: null, finishedAt: null, lastResult: null, lastError: null };
+const IDLE_DUMMY_STATUS: DummyDataStatus = { loading: false, startedAt: null, finishedAt: null, before: null, lastResult: null, lastError: null };
 
 type DbCounts = Pick<DummyDataCounts, "userCount" | "couponCount" | "couponIssueCount">;
 type ReloadTiming = Pick<DummyDataCounts, "userLoadMs" | "couponIssueLoadMs" | "totalMs">;
@@ -26,7 +27,7 @@ type ReloadTiming = Pick<DummyDataCounts, "userLoadMs" | "couponIssueLoadMs" | "
 export function DashboardPage() {
   const [coupons, setCoupons] = useState<CouponSummary[]>([]);
   const [couponId, setCouponId] = useState(DEFAULT_COUPON_ID);
-  const { vals, startTest, stopTest, error } = useMonitoringDashboard(couponId);
+  const { vals, startTest, stopTest, error, couponMissing } = useMonitoringDashboard(couponId);
   const [dbCounts, setDbCounts] = useState<DbCounts | null>(null);
   // 재적재 시점의 소요시간은 폴링으로 안 지워진다 - GET counts는 이 값을 모르니(null) 마지막으로
   // 성공한 재적재 값을 그대로 들고 있는다.
@@ -54,10 +55,25 @@ export function DashboardPage() {
   // 적재 진행 상태를 폴링한다(K6 상태와 같은 패턴) - 서버 상태 그대로라 새로고침해도 "적재 중"이
   // 안 사라지고, 다른 사람이/다른 탭이 적재를 눌렀어도 여기서 알 수 있다.
   useEffect(() => {
+    // 새로고침 직후 첫 조회에서 받는 finishedAt은 "방금 끝난 일"이 아니라 "이미 예전에 끝나서
+    // 서버가 계속 기억하고 있던 결과"다 - lastHandledFinishRef가 마운트마다 null로 리셋되는 것과
+    // 부딪혀서 매번 새 완료로 오인하고 팝업이 또 뜨는 걸 막는다. 첫 조회는 조용히 반영만 한다.
+    let isFirstLoad = true;
     const load = () => {
       fetchDummyDataStatus()
         .then((status) => {
           setDummyStatus(status);
+
+          if (isFirstLoad) {
+            isFirstLoad = false;
+            lastHandledFinishRef.current = status.finishedAt;
+            if (status.lastResult) {
+              const counts = status.lastResult;
+              setDbCounts({ userCount: counts.userCount, couponCount: counts.couponCount, couponIssueCount: counts.couponIssueCount });
+              setReloadTiming({ userLoadMs: counts.userLoadMs, couponIssueLoadMs: counts.couponIssueLoadMs, totalMs: counts.totalMs });
+            }
+            return;
+          }
 
           if (status.finishedAt && status.finishedAt !== lastHandledFinishRef.current) {
             lastHandledFinishRef.current = status.finishedAt;
@@ -123,9 +139,9 @@ export function DashboardPage() {
   // K6TestService(백엔드가 도커로 형제 k6 컨테이너를 띄움)를 실제로 호출한다. ScenarioDialog에서 고른
   // 대상 쿠폰으로 모니터링 화면도 같이 전환한다 - 다른 쿠폰을 보면서 엉뚱한 쿠폰에 테스트가 도는 걸 방지.
   // vals.testRunning/scenarioFile은 이 호출과 무관하게 GET /api/admin/k6/status 폴링으로 갱신된다.
-  const handleStartTest = (scenario: K6Scenario, targetCouponId: number) => {
+  const handleStartTest = (scenario: K6Scenario, targetCouponId: number, stock?: number, maxVus?: number) => {
     setCouponId(targetCouponId);
-    startTest(scenario.id, targetCouponId).catch((e) => {
+    startTest(scenario.id, targetCouponId, stock, maxVus).catch((e) => {
       console.error("[HighFive] k6 실행 실패", e);
     });
   };
@@ -206,6 +222,7 @@ export function DashboardPage() {
         <DashboardHeader
           vals={vals}
           error={error}
+          couponMissing={couponMissing}
           coupons={coupons}
           couponId={couponId}
           onCouponChange={setCouponId}
@@ -220,7 +237,8 @@ export function DashboardPage() {
 
         <div className="row">
           <RedisStockCard vals={vals} onDrainPending={handleDrainPending} />
-          <DbStorageCard vals={vals} dummyDataCounts={dummyDataCounts} />
+          <DbStorageCard vals={vals} dummyDataCounts={dummyDataCounts} beforeCounts={dummyStatus.before} />
+          <CouponIssueHistoryCard />
         </div>
       </div>
 

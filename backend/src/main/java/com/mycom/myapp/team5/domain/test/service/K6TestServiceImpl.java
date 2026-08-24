@@ -14,6 +14,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -56,7 +57,7 @@ public class K6TestServiceImpl implements K6TestService {
     }
 
     @Override
-    public K6StatusResponse start(String scenarioId, long couponId) {
+    public K6StatusResponse start(String scenarioId, long couponId, Integer stock, Integer maxVus) {
         K6Scenario scenario = K6Scenario.fromId(scenarioId);
 
         synchronized (lock) {
@@ -66,7 +67,7 @@ public class K6TestServiceImpl implements K6TestService {
 
             ensureBakedIntoImage(scenario.getFile());
             cleanupStaleContainer();
-            Process process = launch(scenario, couponId);
+            Process process = launch(scenario, couponId, stock, maxVus);
             Run run = new Run(scenario, couponId, Instant.now(), process, null);
             current = run;
             watch(run);
@@ -166,15 +167,21 @@ public class K6TestServiceImpl implements K6TestService {
         }
     }
 
-    private Process launch(K6Scenario scenario, long couponId) {
-        List<String> command = List.of(
+    private Process launch(K6Scenario scenario, long couponId, Integer stock, Integer maxVus) {
+        List<String> command = new ArrayList<>(List.of(
                 "docker", "run", "--rm",
                 "--name", CONTAINER_NAME,
                 "--network", network,
                 "-e", "BASE_URL=" + baseUrl,
-                "-e", "COUPON_ID=" + couponId,
-                image, "run", "/scripts/" + scenario.getFile()
-        );
+                "-e", "COUPON_ID=" + couponId
+        ));
+        // stock/maxVus는 configurable한 시나리오에서만 의미가 있다 - 다른 시나리오는 스크립트
+        // 자체가 이 env var를 안 읽으니 넘겨도 무해하지만, 굳이 안 넘긴다.
+        if (scenario.isConfigurable()) {
+            if (stock != null) command.addAll(List.of("-e", "STOCK=" + stock));
+            if (maxVus != null) command.addAll(List.of("-e", "MAX_VUS=" + maxVus));
+        }
+        command.addAll(List.of(image, "run", "/scripts/" + scenario.getFile()));
 
         try {
             Path logFile = prepareLogFile(scenario);

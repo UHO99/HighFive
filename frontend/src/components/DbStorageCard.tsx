@@ -7,6 +7,8 @@ const FMT = new Intl.NumberFormat("ko-KR");
 interface Props {
   vals: DashboardVals;
   dummyDataCounts: DummyDataCounts | null;
+  /** 마지막 적재를 "시작하기 직전" 스냅샷 - Before 열에 쓴다. 한 번도 적재 안 했으면 null. */
+  beforeCounts: DummyDataCounts | null;
 }
 
 function throughput(count: number, ms: number): string {
@@ -14,7 +16,19 @@ function throughput(count: number, ms: number): string {
   return `${FMT.format(Math.round((count / ms) * 1000))}건/s`;
 }
 
-export function DbStorageCard({ vals, dummyDataCounts }: Props) {
+function formatDelta(before: number, after: number): string {
+  const d = after - before;
+  if (d === 0) return "±0";
+  return d > 0 ? `+${FMT.format(d)}` : FMT.format(d);
+}
+
+const BEFORE_AFTER_ROWS: { key: "userCount" | "couponCount" | "couponIssueCount"; label: string }[] = [
+  { key: "userCount", label: "회원" },
+  { key: "couponCount", label: "쿠폰" },
+  { key: "couponIssueCount", label: "발급 이력" },
+];
+
+export function DbStorageCard({ vals, dummyDataCounts, beforeCounts }: Props) {
   return (
     <div className="card">
       <span className="card-title">DB 저장</span>
@@ -52,23 +66,37 @@ export function DbStorageCard({ vals, dummyDataCounts }: Props) {
         </div>
       </div>
 
-      <span className="section-label">더미데이터 적재 현황</span>
+      <span className="section-label">더미데이터 적재 현황 · Before / After</span>
       {dummyDataCounts === null ? (
         <span className="tile-label-md">기록 없음</span>
       ) : (
-        <div className="tile-grid-3">
-          <div className="tile tile-sm">
-            <div className="tile-label-xs">회원</div>
-            <div className="tile-value-xs">{FMT.format(dummyDataCounts.userCount)}</div>
-          </div>
-          <div className="tile tile-sm">
-            <div className="tile-label-xs">쿠폰</div>
-            <div className="tile-value-xs">{FMT.format(dummyDataCounts.couponCount)}</div>
-          </div>
-          <div className="tile tile-sm">
-            <div className="tile-label-xs">발급 이력</div>
-            <div className="tile-value-xs">{FMT.format(dummyDataCounts.couponIssueCount)}</div>
-          </div>
+        <div className="ba-table-wrap">
+          <table className="ba-table">
+            <thead>
+              <tr>
+                <th>구분</th>
+                <th>BEFORE 적재 전</th>
+                <th>AFTER 적재 후</th>
+                <th>델타</th>
+              </tr>
+            </thead>
+            <tbody>
+              {BEFORE_AFTER_ROWS.map(({ key, label }) => {
+                const after = dummyDataCounts[key];
+                const before = beforeCounts?.[key];
+                return (
+                  <tr key={key}>
+                    <td className="ba-row-label">{label}</td>
+                    <td>{before == null ? "-" : FMT.format(before)}</td>
+                    <td>{FMT.format(after)}</td>
+                    <td className={before != null && after > before ? "ba-delta-pos" : undefined}>
+                      {before == null ? "-" : formatDelta(before, after)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
 
