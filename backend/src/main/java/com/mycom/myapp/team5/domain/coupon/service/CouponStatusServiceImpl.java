@@ -23,7 +23,7 @@ public class CouponStatusServiceImpl implements CouponStatusService {
 	private final CouponRepository couponRepository;
 	private final CouponStockRedisService couponStockRedisService;			// 기존 코드 재사용
 	private final StringRedisTemplate stringRedisTemplate;					// CLOSE 시 키 삭제
-	private final ApplicationEventPublisher eventPublisher;					// OPEN 시 Redis Stream 구독 즉시 트리거
+	private final ApplicationEventPublisher eventPublisher;				// OPEN 시 Redis Stream 구독 즉시 트리거
 
 	@Override
 	@Transactional
