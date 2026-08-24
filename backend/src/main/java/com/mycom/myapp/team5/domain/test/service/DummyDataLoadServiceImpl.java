@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import javax.sql.DataSource;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 /**
  * K6TestServiceImpl과 같은 패턴 - 적재는 수십 초 걸리는 무거운 작업이라 HTTP 요청/응답 안에서
@@ -32,7 +33,7 @@ public class DummyDataLoadServiceImpl implements DummyDataLoadService {
             if (current.loading()) {
                 throw new DummyDataException(DummyDataErrorCode.ALREADY_LOADING);
             }
-            current = new DummyDataStatus(true, Instant.now(), null, DummyDataAll.SEED_BASELINE, current.lastResult(), null);
+            current = new DummyDataStatus(true, Instant.now(), null, before, current.lastResult(), null);
         }
 
         Thread thread = new Thread(this::runLoad, "dummy-data-load");
@@ -58,9 +59,23 @@ public class DummyDataLoadServiceImpl implements DummyDataLoadService {
         }
     }
 
+    private static final long LOADING_STALE_MINUTES = 3;
+
     @Override
     public DummyDataStatus status() {
         synchronized (lock) {
+            // LOAD DATA 등이 멈춘 채 loading=true만 남으면 프론트가 영구 "적재 중"이 되고 재시도도 막힌다.
+            if (current.loading() && current.startedAt() != null
+                    && current.startedAt().isBefore(Instant.now().minus(LOADING_STALE_MINUTES, ChronoUnit.MINUTES))) {
+                current = new DummyDataStatus(
+                        false,
+                        current.startedAt(),
+                        Instant.now(),
+                        current.before(),
+                        current.lastResult(),
+                        "적재가 제한 시간(" + LOADING_STALE_MINUTES + "분)을 초과해 중단된 것으로 간주합니다."
+                );
+            }
             return current;
         }
     }

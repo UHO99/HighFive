@@ -18,8 +18,18 @@ import type { K6Scenario } from "../lib/scenarios";
 const DEFAULT_COUPON_ID = 1;
 const POLL_INTERVAL_MS = 10_000;
 const DUMMY_STATUS_POLL_INTERVAL_MS = 2000;
+/** 적재 스레드가 죽거나 DB에서 멈춘 뒤 loading=true가 남는 경우 UI가 영구 잠기지 않게 */
+const DUMMY_LOADING_STALE_MS = 3 * 60 * 1000;
 
 const IDLE_DUMMY_STATUS: DummyDataStatus = { loading: false, startedAt: null, finishedAt: null, before: null, lastResult: null, lastError: null };
+
+function isDummyLoadingActive(status: DummyDataStatus): boolean {
+  if (!status.loading) return false;
+  if (!status.startedAt) return true;
+  const started = Date.parse(status.startedAt);
+  if (Number.isNaN(started)) return true;
+  return Date.now() - started < DUMMY_LOADING_STALE_MS;
+}
 
 type DbCounts = Pick<DummyDataCounts, "userCount" | "couponCount" | "couponIssueCount">;
 type ReloadTiming = Pick<DummyDataCounts, "userLoadMs" | "couponIssueLoadMs" | "totalMs">;
@@ -110,6 +120,7 @@ export function DashboardPage() {
   // 데이터가 한 번도 안 적재됐으면(회원 0명) 다른 기능들은 어차피 의미가 없다(발급 FK 다 실패) -
   // FAB의 나머지 액션을 이걸로 잠근다.
   const dataReady = dbCounts !== null && dbCounts.userCount > 0;
+  const dataLoading = isDummyLoadingActive(dummyStatus);
 
   // 모니터링 선택지는 OPEN 쿠폰만 본다 - 쿠폰이 아무리 많아져도(더미데이터로 수십만 건) OPEN은
   // 항상 소수라 이 목록은 안 커진다. 오픈 자체는 CouponManageDialog의 "오픈" 탭(READY만 따로 조회)에서 한다.
@@ -226,7 +237,7 @@ export function DashboardPage() {
           coupons={coupons}
           couponId={couponId}
           onCouponChange={setCouponId}
-          loadingData={dummyStatus.loading}
+          loadingData={dataLoading}
         />
 
         <div className="row">
@@ -247,7 +258,7 @@ export function DashboardPage() {
         coupons={coupons}
         couponId={couponId}
         dataReady={dataReady}
-        dataLoading={dummyStatus.loading}
+        dataLoading={dataLoading}
         onStartTest={handleStartTest}
         onStopTest={handleStopTest}
         onLoadData={handleLoadData}
