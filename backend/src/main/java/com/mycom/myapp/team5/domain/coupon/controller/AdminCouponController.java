@@ -137,9 +137,10 @@ public class AdminCouponController {
     }
 
     /**
-     * 대시보드 "쿠폰 발급 이력 · 선착순" 카드용 - Redis fairness-log의 실제 처리 순서(rank)에 DB
-     * 상태/시각을 얹은 최근 목록(최대 20건). rank는 재고 차감과 같은 원자적 연산으로 매겨지므로,
-     * 비동기 배치로 반영되는 DB issued_at보다 실제 처리 순서를 더 정확히 보여준다.
+     * 대시보드 "쿠폰 발급 이력 · 선착순" 카드용 - Redis fairness-log의 실제 처리 순서(rank) 오름차순
+     * 전체(첫 시도부터)에 DB 상태/시각을 얹은 목록. rank는 재고 차감과 같은 원자적 연산으로 매겨지므로,
+     * 비동기 배치로 반영되는 DB issued_at보다 실제 처리 순서를 더 정확히 보여준다. 건수 제한이 없으므로
+     * 프론트에서 스크롤로 전체를 훑어보는 걸 전제로 한다.
      */
     @LogDescription("쿠폰 선착순 타임라인 조회 (관리자)")
     @GetMapping("/api/admin/coupons/{couponId}/fairness/timeline")

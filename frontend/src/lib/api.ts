@@ -420,7 +420,7 @@ export interface CouponFairnessTimelineEntry {
   issuedAt: string | null;
 }
 
-/** AdminCouponController.getFairnessTimeline() - Redis 처리 순서 기준 최근 20건(최신이 맨 앞). */
+/** AdminCouponController.getFairnessTimeline() - Redis 처리 순서(rank) 오름차순 전체, 첫 시도부터. */
 export async function fetchFairnessTimeline(couponId: number): Promise<CouponFairnessTimelineEntry[]> {
   const res = await fetch(`${API_BASE}/api/admin/coupons/${couponId}/fairness/timeline`);
   return parseApiResponse<CouponFairnessTimelineEntry[]>(res, "선착순 타임라인 조회 실패");
@@ -428,8 +428,8 @@ export async function fetchFairnessTimeline(couponId: number): Promise<CouponFai
 
 /**
  * backend CouponFairnessReport(domain/coupon/dto)와 1:1로 대응한다.
- * fairness-log 전체(최근 20건이 아니라 코폰이 열린 뒤 전체 시도)를 훑어서, 품절 판정 이후에
- * 성공이 끼어든 적(inversion, 새치기)이 있는지 센다. inversionCount === 0이면 fair === true.
+ * fairness-log 전체를 훑어서, 품절 판정 이후에 성공이 끼어든 적(inversion, 새치기)이 있는지 센다.
+ * inversionCount === 0이면 fair === true.
  */
 export interface CouponFairnessReport {
   couponId: number;
