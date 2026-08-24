@@ -21,7 +21,7 @@ public class MonitoringController {
 
     @LogDescription("모니터링 대시보드 조회")
     @GetMapping("/coupons/{couponId}")
-    public ResponseEntity<ApiResponse<MonitoringDashboardResponse>> getDashboard(@PathVariable long couponId) {
+    public ResponseEntity<ApiResponse<MonitoringDashboardResponse>> getDashboard(@PathVariable(name = "couponId") long couponId) {
         return ResponseEntity.ok(ApiResponse.success(monitoringService.getDashboard(couponId)));
     }
 
@@ -36,7 +36,7 @@ public class MonitoringController {
     // 재시도해도 영원히 실패할 PEL을 강제로 비운다(DB에는 반영 안 됨) - 최후 수단, 명시적 호출 전용.
     @LogDescription("Stream PEL 강제 드레인")
     @PostMapping("/coupons/{couponId}/stream/drain")
-    public ResponseEntity<ApiResponse<Integer>> drainPendingStream(@PathVariable long couponId) {
+    public ResponseEntity<ApiResponse<Integer>> drainPendingStream(@PathVariable(name = "couponId") long couponId) {
         int acked = monitoringService.drainPendingStream(couponId);
         return ResponseEntity.ok(ApiResponse.success(acked));
     }

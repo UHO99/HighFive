@@ -52,7 +52,7 @@ public class AdminCouponController {
     @LogDescription("쿠폰 재고/기간 수정 (관리자)")
     @PatchMapping("/admin/coupons/{couponId}")
     public ResponseEntity<ApiResponse<CouponResponse>> update(
-            @PathVariable long couponId,
+            @PathVariable(name = "couponId") long couponId,
             @Valid @RequestBody CouponUpdateRequest request
     ) {
         return ResponseEntity.ok(ApiResponse.success(couponService.update(couponId, request)));
@@ -67,7 +67,7 @@ public class AdminCouponController {
     @LogDescription("쿠폰 현황 단건 조회 (관리자)")
     @GetMapping("/admin/coupons/{couponId}")
     public ResponseEntity<ApiResponse<CouponOverviewResponse>> getOverview(
-            @PathVariable long couponId
+            @PathVariable(name = "couponId") long couponId
     ) {
         return ResponseEntity.ok(ApiResponse.success(couponService.getOverview(couponId)));
     }
@@ -77,7 +77,7 @@ public class AdminCouponController {
     @LogDescription("전체 쿠폰 목록 조회 (관리자)")
     @GetMapping("/api/admin/coupons")
     public ResponseEntity<ApiResponse<List<CouponSummary>>> listCoupons(
-            @RequestParam(required = false) CouponStatus status
+            @RequestParam(name = "status", required = false) CouponStatus status
     ) {
         List<CouponSummary> coupons = status != null
                 ? couponService.listByStatus(status)
@@ -87,21 +87,21 @@ public class AdminCouponController {
 
     @LogDescription("쿠폰 수동 오픈 (관리자)")
     @PostMapping("/api/admin/coupons/{couponId}/open")
-    public ResponseEntity<ApiResponse<Void>> openCoupon(@PathVariable long couponId) {
+    public ResponseEntity<ApiResponse<Void>> openCoupon(@PathVariable(name = "couponId") long couponId) {
         couponStatusService.openCoupon(couponId);
         return ResponseEntity.ok(ApiResponse.successNoData());
     }
 
     @LogDescription("쿠폰 수동 마감 (관리자)")
     @PostMapping("/api/admin/coupons/{couponId}/close")
-    public ResponseEntity<ApiResponse<Void>> closeCoupon(@PathVariable long couponId) {
+    public ResponseEntity<ApiResponse<Void>> closeCoupon(@PathVariable(name = "couponId") long couponId) {
         couponStatusService.closeCoupon(couponId);
         return ResponseEntity.ok(ApiResponse.successNoData());
     }
 
     @LogDescription("쿠폰 상태 조회 (관리자)")
     @GetMapping("/api/admin/coupons/{couponId}/status")
-    public ResponseEntity<ApiResponse<CouponStatus>> getCouponStatus(@PathVariable long couponId) {
+    public ResponseEntity<ApiResponse<CouponStatus>> getCouponStatus(@PathVariable(name = "couponId") long couponId) {
         return ResponseEntity.ok(ApiResponse.success(couponStatusService.getStatus(couponId)));
     }
 
@@ -111,7 +111,7 @@ public class AdminCouponController {
     @LogDescription("관리자 쿠폰 발급 내역 조회")
     @GetMapping("/api/admin/coupons/{couponId}/issues")
     public ResponseEntity<ApiResponse<List<CouponIssueHistoryResponse>>> getCouponIssues(
-            @PathVariable long couponId
+            @PathVariable(name = "couponId") long couponId
     ) {
         return ResponseEntity.ok(ApiResponse.success(couponIssueService.getIssuesByCouponId(couponId)));
     }

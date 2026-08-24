@@ -13,6 +13,11 @@ java {
 	}
 }
 
+// STS/IDE 컴파일에서도 @RequestParam 파라미터명을 쓰려면 -parameters 필요
+tasks.withType(JavaCompile).configureEach {
+	options.compilerArgs.add('-parameters')
+}
+
 repositories {
 	mavenCentral()
 }

@@ -24,21 +24,21 @@ public class CouponIssueController {
 	// 내 쿠폰 목록 조회 (최근 발급 순)
 	@LogDescription("내 쿠폰 목록  (최근 발급 순)")
 	@GetMapping("/api/my/coupons")
-	public ResponseEntity<ApiResponse<List<MyCouponResponse>>> getMyCoupons(@RequestParam long userId){
+	public ResponseEntity<ApiResponse<List<MyCouponResponse>>> getMyCoupons(@RequestParam(name = "userId") long userId){
 		return ResponseEntity.ok(ApiResponse.success(couponIssueService.getMyCoupons(userId)));
 	}
 
 	// 내 쿠폰 단건 조회 (보인 소유만, 아닌 경우 CI002)
 	@LogDescription("내 쿠폰 단건 조회")
 	@GetMapping("/api/my/coupons/{issueId}")
-	public ResponseEntity<ApiResponse<MyCouponResponse>> getMyCoupon(@PathVariable long issueId, @RequestParam long userId){
+	public ResponseEntity<ApiResponse<MyCouponResponse>> getMyCoupon(@PathVariable(name = "issueId") long issueId, @RequestParam(name = "userId") long userId){
 		return ResponseEntity.ok(ApiResponse.success(couponIssueService.getMyCoupon(userId, issueId)));
 	}
 	
 	// 쿠폰 사용
 	@LogDescription("내 쿠폰 사용")
 	@PostMapping("/api/my/coupons/{issueId}/use")
-	public ResponseEntity<ApiResponse<Void>> useCoupon(@PathVariable long issueId, @RequestParam long userId){
+	public ResponseEntity<ApiResponse<Void>> useCoupon(@PathVariable(name = "issueId") long issueId, @RequestParam(name = "userId") long userId){
 		couponIssueService.useCoupon(userId, issueId);
 		return ResponseEntity.ok(ApiResponse.success(null));
 	}
@@ -46,7 +46,7 @@ public class CouponIssueController {
 	// 쿠폰 취소
 	@LogDescription("내 쿠폰 취소")
 	@PostMapping("/api/my/coupons/{issueId}/cancel")
-	public ResponseEntity<ApiResponse<Void>> cancelCoupon(@PathVariable long issueId, @RequestParam long userId){
+	public ResponseEntity<ApiResponse<Void>> cancelCoupon(@PathVariable(name = "issueId") long issueId, @RequestParam(name = "userId") long userId){
 		couponIssueService.cancelCoupon(userId, issueId);
 		return ResponseEntity.ok(ApiResponse.success(null));
 	}

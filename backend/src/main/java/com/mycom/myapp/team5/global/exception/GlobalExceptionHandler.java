@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @Slf4j
 @RestControllerAdvice
@@ -38,6 +39,12 @@ public class GlobalExceptionHandler {
                         CommonErrorCode.INVALID_INPUT_VALUE.getCode(),
                         message
                 ));
+    }
+
+    /** 브라우저 favicon 등 정적 리소스 없음 — 기능 영향 없음, ERROR 로그 억제 */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Void> handleNoResourceFound(NoResourceFoundException e) {
+        return ResponseEntity.notFound().build();
     }
 
     @ExceptionHandler(Exception.class)
