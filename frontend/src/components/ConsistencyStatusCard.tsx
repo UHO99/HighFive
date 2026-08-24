@@ -72,7 +72,7 @@ export function ConsistencyStatusCard() {
               lastRunAt={status.verify.lastRunAt}
               intervalMs={status.verify.intervalMs}
               now={now}
-              summary={`대상 ${status.verify.targetCount}건 · 확정 ${status.verify.confirmedCount}건`}
+              summary={`재검증 대상 ${status.verify.targetCount}건 · 확정 ${status.verify.confirmedCount}건`}
               extra={
                 status.verify.mismatchCount > 0
                   ? `불일치 ${status.verify.mismatchCount}건`
@@ -82,7 +82,7 @@ export function ConsistencyStatusCard() {
           </div>
 
           <span className="consistency-caption">
-            검증은 CLOSE된 쿠폰만 대상으로 합니다 — OPEN 중에는 대상 0건이 정상입니다.
+            검증은 CLOSE된 쿠폰만 대상으로 합니다 — OPEN 중에는 재검증 대상 0건이 정상입니다.
           </span>
 
           {status.verify.mismatchHistory.length > 0 && (
@@ -121,7 +121,7 @@ function ConsistencyBlock({ title, lastRunAt, intervalMs, now, summary, extra }:
         <span className="consistency-block-title">{title}</span>
         <span className="tile-label-md">
           {summary}
-          {extra && <span className="consistency-mismatch"> · {extra}</span>}
+          {extra && <span className="consistency-mismatch-badge">{extra}</span>}
         </span>
         {stale && <span className="consistency-mismatch">응답 없음</span>}
       </div>

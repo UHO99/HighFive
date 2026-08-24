@@ -9,7 +9,7 @@ export function Sidebar() {
       <span className="sidebar-section-label">모니터링</span>
       <nav className="sidebar-nav">
         <div className="sidebar-nav-item active">대시보드</div>
-        <div className="sidebar-nav-item">발급 로그</div>
+        <div className="sidebar-nav-item">쿠폰 발급 이력 · 선착순</div>
         <div className="sidebar-nav-item">시스템 상태</div>
       </nav>
 
