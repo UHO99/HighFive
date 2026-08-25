@@ -4,8 +4,7 @@ import { DashboardHeader } from "../components/DashboardHeader";
 import { ServerResourceCard } from "../components/ServerResourceCard";
 import { ApiResponseCard } from "../components/ApiResponseCard";
 import { CouponStatusCard } from "../components/CouponStatusCard";
-import { RedisStockCard } from "../components/RedisStockCard";
-import { DbStorageCard } from "../components/DbStorageCard";
+import { CouponPipelineCard } from "../components/CouponPipelineCard";
 import { CouponIssueHistoryCard } from "../components/CouponIssueHistoryCard";
 import { ConsistencyStatusCard } from "../components/ConsistencyStatusCard";
 import { FloatingActionMenu } from "../components/FloatingActionMenu";
@@ -237,13 +236,16 @@ export function DashboardPage() {
         </div>
 
         <div className="row">
-          <RedisStockCard vals={vals} onDrainPending={handleDrainPending} />
-          <DbStorageCard vals={vals} dummyDataCounts={dummyDataCounts} beforeCounts={dummyStatus.before} />
+          <div className="pipeline-col">
+            <CouponPipelineCard
+              vals={vals}
+              onDrainPending={handleDrainPending}
+              dummyDataCounts={dummyDataCounts}
+              beforeCounts={dummyStatus.before}
+            />
+            <ConsistencyStatusCard />
+          </div>
           <CouponIssueHistoryCard couponId={couponId} />
-        </div>
-
-        <div className="row">
-          <ConsistencyStatusCard />
         </div>
       </div>
 

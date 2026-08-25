@@ -19,6 +19,16 @@ public record CouponFairnessTimelineEntry(
         /** outcome=SUCCESS일 때만 채워지는 DB 상태(ISSUED/USED/CANCELED/EXPIRED) - 그 외 null */
         CouponIssueStatus status,
         /** DB coupon_issue.issued_at - Stream 배치가 아직 안 넣었거나 outcome!=SUCCESS면 null */
-        LocalDateTime issuedAt
+        LocalDateTime issuedAt,
+        /**
+         * 컨트롤러 도달 → Redis 게이트 진입까지 걸린 시간(ms) - validateIssueable() 등 게이트 진입 전
+         * 단계 소요. 시각 기록 추가 전에 쌓인 레거시 fairness-log 항목이면 null.
+         */
+        Long gateWaitMs,
+        /**
+         * Redis 게이트 진입 → Lua 스크립트 처리(원자적 재고 차감/기록)까지 걸린 시간(ms). 앱 서버와
+         * Redis 서버 시계가 어긋나면 음수가 나올 수 있다. 레거시 항목이면 null.
+         */
+        Long redisWaitMs
 ) {
 }

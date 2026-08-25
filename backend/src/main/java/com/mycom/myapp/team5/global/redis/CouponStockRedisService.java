@@ -99,8 +99,11 @@ public class CouponStockRedisService {
 		redisTemplate.delete(CouponStockKeys.fairnessLogKey(couponId));
 	}
 
-	/** fairness-log 한 줄을 파싱한 값. */
-	public record FairnessLogEntry(long rank, long userId, String outcome, long redisTimeMs, long gateEnteredAtMs, long controllerEnteredAtMs) {
+	/**
+	 * fairness-log 한 줄을 파싱한 값. redisTimeMs/gateEnteredAtMs/controllerEnteredAtMs는 시각 기록이
+	 * 추가되기 전(레거시 3필드 "{순번}:{userId}:{결과}") 항목이면 null이다.
+	 */
+	public record FairnessLogEntry(long rank, long userId, String outcome, Long redisTimeMs, Long gateEnteredAtMs, Long controllerEnteredAtMs) {
 	}
 
 	public List<FairnessLogEntry> fairnessLog(long couponId, long afterRank, int limit) {
@@ -109,8 +112,14 @@ public class CouponStockRedisService {
 			return List.of();
 		}
 		return raw.stream().map(entry -> {
-			String[] parts = entry.split(":", 6); // 3 → 6으로 변경
-			return new FairnessLogEntry(Long.parseLong(parts[0]), Long.parseLong(parts[1]), parts[2], Long.parseLong(parts[3]), Long.parseLong(parts[4]), Long.parseLong(parts[5]));
+			String[] parts = entry.split(":", 6);
+			boolean hasTimings = parts.length >= 6; // 시각 기록 추가 전에 쌓인 레거시 항목은 3필드뿐이다
+			return new FairnessLogEntry(
+					Long.parseLong(parts[0]), Long.parseLong(parts[1]), parts[2],
+					hasTimings ? Long.parseLong(parts[3]) : null,
+					hasTimings ? Long.parseLong(parts[4]) : null,
+					hasTimings ? Long.parseLong(parts[5]) : null
+			);
 		}).toList();
 	}
 
