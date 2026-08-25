@@ -26,9 +26,11 @@ body {
   0% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.35;
   }
+
   100% {
     opacity: 1;
   }
@@ -638,7 +640,7 @@ body {
   min-width: 0;
 }
 
-.pipeline-col > .card {
+.pipeline-col>.card {
   flex: none;
 }
 
@@ -711,9 +713,19 @@ body {
 }
 
 @keyframes pfDot {
-  0% { transform: translateX(-6px); opacity: 0; }
-  35% { opacity: 1; }
-  100% { transform: translateX(30px); opacity: 0; }
+  0% {
+    transform: translateX(-6px);
+    opacity: 0;
+  }
+
+  35% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateX(30px);
+    opacity: 0;
+  }
 }
 
 .pf-arrow {
@@ -840,6 +852,7 @@ body {
     opacity: 0;
     transform: translateY(8px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -967,6 +980,7 @@ body {
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -990,6 +1004,7 @@ body {
     opacity: 0;
     transform: translateY(12px) scale(0.98);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -1461,4 +1476,16 @@ body {
 
 .ba-delta-pos {
   color: #ff6a3d;
+}
+
+/* 발급 로그 - 화면에 한 번에 30개(헤더 제외)가 보이도록 높이 고정. 그 이상은 스크롤. */
+.history-table-wrap-30rows {
+  max-height: 976.5px;
+  flex: 1 1 auto;
+}
+
+/* 발급 로그 - rank(순번), Redis처리 시각처럼 신뢰 가능한(증명된) 값임을 강조 */
+.history-cell-highlight {
+  color: #2563eb;
+  font-weight: 700;
 }
