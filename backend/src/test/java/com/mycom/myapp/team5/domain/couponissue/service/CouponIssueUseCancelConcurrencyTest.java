@@ -143,14 +143,15 @@ public class CouponIssueUseCancelConcurrencyTest {
 		assertThat(conflictCount.get()).isEqualTo(9);
 	}
 	
-	// 2) 동시 취소 요청 - 1건만 성공, 나머지는 CI003
+	// 2) 동시 취소 요청 - 1건만 성공, 나머지는 CI003 (취소는 USED에서만 가능하므로 먼저 사용 처리해둔다)
 	@Test
 	@Transactional(propagation = Propagation.NOT_SUPPORTED)
 	public void 동시_취소_요청시_1건만_성공_나머지_CI003() throws InterruptedException{
 		long couponId = createCoupon(100);
 		long userId = createUser("concurrent-cancel");
 		long issueId = createIssue(userId, couponId);
-		
+		couponIssueService.useCoupon(userId, issueId);
+
 		int threadCount = 10;
 		AtomicInteger successCount = new AtomicInteger();
 		AtomicInteger conflictCount = new AtomicInteger();
