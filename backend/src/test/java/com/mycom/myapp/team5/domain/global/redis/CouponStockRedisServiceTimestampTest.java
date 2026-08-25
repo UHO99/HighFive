@@ -47,7 +47,7 @@ public class CouponStockRedisServiceTimestampTest {
 		couponStockRedisService.issue(COUPON_ID, 1L, gateEnteredAtMs, controllerEnteredAtMs);
 
 		// then
-		List<CouponStockRedisService.FairnessLogEntry> entries = couponStockRedisService.fairnessLog(COUPON_ID, 0, 10);
+		List<CouponStockRedisService.FairnessLogEntry> entries = couponStockRedisService.fairnessLogPage(COUPON_ID, 0, 10);
 
 		assertThat(entries).hasSize(1);
 		CouponStockRedisService.FairnessLogEntry entry = entries.get(0);
@@ -73,14 +73,14 @@ public class CouponStockRedisServiceTimestampTest {
 		long afterCallMs = System.currentTimeMillis();
 
 		// then
-		List<CouponStockRedisService.FairnessLogEntry> entries = couponStockRedisService.fairnessLog(COUPON_ID, 0, 10);
+		List<CouponStockRedisService.FairnessLogEntry> entries = couponStockRedisService.fairnessLogPage(COUPON_ID, 0, 10);
 		long redisTimeMs = entries.get(0).redisTimeMicros() / 1000; // µs → ms 환산
 
 		assertThat(redisTimeMs).isBetween(beforeCallMs - CLOCK_SKEW_TOLERANCE_MS, afterCallMs + CLOCK_SKEW_TOLERANCE_MS);
 	}
 
 	@Test
-	void fairnessLog의_afterRank_커서가_정확히_다음_항목부터_가져온다() {
+	void fairnessLogPage의_offset_size가_정확히_해당_구간만_가져온다() {
 		// given
 		couponStockRedisService.initStock(COUPON_ID, 3);
 		for (long userId = 1; userId <= 3; userId++) {
@@ -89,13 +89,14 @@ public class CouponStockRedisServiceTimestampTest {
 		}
 
 		// when
-		List<CouponStockRedisService.FairnessLogEntry> all = couponStockRedisService.fairnessLog(COUPON_ID, 0, 10);
+		List<CouponStockRedisService.FairnessLogEntry> all = couponStockRedisService.fairnessLogPage(COUPON_ID, 0, 10);
 		assertThat(all).hasSize(3);
+		assertThat(couponStockRedisService.fairnessLogCount(COUPON_ID)).isEqualTo(3);
 
 		long firstRank = all.get(0).rank();
 
-		// then
-		List<CouponStockRedisService.FairnessLogEntry> afterFirst = couponStockRedisService.fairnessLog(COUPON_ID, firstRank, 10);
+		// then - offset=1부터는 첫 번째 항목이 빠져야 한다.
+		List<CouponStockRedisService.FairnessLogEntry> afterFirst = couponStockRedisService.fairnessLogPage(COUPON_ID, 1, 10);
 
 		assertThat(afterFirst).hasSize(2);
 		assertThat(afterFirst).noneMatch(e -> e.rank() == firstRank);
@@ -110,7 +111,7 @@ public class CouponStockRedisServiceTimestampTest {
 			couponStockRedisService.issue(COUPON_ID, userId, now, now);
 		}
 
-		List<CouponStockRedisService.FairnessLogEntry> entries = couponStockRedisService.fairnessLog(COUPON_ID, 0, 10);
+		List<CouponStockRedisService.FairnessLogEntry> entries = couponStockRedisService.fairnessLogPage(COUPON_ID, 0, 10);
 
 		long distinctMicroTimes = entries.stream().map(CouponStockRedisService.FairnessLogEntry::redisTimeMicros).distinct().count();
 

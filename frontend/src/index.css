@@ -26,9 +26,11 @@ body {
   0% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.35;
   }
+
   100% {
     opacity: 1;
   }
@@ -246,11 +248,16 @@ body {
 
 .row:last-child {
   margin-bottom: 0;
+  /* 파이프라인/정합성 컬럼 + 발급 로그 카드 - 로그가 아무리 쌓여도 이 행 자체는 .main의 남은
+     공간만큼만 차지하고, 넘치는 내용은 각 카드 내부(overflow:auto)에서만 스크롤되게 한다. */
+  flex: 1 1 0;
+  min-height: 0;
 }
 
 .card {
   flex: 1;
   min-width: 0;
+  min-height: 0;
   background: #fff;
   border: 1px solid #e7e9f0;
   border-radius: 12px;
@@ -636,9 +643,11 @@ body {
   gap: 10px;
   flex: 2;
   min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
 }
 
-.pipeline-col > .card {
+.pipeline-col>.card {
   flex: none;
 }
 
@@ -711,9 +720,19 @@ body {
 }
 
 @keyframes pfDot {
-  0% { transform: translateX(-6px); opacity: 0; }
-  35% { opacity: 1; }
-  100% { transform: translateX(30px); opacity: 0; }
+  0% {
+    transform: translateX(-6px);
+    opacity: 0;
+  }
+
+  35% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateX(30px);
+    opacity: 0;
+  }
 }
 
 .pf-arrow {
@@ -840,6 +859,7 @@ body {
     opacity: 0;
     transform: translateY(8px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -967,6 +987,7 @@ body {
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -990,6 +1011,7 @@ body {
     opacity: 0;
     transform: translateY(12px) scale(0.98);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -1409,6 +1431,40 @@ body {
   font-family: "JetBrains Mono", monospace;
 }
 
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding-top: 10px;
+}
+
+.pagination-btn {
+  border: 1px solid #e7e9f0;
+  background: #fff;
+  color: #3a3d4d;
+  border-radius: 8px;
+  padding: 5px 12px;
+  font: 600 12px "Inter", sans-serif;
+  cursor: pointer;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: #f7f8fb;
+}
+
+.pagination-btn:disabled {
+  color: #c4c7d4;
+  cursor: default;
+}
+
+.pagination-label {
+  color: #8b8fa3;
+  font: 600 12px "Inter", sans-serif;
+  padding: 0 4px;
+  white-space: nowrap;
+}
+
 /* ---------- before / after (더미데이터 적재) ---------- */
 
 .ba-table-wrap {
@@ -1461,4 +1517,16 @@ body {
 
 .ba-delta-pos {
   color: #ff6a3d;
+}
+
+/* 발급 로그 - 화면에 한 번에 30개(헤더 제외)가 보이도록 높이 고정. 그 이상은 스크롤. */
+.history-table-wrap-30rows {
+  max-height: 976.5px;
+  flex: 1 1 auto;
+}
+
+/* 발급 로그 - rank(순번), Redis처리 시각처럼 신뢰 가능한(증명된) 값임을 강조 */
+.history-cell-highlight {
+  color: #2563eb;
+  font-weight: 700;
 }
