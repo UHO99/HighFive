@@ -135,13 +135,10 @@ export function CouponIssueHistoryCard({ couponId }: Props) {
                 <th>건</th>
                 <th>순번</th>
                 <th>유저 / 사유</th>
-                <th>컨트롤러 도착</th>   {/* 추가 */}
-                <th>게이트 진입</th>     {/* 추가 */}
-                <th>Redis 처리</th>      {/* 추가 */}
-                <th>발급시각</th>
+                <th>Redis처리</th>              {/* 순서 변경 - 신뢰도 1순위 */}
                 <th>컨트롤러진입</th>
                 <th>게이트진입</th>
-                <th>Redis처리</th>
+                <th>발급시각(DB 저장 시각)</th>   {/* 이름 변경 - "이 값이 rank 순서와 다를 수 있다"는 걸 명확히 */}
                 <th>대기(게이트)</th>
                 <th>처리(Redis)</th>
               </tr>
@@ -157,25 +154,16 @@ export function CouponIssueHistoryCard({ couponId }: Props) {
                       유저 {r.userId} · <span style={{ color: reason.color }}>{reason.text}</span>
                     </td>
                     <td className="history-cell-mono">
+                      {r.redisTimeMicros === null ? "-" : formatTimestampMicros(r.redisTimeMicros)}
+                    </td>
+                    <td className="history-cell-mono">
                       {r.controllerEnteredAtMs === null ? "-" : formatTimestampMs(r.controllerEnteredAtMs)}
                     </td>
                     <td className="history-cell-mono">
                       {r.gateEnteredAtMs === null ? "-" : formatTimestampMs(r.gateEnteredAtMs)}
                     </td>
                     <td className="history-cell-mono">
-                      {r.redisTimeMs === null ? "-" : formatTimestampMs(r.redisTimeMs)}
-                    </td>
-                    <td className="history-cell-mono">
-                      {r.issuedAt === null ? "-" : new Date(r.issuedAt).toLocaleTimeString("ko-KR")}
-                    </td>
-                    <td className="history-cell-mono">
-                      {r.controllerEnteredAtMs === null ? "-" : formatTimeMs(r.controllerEnteredAtMs)}
-                    </td>
-                    <td className="history-cell-mono">
-                      {r.gateEnteredAtMs === null ? "-" : formatTimeMs(r.gateEnteredAtMs)}
-                    </td>
-                    <td className="history-cell-mono">
-                      {r.redisTimeMs === null ? "-" : formatTimeMs(r.redisTimeMs)}
+                      {r.issuedAt === null ? "-" : formatTimestampMs(new Date(r.issuedAt).getTime())}
                     </td>
                     <td className="history-cell-mono">{r.gateWaitMs === null ? "-" : formatMs(r.gateWaitMs)}</td>
                     <td className="history-cell-mono">{r.redisWaitMs === null ? "-" : formatMs(r.redisWaitMs)}</td>
@@ -184,7 +172,7 @@ export function CouponIssueHistoryCard({ couponId }: Props) {
               })}
               {loadingMore && (
                 <tr>
-                  <td colSpan={9} className="history-loading-more">   {/* 6 → 9로 변경 */}
+                  <td colSpan={9} className="history-loading-more">
                     불러오는 중…
                   </td>
                 </tr>
