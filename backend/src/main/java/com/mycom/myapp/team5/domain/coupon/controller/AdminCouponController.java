@@ -138,18 +138,18 @@ public class AdminCouponController {
 
     /**
      * 대시보드 "발급 로그" 카드용 - Redis fairness-log의 실제 처리 순서(rank)에 DB 상태/시각을 얹은
-     * 커서 페이지. afterRank(기본 0) 다음부터 오름차순으로 최대 limit(기본 50)건만 내려준다. rank는
-     * 재고 차감과 같은 원자적 연산으로 매겨지므로 비동기 배치로 반영되는 DB issued_at보다 실제 처리
-     * 순서를 더 정확히 보여준다. 전체를 한 번에 안 내려주므로 로그가 아무리 쌓여도 응답 크기가 limit에만
-     * 비례한다 - 프론트는 스크롤이 바닥에 닿거나 폴링할 때마다 nextCursor를 afterRank로 넘겨 이어붙인다.*/
+     * 오프셋 페이지(1-based page, 기본 1페이지 / size 기본 50). rank는 재고 차감과 같은 원자적 연산으로
+     * 매겨지므로 비동기 배치로 반영되는 DB issued_at보다 실제 처리 순서를 더 정확히 보여준다. 전체를
+     * 한 번에 안 내려주므로 로그가 아무리 쌓여도 응답 크기가 size에만 비례한다 - 프론트는 페이지 번호를
+     * 직접 넘겨 원하는 페이지만 조회한다.*/
     @LogDescription("쿠폰 선착순 타임라인 조회 (관리자)")
     @GetMapping("/api/admin/coupons/{couponId}/fairness/timeline")
     public ResponseEntity<ApiResponse<CouponFairnessTimelinePage>> getFairnessTimeline(
             @PathVariable long couponId,
-            @RequestParam(defaultValue = "0") long afterRank,
-            @RequestParam(defaultValue = "50") int limit
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "50") int size
     ) {
         couponService.getCoupon(couponId);
-        return ResponseEntity.ok(ApiResponse.success(couponIssueService.getFairnessTimeline(couponId, afterRank, limit)));
+        return ResponseEntity.ok(ApiResponse.success(couponIssueService.getFairnessTimeline(couponId, page, size)));
     }
 }

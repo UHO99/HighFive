@@ -4,7 +4,9 @@ import java.util.List;
 
 public record CouponFairnessTimelinePage(
         List<CouponFairnessTimelineEntry> items,
-        long nextCursor,
-        boolean hasMore
+        int page,
+        int size,
+        long totalElements,
+        int totalPages
 ) {
 }
