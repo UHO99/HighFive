@@ -26,38 +26,32 @@ import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
-public class CouponIssueServiceImpl implements CouponIssueService{
+public class CouponIssueServiceImpl implements CouponIssueService {
 
 	private final CouponIssueRepository couponIssueRepository;
 	private final CouponRepository couponRepository;
 	private final CouponStockRedisService couponStockRedisService;
 
 	@Override
-	@Transactional(readOnly=true)
+	@Transactional(readOnly = true)
 	public List<MyCouponResponse> getMyCoupons(long userId) {
 		List<CouponIssue> issues = couponIssueRepository.findByUserIdOrderByIssuedAtDesc(userId);
-		if(issues.isEmpty()) {
-		return List.of();
+		if (issues.isEmpty()) {
+			return List.of();
 		}
-		
+
 		// N + 1 방지 : couponId 목록으로 쿠폰을 한 번에 조회 후 Map으로 조합 (S012 리팩토링과 동일한 방식)
-		Map<Long, Coupon> couponMap = couponRepository.findAllById(
-				issues.stream().map(CouponIssue::getCouponId).toList()
-		).stream().collect(Collectors.toMap(Coupon::getId, Function.identity()));
-		
-        return issues.stream()
-                .map(issue -> MyCouponResponse.of(issue, couponMap.get(issue.getCouponId()), rankOf(issue)))
-                .toList();
+		Map<Long, Coupon> couponMap = couponRepository.findAllById(issues.stream().map(CouponIssue::getCouponId).toList()).stream().collect(Collectors.toMap(Coupon::getId, Function.identity()));
+
+		return issues.stream().map(issue -> MyCouponResponse.of(issue, couponMap.get(issue.getCouponId()), rankOf(issue))).toList();
 	}
 
 	@Override
-	@Transactional(readOnly=true)
+	@Transactional(readOnly = true)
 	public MyCouponResponse getMyCoupon(long userId, long issueId) {
-		CouponIssue issue = couponIssueRepository.findByIdAndUserId(issueId, userId)
-				.orElseThrow(() -> new CouponException(CouponErrorCode.COUPON_ISSUE_NOT_FOUND));
+		CouponIssue issue = couponIssueRepository.findByIdAndUserId(issueId, userId).orElseThrow(() -> new CouponException(CouponErrorCode.COUPON_ISSUE_NOT_FOUND));
 
-		Coupon coupon = couponRepository.findById(issue.getCouponId())
-				.orElseThrow(() -> new CouponException(CouponErrorCode.COUPON_NOT_FOUND));
+		Coupon coupon = couponRepository.findById(issue.getCouponId()).orElseThrow(() -> new CouponException(CouponErrorCode.COUPON_NOT_FOUND));
 		return MyCouponResponse.of(issue, coupon, rankOf(issue));
 	}
 
@@ -70,25 +64,23 @@ public class CouponIssueServiceImpl implements CouponIssueService{
 	@Override
 	@Transactional
 	public void useCoupon(long userId, long issueId) {
-		CouponIssue issue = couponIssueRepository.findByIdAndUserIdForUpdate(issueId, userId)
-				.orElseThrow(() -> new CouponException(CouponErrorCode.COUPON_ISSUE_NOT_FOUND));
-		
-		if(issue.getStatus() != CouponIssueStatus.ISSUED) {
+		CouponIssue issue = couponIssueRepository.findByIdAndUserIdForUpdate(issueId, userId).orElseThrow(() -> new CouponException(CouponErrorCode.COUPON_ISSUE_NOT_FOUND));
+
+		if (issue.getStatus() != CouponIssueStatus.ISSUED) {
 			throw new CouponException(CouponErrorCode.COUPON_ISSUE_STATUS_CONFLICT);
 		}
-		issue.use();						// entity 메서드 호출 (status=USED, usedAt=now)
+		issue.use(); // entity 메서드 호출 (status=USED, usedAt=now)
 	}
 
 	@Override
 	@Transactional
 	public void cancelCoupon(long userId, long issueId) {
-		CouponIssue issue = couponIssueRepository.findByIdAndUserIdForUpdate(issueId, userId)
-				.orElseThrow(() -> new CouponException(CouponErrorCode.COUPON_ISSUE_NOT_FOUND));
+		CouponIssue issue = couponIssueRepository.findByIdAndUserIdForUpdate(issueId, userId).orElseThrow(() -> new CouponException(CouponErrorCode.COUPON_ISSUE_NOT_FOUND));
 
 		if (issue.getStatus() != CouponIssueStatus.USED) {
 			throw new CouponException(CouponErrorCode.COUPON_ISSUE_STATUS_CONFLICT);
 		}
-		issue.cancel(); 					// entity 메서드 호출 (status=CANCELED, canceledAt=now, usedAt은 보존)
+		issue.cancel(); // entity 메서드 호출 (status=CANCELED, canceledAt=now, usedAt은 보존)
 	}
 
 	@Override
@@ -97,9 +89,7 @@ public class CouponIssueServiceImpl implements CouponIssueService{
 		if (!couponRepository.existsById(couponId)) {
 			throw new CouponException(CouponErrorCode.COUPON_NOT_FOUND);
 		}
-		return couponIssueRepository.findByCouponIdOrderByIssuedAtDesc(couponId).stream()
-				.map(CouponIssueHistoryResponse::from)
-				.toList();
+		return couponIssueRepository.findByCouponIdOrderByIssuedAtDesc(couponId).stream().map(CouponIssueHistoryResponse::from).toList();
 	}
 
 	@Override
@@ -110,36 +100,23 @@ public class CouponIssueServiceImpl implements CouponIssueService{
 		}
 
 		// limit+1건을 받아 hasMore를 판단하고, 실제로 내려줄 건 앞의 limit건만 자른다.
-		List<CouponStockRedisService.FairnessLogEntry> fetched =
-				couponStockRedisService.fairnessLog(couponId, afterRank, limit);
+		List<CouponStockRedisService.FairnessLogEntry> fetched = couponStockRedisService.fairnessLog(couponId, afterRank, limit);
 		if (fetched.isEmpty()) {
 			return new CouponFairnessTimelinePage(List.of(), afterRank, false);
 		}
 		boolean hasMore = fetched.size() > limit;
-		List<CouponStockRedisService.FairnessLogEntry> logEntries =
-				hasMore ? fetched.subList(0, limit) : fetched;
+		List<CouponStockRedisService.FairnessLogEntry> logEntries = hasMore ? fetched.subList(0, limit) : fetched;
 
 		// SUCCESS 건만 DB 행이 있다 - 그 userId들만 모아 한 번에 조회 (N+1 방지)
-		List<Long> successUserIds = logEntries.stream()
-				.filter(e -> "SUCCESS".equals(e.outcome()))
-				.map(CouponStockRedisService.FairnessLogEntry::userId)
-				.toList();
-		Map<Long, CouponIssue> issueByUserId = successUserIds.isEmpty()
-				? Map.of()
-				: couponIssueRepository.findByCouponIdAndUserIdIn(couponId, successUserIds).stream()
-						.collect(Collectors.toMap(CouponIssue::getUserId, Function.identity()));
+		List<Long> successUserIds = logEntries.stream().filter(e -> "SUCCESS".equals(e.outcome())).map(CouponStockRedisService.FairnessLogEntry::userId).toList();
+		Map<Long, CouponIssue> issueByUserId = successUserIds.isEmpty() ? Map.of() : couponIssueRepository.findByCouponIdAndUserIdIn(couponId, successUserIds).stream().collect(Collectors.toMap(CouponIssue::getUserId, Function.identity()));
 
 		List<CouponFairnessTimelineEntry> result = new ArrayList<>(logEntries.size());
 		for (CouponStockRedisService.FairnessLogEntry entry : logEntries) {
 			CouponIssue issue = issueByUserId.get(entry.userId());
-			boolean hasTimings = entry.controllerEnteredAtMs() != null && entry.gateEnteredAtMs() != null && entry.redisTimeMs() != null;
-			result.add(new CouponFairnessTimelineEntry(
-					entry.rank(), entry.userId(), entry.outcome(),
-					issue != null ? issue.getStatus() : null,
-					issue != null ? issue.getIssuedAt() : null,
-					hasTimings ? entry.gateEnteredAtMs() - entry.controllerEnteredAtMs() : null,
-					hasTimings ? entry.redisTimeMs() - entry.gateEnteredAtMs() : null,
-					entry.controllerEnteredAtMs(), entry.gateEnteredAtMs(), entry.redisTimeMs()
+			boolean hasTimings = entry.controllerEnteredAtMs() != null && entry.gateEnteredAtMs() != null && entry.redisTimeMicros() != null;
+			result.add(new CouponFairnessTimelineEntry(entry.rank(), entry.userId(), entry.outcome(), issue != null ? issue.getStatus() : null, issue != null ? issue.getIssuedAt() : null, hasTimings ? entry.controllerEnteredAtMs() : null, hasTimings ? entry.gateEnteredAtMs() : null, hasTimings ? entry.redisTimeMicros() : null, // 변경 - redisTimeMs() → redisTimeMicros()
+					hasTimings ? entry.gateEnteredAtMs() - entry.controllerEnteredAtMs() : null, hasTimings ? (entry.redisTimeMicros() / 1000) - entry.gateEnteredAtMs() : null // 변경 - µs→ms 환산 후 차감
 			));
 		}
 

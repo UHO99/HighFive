@@ -1,5 +1,6 @@
 package com.mycom.myapp.team5.domain.test.service;
 
+import com.mycom.myapp.team5.domain.test.dto.K6RunRequest;
 import com.mycom.myapp.team5.domain.test.dto.K6ScenarioResponse;
 import com.mycom.myapp.team5.domain.test.dto.K6StatusResponse;
 import com.mycom.myapp.team5.domain.test.exception.K6ErrorCode;
@@ -57,8 +58,9 @@ public class K6TestServiceImpl implements K6TestService {
     }
 
     @Override
-    public K6StatusResponse start(String scenarioId, long couponId, Integer stock, Integer maxVus) {
-        K6Scenario scenario = K6Scenario.fromId(scenarioId);
+    public K6StatusResponse start(K6RunRequest request) {
+        K6Scenario scenario = K6Scenario.fromId(request.scenarioId());
+        long couponId = request.couponId();
 
         synchronized (lock) {
             if (current != null && current.exitCode() == null) {
@@ -67,7 +69,7 @@ public class K6TestServiceImpl implements K6TestService {
 
             ensureBakedIntoImage(scenario.getFile());
             cleanupStaleContainer();
-            Process process = launch(scenario, couponId, stock, maxVus);
+            Process process = launch(scenario, request);
             Run run = new Run(scenario, couponId, Instant.now(), process, null);
             current = run;
             watch(run);
@@ -167,19 +169,26 @@ public class K6TestServiceImpl implements K6TestService {
         }
     }
 
-    private Process launch(K6Scenario scenario, long couponId, Integer stock, Integer maxVus) {
+    private Process launch(K6Scenario scenario, K6RunRequest request) {
         List<String> command = new ArrayList<>(List.of(
                 "docker", "run", "--rm",
                 "--name", CONTAINER_NAME,
                 "--network", network,
                 "-e", "BASE_URL=" + baseUrl,
-                "-e", "COUPON_ID=" + couponId
+                "-e", "COUPON_ID=" + request.couponId()
         ));
-        // stock/maxVus는 configurable한 시나리오에서만 의미가 있다 - 다른 시나리오는 스크립트
-        // 자체가 이 env var를 안 읽으니 넘겨도 무해하지만, 굳이 안 넘긴다.
+        // 각 파라미터는 그 env var를 실제로 읽는 스크립트에만 넘긴다 - 안 읽는 스크립트에 넘겨도
+        // 무해하지만, 실행 로그만 봐도 어떤 조건으로 돌렸는지 분명하게 남기려는 것.
         if (scenario.isConfigurable()) {
-            if (stock != null) command.addAll(List.of("-e", "STOCK=" + stock));
-            if (maxVus != null) command.addAll(List.of("-e", "MAX_VUS=" + maxVus));
+            addEnv(command, "STOCK", request.stock());
+            addEnv(command, "MAX_VUS", request.maxVus());
+        }
+        if (scenario.isAdvanced()) {
+            addEnv(command, "REQUEST_RATIO", request.requestRatio());
+            addEnv(command, "ARRIVAL", request.arrival());
+            addEnv(command, "DURATION", request.duration());
+            addEnv(command, "SPAM_RATIO", request.spamRatio());
+            addEnv(command, "SPAM_CLICKS", request.spamClicks());
         }
         command.addAll(List.of(image, "run", "/scripts/" + scenario.getFile()));
 
@@ -189,11 +198,18 @@ public class K6TestServiceImpl implements K6TestService {
             pb.redirectErrorStream(true);
             pb.redirectOutput(ProcessBuilder.Redirect.to(logFile.toFile()));
 
-            log.info("k6 실행 : scenario={} couponId={} log={}", scenario.getId(), couponId, logFile);
+            log.info("k6 실행 : scenario={} couponId={} log={}", scenario.getId(), request.couponId(), logFile);
             return pb.start();
         } catch (IOException e) {
             log.error("k6 컨테이너 실행 실패", e);
             throw new K6TestException(K6ErrorCode.START_FAILED);
+        }
+    }
+
+    /** null이면 아예 안 넘긴다 - 스크립트 쪽 기본값이 그대로 적용되게. */
+    private void addEnv(List<String> command, String name, Object value) {
+        if (value != null) {
+            command.addAll(List.of("-e", name + "=" + value));
         }
     }
 

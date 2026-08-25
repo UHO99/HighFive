@@ -1,5 +1,6 @@
 package com.mycom.myapp.team5.domain.test.service;
 
+import com.mycom.myapp.team5.domain.test.dto.K6RunRequest;
 import com.mycom.myapp.team5.domain.test.dto.K6ScenarioResponse;
 import com.mycom.myapp.team5.domain.test.dto.K6StatusResponse;
 
@@ -9,7 +10,7 @@ public interface K6TestService {
 
     List<K6ScenarioResponse> listScenarios();
 
-    K6StatusResponse start(String scenarioId, long couponId, Integer stock, Integer maxVus);
+    K6StatusResponse start(K6RunRequest request);
 
     K6StatusResponse stop();
 

@@ -157,7 +157,7 @@ export async function fetchConsistencyStatus(): Promise<CouponConsistencyStatusR
  * couponId가 DB에 아예 없을 때(CouponErrorCode.COUPON_NOT_FOUND) 백엔드가 던지는 404 - 오픈된 쿠폰이
  * 하나도 없는 정상 상태에서도 발생하므로, 진짜 연결 실패(네트워크 오류/5xx)와 구분해서 다뤄야 한다.
  */
-export class MonitoringCouponNotFoundError extends Error {}
+export class MonitoringCouponNotFoundError extends Error { }
 
 export async function fetchMonitoringDashboard(couponId: number): Promise<MonitoringDashboardResponse> {
   const res = await fetch(`${API_BASE}/api/admin/monitoring/coupons/${couponId}`);
@@ -366,6 +366,19 @@ export interface K6ScenarioDto {
   targetVus: string;
   /** true면 실행 전에 재고(stock)/동시접속(maxVus)을 숫자로 입력받아야 한다. */
   configurable: boolean;
+  /** true면 요청배수·유입방식·연타 같은 추가 조건까지 입력받는다(main_test.js). */
+  advanced: boolean;
+}
+
+/** k6 실행 옵션 - 시나리오가 실제로 읽는 것만 채워 보내면 되고, 안 채운 건 스크립트 기본값이 쓰인다. */
+export interface K6RunOptions {
+  stock?: number;
+  maxVus?: number;
+  requestRatio?: number;
+  arrival?: "burst" | "even";
+  duration?: number;
+  spamRatio?: number;
+  spamClicks?: number;
 }
 
 /** backend K6StatusResponse(domain/k6test/dto)와 1:1로 대응한다. */
@@ -399,13 +412,12 @@ export async function fetchK6Scenarios(): Promise<K6ScenarioDto[]> {
 export async function runK6Scenario(
   scenarioId: string,
   couponId: number,
-  stock?: number,
-  maxVus?: number
+  options: K6RunOptions = {}
 ): Promise<K6StatusResponse> {
   const res = await fetch(`${API_BASE}/api/admin/k6/run`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ scenarioId, couponId, stock, maxVus }),
+    body: JSON.stringify({ scenarioId, couponId, ...options }),
   });
   return parseApiResponse<K6StatusResponse>(res, "k6 실행 실패");
 }
@@ -503,9 +515,10 @@ export interface CouponFairnessTimelineEntry {
   outcome: "SUCCESS" | "SOLDOUT" | "DUPLICATE";
   status: "ISSUED" | "USED" | "CANCELED" | "EXPIRED" | null;
   issuedAt: string | null;
-  /** 컨트롤러 도달 → Redis 게이트 진입 소요(ms). 시각 기록 추가 전에 쌓인 레거시 항목이면 null. */
+  controllerEnteredAtMs: number | null;
+  gateEnteredAtMs: number | null;
+  redisTimeMicros: number | null;   // 변경
   gateWaitMs: number | null;
-  /** Redis 게이트 진입 → Lua 처리 소요(ms). 서버 간 시계 차이로 음수가 나올 수 있다. 레거시 항목이면 null. */
   redisWaitMs: number | null;
   /** 컨트롤러 도달 시각(epoch ms). 레거시 항목이면 null. */
   controllerEnteredAtMs: number | null;

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { DashboardVals } from "../hooks/useMonitoringDashboard";
-import type { CouponDetail, CouponSummary } from "../lib/api";
+import type { CouponDetail, CouponSummary, K6RunOptions } from "../lib/api";
 import type { K6Scenario } from "../lib/scenarios";
 import { CouponHistoryDialog } from "./CouponHistoryDialog";
 import { CouponManageDialog } from "./CouponManageDialog";
@@ -14,7 +14,7 @@ interface Props {
   dataReady: boolean;
   /** 지금 적재가 진행 중인지 - "데이터 적재" 버튼 중복 클릭만 막는다. */
   dataLoading: boolean;
-  onStartTest: (scenario: K6Scenario, couponId: number, stock?: number, maxVus?: number) => void;
+  onStartTest: (scenario: K6Scenario, couponId: number, options: K6RunOptions) => void;
   onStopTest: () => void;
   onLoadData: () => void;
   onResetMetrics: () => void;
@@ -133,9 +133,9 @@ export function FloatingActionMenu({
           coupons={coupons}
           defaultCouponId={couponId}
           onCancel={() => setDialogOpen(false)}
-          onConfirm={(scenario, targetCouponId, stock, maxVus) => {
+          onConfirm={(scenario, targetCouponId, options) => {
             setDialogOpen(false);
-            onStartTest(scenario, targetCouponId, stock, maxVus);
+            onStartTest(scenario, targetCouponId, options);
           }}
         />
       )}
