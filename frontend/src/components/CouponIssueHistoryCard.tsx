@@ -140,7 +140,6 @@ export function CouponIssueHistoryCard({ couponId }: Props) {
             <table className="history-table history-table-compact">
               <thead>
                 <tr>
-                  <th>건</th>
                   <th>순번</th>
                   <th>유저 / 사유</th>
                   <th>Redis처리</th>              {/* 순서 변경 - 신뢰도 1순위 */}
@@ -150,11 +149,10 @@ export function CouponIssueHistoryCard({ couponId }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r, i) => {
+                {rows.map((r) => {
                   const reason = reasonLabel(r);
                   return (
                     <tr key={`${r.rank}-${r.userId}`}>
-                      <td>{(page - 1) * PAGE_SIZE + i + 1}</td>
                       <td className="history-cell-mono history-cell-highlight">#{r.rank}</td>
                       <td>
                         유저 {r.userId} · <span style={{ color: reason.color }}>{reason.text}</span>
