@@ -515,35 +515,41 @@ export interface CouponFairnessTimelineEntry {
   outcome: "SUCCESS" | "SOLDOUT" | "DUPLICATE";
   status: "ISSUED" | "USED" | "CANCELED" | "EXPIRED" | null;
   issuedAt: string | null;
+  /** 컨트롤러 도달 시각(epoch ms). 레거시 항목이면 null. */
   controllerEnteredAtMs: number | null;
+  /** Redis 게이트 진입 시각(epoch ms). 레거시 항목이면 null. */
   gateEnteredAtMs: number | null;
-  redisTimeMicros: number | null;   // 변경
+  /** Redis 서버가 TIME으로 찍은 처리 시각(epoch microseconds, Redis TIME 그대로). 레거시 항목이면 null. */
+  redisTimeMicros: number | null;
+  /** 컨트롤러 도달 → Redis 게이트 진입 소요(ms). 레거시 항목이면 null. */
   gateWaitMs: number | null;
+  /** Redis 게이트 진입 → Lua 처리 소요(ms). 서버 간 시계 차이로 음수가 나올 수 있다. 레거시 항목이면 null. */
   redisWaitMs: number | null;
 }
 
 /**
- * backend CouponFairnessTimelinePage(domain/couponissue/dto)와 1:1로 대응한다. nextCursor를 다음
- * 요청의 afterRank로 그대로 넘기면 이어서 오름차순으로 읽힌다.
+ * backend CouponFairnessTimelinePage(domain/couponissue/dto)와 1:1로 대응한다. page는 1부터
+ * 시작하고, totalPages는 totalElements를 size로 올림 나눗셈한 값이다(로그가 0건이면 0).
  */
 export interface CouponFairnessTimelinePage {
   items: CouponFairnessTimelineEntry[];
-  nextCursor: number;
-  hasMore: boolean;
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
 }
 
 /**
- * AdminCouponController.getFairnessTimeline() - afterRank 다음부터 오름차순 최대 limit건(커서
- * 페이지네이션). 전체를 한 번에 안 받아오므로 로그가 아무리 쌓여도 요청 하나의 비용은 limit에만
- * 비례한다.
+ * AdminCouponController.getFairnessTimeline() - 1-based page/size 오프셋 페이지네이션. 전체를
+ * 한 번에 안 받아오므로 로그가 아무리 쌓여도 요청 하나의 비용은 size에만 비례한다.
  */
 export async function fetchFairnessTimeline(
   couponId: number,
-  afterRank: number,
-  limit: number,
+  page: number,
+  size: number,
 ): Promise<CouponFairnessTimelinePage> {
   const res = await fetch(
-    `${API_BASE}/api/admin/coupons/${couponId}/fairness/timeline?afterRank=${afterRank}&limit=${limit}`,
+    `${API_BASE}/api/admin/coupons/${couponId}/fairness/timeline?page=${page}&size=${size}`,
   );
   return parseApiResponse<CouponFairnessTimelinePage>(res, "선착순 타임라인 조회 실패");
 }

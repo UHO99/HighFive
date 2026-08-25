@@ -106,8 +106,12 @@ public class CouponStockRedisService {
 	public record FairnessLogEntry(long rank, long userId, String outcome, Long redisTimeMicros, Long gateEnteredAtMs, Long controllerEnteredAtMs) {
 	}
 
-	public List<FairnessLogEntry> fairnessLog(long couponId, long afterRank, int limit) {
-		Set<String> raw = redisTemplate.opsForZSet().rangeByScore(CouponStockKeys.fairnessLogKey(couponId), afterRank + 1, Double.POSITIVE_INFINITY, 0, limit + 1);
+	/** rank는 fairnessSeqKey로 매겨지는 빈틈없는 연속 정수라, ZSET 인덱스 구간(offset~offset+size-1)이 곧 페이지 번호에 대응한다. */
+	public List<FairnessLogEntry> fairnessLogPage(long couponId, long offset, int size) {
+		if (size <= 0) {
+			return List.of();
+		}
+		Set<String> raw = redisTemplate.opsForZSet().range(CouponStockKeys.fairnessLogKey(couponId), offset, offset + size - 1);
 		if (raw == null) {
 			return List.of();
 		}
@@ -116,6 +120,11 @@ public class CouponStockRedisService {
 			boolean hasTimings = parts.length >= 6; // 시각 기록 추가 전에 쌓인 레거시 항목은 3필드뿐이다
 			return new FairnessLogEntry(Long.parseLong(parts[0]), Long.parseLong(parts[1]), parts[2], hasTimings ? Long.parseLong(parts[3]) : null, hasTimings ? Long.parseLong(parts[4]) : null, hasTimings ? Long.parseLong(parts[5]) : null);
 		}).toList();
+	}
+
+	public long fairnessLogCount(long couponId) {
+		Long size = redisTemplate.opsForZSet().zCard(CouponStockKeys.fairnessLogKey(couponId));
+		return size == null ? 0 : size;
 	}
 
 	public CouponFairnessReport analyzeFairness(long couponId) {

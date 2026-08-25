@@ -94,18 +94,20 @@ public class CouponIssueServiceImpl implements CouponIssueService {
 
 	@Override
 	@Transactional(readOnly = true)
-	public CouponFairnessTimelinePage getFairnessTimeline(long couponId, long afterRank, int limit) {
+	public CouponFairnessTimelinePage getFairnessTimeline(long couponId, int page, int size) {
 		if (!couponRepository.existsById(couponId)) {
 			throw new CouponException(CouponErrorCode.COUPON_NOT_FOUND);
 		}
 
-		// limit+1건을 받아 hasMore를 판단하고, 실제로 내려줄 건 앞의 limit건만 자른다.
-		List<CouponStockRedisService.FairnessLogEntry> fetched = couponStockRedisService.fairnessLog(couponId, afterRank, limit);
-		if (fetched.isEmpty()) {
-			return new CouponFairnessTimelinePage(List.of(), afterRank, false);
+		long totalElements = couponStockRedisService.fairnessLogCount(couponId);
+		int totalPages = size <= 0 ? 0 : (int) ((totalElements + size - 1) / size);
+		int safePage = totalPages == 0 ? 1 : Math.min(Math.max(page, 1), totalPages);
+		long offset = (long) (safePage - 1) * size;
+
+		List<CouponStockRedisService.FairnessLogEntry> logEntries = couponStockRedisService.fairnessLogPage(couponId, offset, size);
+		if (logEntries.isEmpty()) {
+			return new CouponFairnessTimelinePage(List.of(), safePage, size, totalElements, totalPages);
 		}
-		boolean hasMore = fetched.size() > limit;
-		List<CouponStockRedisService.FairnessLogEntry> logEntries = hasMore ? fetched.subList(0, limit) : fetched;
 
 		// SUCCESS 건만 DB 행이 있다 - 그 userId들만 모아 한 번에 조회 (N+1 방지)
 		List<Long> successUserIds = logEntries.stream().filter(e -> "SUCCESS".equals(e.outcome())).map(CouponStockRedisService.FairnessLogEntry::userId).toList();
@@ -120,8 +122,7 @@ public class CouponIssueServiceImpl implements CouponIssueService {
 			));
 		}
 
-		long nextCursor = logEntries.get(logEntries.size() - 1).rank();
-		return new CouponFairnessTimelinePage(result, nextCursor, hasMore);
+		return new CouponFairnessTimelinePage(result, safePage, size, totalElements, totalPages);
 	}
 
 }
