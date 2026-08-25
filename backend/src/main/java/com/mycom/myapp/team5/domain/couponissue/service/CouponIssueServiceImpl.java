@@ -132,10 +132,13 @@ public class CouponIssueServiceImpl implements CouponIssueService{
 		List<CouponFairnessTimelineEntry> result = new ArrayList<>(logEntries.size());
 		for (CouponStockRedisService.FairnessLogEntry entry : logEntries) {
 			CouponIssue issue = issueByUserId.get(entry.userId());
+			boolean hasTimings = entry.controllerEnteredAtMs() != null && entry.gateEnteredAtMs() != null && entry.redisTimeMs() != null;
 			result.add(new CouponFairnessTimelineEntry(
 					entry.rank(), entry.userId(), entry.outcome(),
 					issue != null ? issue.getStatus() : null,
-					issue != null ? issue.getIssuedAt() : null
+					issue != null ? issue.getIssuedAt() : null,
+					hasTimings ? entry.gateEnteredAtMs() - entry.controllerEnteredAtMs() : null,
+					hasTimings ? entry.redisTimeMs() - entry.gateEnteredAtMs() : null
 			));
 		}
 

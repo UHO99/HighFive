@@ -461,6 +461,10 @@ export interface CouponFairnessTimelineEntry {
   outcome: "SUCCESS" | "SOLDOUT" | "DUPLICATE";
   status: "ISSUED" | "USED" | "CANCELED" | "EXPIRED" | null;
   issuedAt: string | null;
+  /** 컨트롤러 도달 → Redis 게이트 진입 소요(ms). 시각 기록 추가 전에 쌓인 레거시 항목이면 null. */
+  gateWaitMs: number | null;
+  /** Redis 게이트 진입 → Lua 처리 소요(ms). 서버 간 시계 차이로 음수가 나올 수 있다. 레거시 항목이면 null. */
+  redisWaitMs: number | null;
 }
 
 /**
