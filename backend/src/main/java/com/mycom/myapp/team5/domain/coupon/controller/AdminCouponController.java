@@ -136,12 +136,6 @@ public class AdminCouponController {
         return ResponseEntity.ok(ApiResponse.success(couponStockRedisService.analyzeFairness(couponId)));
     }
 
-    /**
-     * 대시보드 "발급 로그" 카드용 - Redis fairness-log의 실제 처리 순서(rank)에 DB 상태/시각을 얹은
-     * 오프셋 페이지(1-based page, 기본 1페이지 / size 기본 50). rank는 재고 차감과 같은 원자적 연산으로
-     * 매겨지므로 비동기 배치로 반영되는 DB issued_at보다 실제 처리 순서를 더 정확히 보여준다. 전체를
-     * 한 번에 안 내려주므로 로그가 아무리 쌓여도 응답 크기가 size에만 비례한다 - 프론트는 페이지 번호를
-     * 직접 넘겨 원하는 페이지만 조회한다.*/
     @LogDescription("쿠폰 선착순 타임라인 조회 (관리자)")
     @GetMapping("/api/admin/coupons/{couponId}/fairness/timeline")
     public ResponseEntity<ApiResponse<CouponFairnessTimelinePage>> getFairnessTimeline(
