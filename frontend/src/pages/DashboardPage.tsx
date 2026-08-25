@@ -11,7 +11,7 @@ import { FloatingActionMenu } from "../components/FloatingActionMenu";
 import { useMonitoringDashboard } from "../hooks/useMonitoringDashboard";
 import {
   drainPendingStream, fetchCoupons, fetchDummyDataCounts, fetchDummyDataStatus, loadDummyData, resetMonitoringMetrics,
-  type CouponDetail, type CouponSummary, type DummyDataCounts, type DummyDataStatus,
+  type CouponDetail, type CouponSummary, type DummyDataCounts, type DummyDataStatus, type K6RunOptions,
 } from "../lib/api";
 import type { K6Scenario } from "../lib/scenarios";
 
@@ -139,9 +139,9 @@ export function DashboardPage() {
   // K6TestService(백엔드가 도커로 형제 k6 컨테이너를 띄움)를 실제로 호출한다. ScenarioDialog에서 고른
   // 대상 쿠폰으로 모니터링 화면도 같이 전환한다 - 다른 쿠폰을 보면서 엉뚱한 쿠폰에 테스트가 도는 걸 방지.
   // vals.testRunning/scenarioFile은 이 호출과 무관하게 GET /api/admin/k6/status 폴링으로 갱신된다.
-  const handleStartTest = (scenario: K6Scenario, targetCouponId: number, stock?: number, maxVus?: number) => {
+  const handleStartTest = (scenario: K6Scenario, targetCouponId: number, options: K6RunOptions) => {
     setCouponId(targetCouponId);
-    startTest(scenario.id, targetCouponId, stock, maxVus).catch((e) => {
+    startTest(scenario.id, targetCouponId, options).catch((e) => {
       console.error("[HighFive] k6 실행 실패", e);
     });
   };

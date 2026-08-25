@@ -10,7 +10,8 @@ public record K6ScenarioResponse(
         String rampUp,
         String hold,
         String targetVus,
-        boolean configurable
+        boolean configurable,
+        boolean advanced
 ) {
     public static K6ScenarioResponse from(K6Scenario scenario) {
         return new K6ScenarioResponse(
@@ -21,7 +22,8 @@ public record K6ScenarioResponse(
                 scenario.getRampUp(),
                 scenario.getHold(),
                 scenario.getTargetVus(),
-                scenario.isConfigurable()
+                scenario.isConfigurable(),
+                scenario.isAdvanced()
         );
     }
 }

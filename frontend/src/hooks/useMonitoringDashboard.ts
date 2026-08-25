@@ -6,6 +6,7 @@ import {
   MonitoringCouponNotFoundError,
   runK6Scenario,
   stopK6Scenario,
+  type K6RunOptions,
   type K6StatusResponse,
   type MonitoringDashboardResponse,
 } from "../lib/api";
@@ -169,7 +170,7 @@ function toVals(data: MonitoringDashboardResponse, now: number, k6Status: K6Stat
 
 export interface UseMonitoringDashboardResult {
   vals: DashboardVals;
-  startTest: (scenarioId: string, targetCouponId: number, stock?: number, maxVus?: number) => Promise<void>;
+  startTest: (scenarioId: string, targetCouponId: number, options?: K6RunOptions) => Promise<void>;
   stopTest: () => Promise<void>;
   /** 진짜 연결 실패(네트워크 오류/5xx 등) - 헤더가 빨간 "백엔드 연결 실패"로 보여준다. */
   error: string | null;
@@ -256,8 +257,8 @@ export function useMonitoringDashboard(couponId: number): UseMonitoringDashboard
 
   // couponId(이 훅이 모니터링 중인 쿠폰)와 별개로 targetCouponId를 명시적으로 받는다 - 대시보드에
   // 보이는 쿠폰과 다른 쿠폰을 대상으로 테스트를 시작할 수도 있어서(ScenarioDialog의 쿠폰 선택).
-  const startTest = useCallback(async (scenarioId: string, targetCouponId: number, stock?: number, maxVus?: number) => {
-    const next = await runK6Scenario(scenarioId, targetCouponId, stock, maxVus);
+  const startTest = useCallback(async (scenarioId: string, targetCouponId: number, options?: K6RunOptions) => {
+    const next = await runK6Scenario(scenarioId, targetCouponId, options);
     setK6Status(next);
   }, []);
 

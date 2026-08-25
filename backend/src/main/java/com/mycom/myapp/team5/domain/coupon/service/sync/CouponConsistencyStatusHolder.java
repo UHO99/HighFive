@@ -1,13 +1,17 @@
 package com.mycom.myapp.team5.domain.coupon.service.sync;
 
 import java.time.Instant;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.springframework.stereotype.Component;
 
+import com.mycom.myapp.team5.domain.coupon.dto.CouponSyncLogEntry;
+import com.mycom.myapp.team5.domain.coupon.dto.CouponVerifyLogEntry;
 import com.mycom.myapp.team5.domain.coupon.dto.MismatchEvent;
 
 @Component
@@ -18,6 +22,9 @@ public class CouponConsistencyStatusHolder {
 
     /** mismatchHistory에 보관하는 "이미 해소된" 건의 최대 개수 - 진행 중인(미해소) 건은 개수와 무관하게 전부 유지한다. */
     private static final int MAX_RESOLVED_HISTORY = 30;
+
+    /** 동기화/검증 완료 로그로 보관하는 최근 건수 - 대시보드 카드 한 켠에 최근 내역만 보여주면 되므로 짧게 잡는다. */
+    private static final int MAX_LOG_ENTRIES = 20;
 
     public record SyncSnapshot(Instant lastRunAt, int targetCount, int syncedCount) {
         static SyncSnapshot initial() {
@@ -37,12 +44,48 @@ public class CouponConsistencyStatusHolder {
     private final Object historyLock = new Object();
     private final Map<Long, MismatchEvent> mismatchHistory = new LinkedHashMap<>();
 
+    private final Object logLock = new Object();
+    private final Deque<CouponSyncLogEntry> syncLog = new ArrayDeque<>(MAX_LOG_ENTRIES);
+    private final Deque<CouponVerifyLogEntry> verifyLog = new ArrayDeque<>(MAX_LOG_ENTRIES);
+
     public void updateSync(Instant lastRunAt, int targetCount, int syncedCount) {
         this.sync = new SyncSnapshot(lastRunAt, targetCount, syncedCount);
     }
 
     public void updateVerify(Instant lastRunAt, int targetCount, int confirmedCount, int mismatchCount) {
         this.verify = new VerifySnapshot(lastRunAt, targetCount, confirmedCount, mismatchCount);
+    }
+
+    /** S012가 실제로 issuedQuantity를 써넣은 순간(=드레인 완료 후 처음 동기화된 순간)마다 한 줄 남긴다. */
+    public void recordSyncCompletion(long couponId, Instant syncedAt, int issuedQuantity) {
+        synchronized (logLock) {
+            syncLog.addFirst(new CouponSyncLogEntry(couponId, syncedAt, issuedQuantity));
+            while (syncLog.size() > MAX_LOG_ENTRIES) {
+                syncLog.removeLast();
+            }
+        }
+    }
+
+    /** S013이 "드레인 완료 + 기록값=실측값"을 처음 확정한 순간마다 한 줄 남긴다. */
+    public void recordVerifyConfirmation(long couponId, Instant confirmedAt) {
+        synchronized (logLock) {
+            verifyLog.addFirst(new CouponVerifyLogEntry(couponId, confirmedAt));
+            while (verifyLog.size() > MAX_LOG_ENTRIES) {
+                verifyLog.removeLast();
+            }
+        }
+    }
+
+    public List<CouponSyncLogEntry> syncLog() {
+        synchronized (logLock) {
+            return List.copyOf(syncLog);
+        }
+    }
+
+    public List<CouponVerifyLogEntry> verifyLog() {
+        synchronized (logLock) {
+            return List.copyOf(verifyLog);
+        }
     }
 
     public void recordMismatchCycle(Instant now, List<CouponMismatchReport> currentMismatches) {

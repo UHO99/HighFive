@@ -539,6 +539,37 @@ body {
   color: #171b2e;
 }
 
+/* 링+요약 옆에 남는 공간에 얹는 "실제 완료" 로그 - 대상/처리 집계 숫자와 달리 어떤 쿠폰이 언제
+   끝났는지 한 줄씩 보여준다. */
+.consistency-block-log {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 54px;
+  overflow-y: auto;
+  padding-left: 12px;
+  border-left: 1px solid #e7e9f0;
+}
+
+.consistency-log-item {
+  font: 500 10.5px/1.4 "JetBrains Mono", monospace;
+  color: #5b5f72;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.consistency-log-time {
+  color: #9aa0b4;
+}
+
+.consistency-log-empty {
+  font: 500 10.5px/1 "Inter", sans-serif;
+  color: #c7cad6;
+}
+
 .consistency-mismatch {
   color: #dc2626;
   font-weight: 700;
