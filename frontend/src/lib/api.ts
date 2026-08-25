@@ -142,7 +142,7 @@ export async function fetchConsistencyStatus(): Promise<CouponConsistencyStatusR
  * couponId가 DB에 아예 없을 때(CouponErrorCode.COUPON_NOT_FOUND) 백엔드가 던지는 404 - 오픈된 쿠폰이
  * 하나도 없는 정상 상태에서도 발생하므로, 진짜 연결 실패(네트워크 오류/5xx)와 구분해서 다뤄야 한다.
  */
-export class MonitoringCouponNotFoundError extends Error {}
+export class MonitoringCouponNotFoundError extends Error { }
 
 export async function fetchMonitoringDashboard(couponId: number): Promise<MonitoringDashboardResponse> {
   const res = await fetch(`${API_BASE}/api/admin/monitoring/coupons/${couponId}`);
@@ -473,9 +473,10 @@ export interface CouponFairnessTimelineEntry {
   outcome: "SUCCESS" | "SOLDOUT" | "DUPLICATE";
   status: "ISSUED" | "USED" | "CANCELED" | "EXPIRED" | null;
   issuedAt: string | null;
-  /** 컨트롤러 도달 → Redis 게이트 진입 소요(ms). 시각 기록 추가 전에 쌓인 레거시 항목이면 null. */
+  controllerEnteredAtMs: number | null;   // 추가
+  gateEnteredAtMs: number | null;          // 추가
+  redisTimeMs: number | null;              // 추가
   gateWaitMs: number | null;
-  /** Redis 게이트 진입 → Lua 처리 소요(ms). 서버 간 시계 차이로 음수가 나올 수 있다. 레거시 항목이면 null. */
   redisWaitMs: number | null;
   /** 컨트롤러 도달 시각(epoch ms). 레거시 항목이면 null. */
   controllerEnteredAtMs: number | null;

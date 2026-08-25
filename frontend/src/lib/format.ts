@@ -18,12 +18,14 @@ export function formatMs(ms: number): string {
   return ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(1)}s`;
 }
 
-/** epoch ms를 밀리초까지 보이는 로컬 시각 문자열로 바꾼다 (예: "10:54:20.123"). */
-export function formatTimeMs(epochMs: number): string {
-  const d = new Date(epochMs);
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mm = String(d.getMinutes()).padStart(2, "0");
-  const ss = String(d.getSeconds()).padStart(2, "0");
-  const sss = String(d.getMilliseconds()).padStart(3, "0");
-  return `${hh}:${mm}:${ss}.${sss}`;
+/**
+ * epoch 밀리초를 밀리초 단위까지 보이는 시각 문자열로 변환한다. toLocaleTimeString()은
+ * 초 단위까지만 보여주므로, rank(처리 순번)와 나란히 비교할 절대 시각을 눈으로 확인하려면
+ * 밀리초 자체가 보여야 한다.
+ */
+export function formatTimestampMs(ms: number): string {
+  const date = new Date(ms);
+  const time = date.toLocaleTimeString("ko-KR", { hour12: false });
+  const millis = String(date.getMilliseconds()).padStart(3, "0");
+  return `${time}.${millis}`;
 }
