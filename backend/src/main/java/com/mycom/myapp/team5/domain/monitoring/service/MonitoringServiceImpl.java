@@ -93,12 +93,14 @@ public class MonitoringServiceImpl implements MonitoringService {
         return new CouponConsistencyStatusResponse(
                 new CouponConsistencyStatusResponse.Sync(
                         sync.lastRunAt(), CouponConsistencyStatusHolder.SYNC_INTERVAL_MS,
-                        sync.targetCount(), sync.syncedCount()
+                        sync.targetCount(), sync.syncedCount(),
+                        consistencyStatusHolder.syncLog()
                 ),
                 new CouponConsistencyStatusResponse.Verify(
                         verify.lastRunAt(), CouponConsistencyStatusHolder.VERIFY_INTERVAL_MS,
                         verify.targetCount(), verify.confirmedCount(), verify.mismatchCount(),
-                        consistencyStatusHolder.mismatchHistory()
+                        consistencyStatusHolder.mismatchHistory(),
+                        consistencyStatusHolder.verifyLog()
                 )
         );
     }
