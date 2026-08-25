@@ -84,11 +84,11 @@ public class CouponIssueServiceImpl implements CouponIssueService{
 	public void cancelCoupon(long userId, long issueId) {
 		CouponIssue issue = couponIssueRepository.findByIdAndUserIdForUpdate(issueId, userId)
 				.orElseThrow(() -> new CouponException(CouponErrorCode.COUPON_ISSUE_NOT_FOUND));
-		
-		if(issue.getStatus() != CouponIssueStatus.ISSUED) {
+
+		if (issue.getStatus() != CouponIssueStatus.USED) {
 			throw new CouponException(CouponErrorCode.COUPON_ISSUE_STATUS_CONFLICT);
 		}
-		issue.cancel(); 					// entity 메서드 호출 (status=CANCELED, canceledAt=now)
+		issue.cancel(); 					// entity 메서드 호출 (status=CANCELED, canceledAt=now, usedAt은 보존)
 	}
 
 	@Override
