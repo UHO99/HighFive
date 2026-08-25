@@ -22,7 +22,7 @@ public record CouponFairnessTimelineEntry(
 		 */
 		Long controllerEnteredAtMs, // 추가 - 컨트롤러 도달 시각
 		Long gateEnteredAtMs, // 추가 - Redis 게이트 진입 시각
-		Long redisTimeMs, // 추가 - Redis 실제 처리 시각
+		Long redisTimeMicros, // 추가 - Redis 실제 처리 시각
 		Long gateWaitMs,
 		/**
 		 * Redis 게이트 진입 → Lua 스크립트 처리(원자적 재고 차감/기록)까지 걸린 시간(ms). 앱 서버와 Redis 서버 시계가 어긋나면 음수가 나올 수 있다. 레거시 항목이면 null.

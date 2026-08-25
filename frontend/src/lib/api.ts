@@ -473,17 +473,11 @@ export interface CouponFairnessTimelineEntry {
   outcome: "SUCCESS" | "SOLDOUT" | "DUPLICATE";
   status: "ISSUED" | "USED" | "CANCELED" | "EXPIRED" | null;
   issuedAt: string | null;
-  controllerEnteredAtMs: number | null;   // 추가
-  gateEnteredAtMs: number | null;          // 추가
-  redisTimeMs: number | null;              // 추가
+  controllerEnteredAtMs: number | null;
+  gateEnteredAtMs: number | null;
+  redisTimeMicros: number | null;   // 변경
   gateWaitMs: number | null;
   redisWaitMs: number | null;
-  /** 컨트롤러 도달 시각(epoch ms). 레거시 항목이면 null. */
-  controllerEnteredAtMs: number | null;
-  /** Redis 게이트 진입 시각(epoch ms). 레거시 항목이면 null. */
-  gateEnteredAtMs: number | null;
-  /** Redis 서버가 TIME으로 찍은 처리 시각(epoch ms). 레거시 항목이면 null. */
-  redisTimeMs: number | null;
 }
 
 /**

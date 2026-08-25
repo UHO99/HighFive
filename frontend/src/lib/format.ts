@@ -29,3 +29,17 @@ export function formatTimestampMs(ms: number): string {
   const millis = String(date.getMilliseconds()).padStart(3, "0");
   return `${time}.${millis}`;
 }
+
+/**
+ * epoch 마이크로초(Redis TIME 명령)를 밀리초+마이크로초까지 보이는 시각 문자열로 변환한다.
+ * Date는 밀리초 단위까지만 다루므로, 마이크로초 나머지는 별도로 떼어 붙인다.
+ */
+export function formatTimestampMicros(micros: number): string {
+  const ms = Math.floor(micros / 1000);
+  const remainderMicros = micros % 1000;
+  const date = new Date(ms);
+  const time = date.toLocaleTimeString("ko-KR", { hour12: false });
+  const millis = String(date.getMilliseconds()).padStart(3, "0");
+  const microsStr = String(remainderMicros).padStart(3, "0");
+  return `${time}.${millis}${microsStr}`;   // 예: "11:54:14.821487"
+}
