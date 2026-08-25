@@ -35,7 +35,8 @@ public class DummyDataGenerator {
     private static final Path OUT_DIR = Path.of(
             System.getProperty("dummy.dir", System.getProperty("java.io.tmpdir")), "highfive");
     private static final Path OUT = OUT_DIR.resolve("users.csv");
-    private static final int USER_COUNT = 1_000_000;
+    // DummyDataAll의 SEED_BASELINE이 참조한다(Before/After 표의 "Seed 값") - package-private.
+    static final int USER_COUNT = 1_000_000;
     private static final long SEED = 42L;      // 고정 
 
     // ── 이름 조합 (20 × 25 = 500가지) ───────────────────

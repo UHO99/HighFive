@@ -25,6 +25,7 @@ services:
     networks:
       - highfive-net
     environment:
+      TZ: Asia/Seoul
       MYSQL_DATABASE: highfive
       MYSQL_USER: ${DB_USER:-ureca}
       MYSQL_PASSWORD: ${DB_PASSWORD:-ureca}
@@ -47,6 +48,7 @@ services:
     networks:
       - highfive-net
     environment:
+      TZ: Asia/Seoul
       SPRING_PROFILES_ACTIVE: docker
       SPRING_DATASOURCE_USERNAME: ${DB_USER:-ureca}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-ureca}

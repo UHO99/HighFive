@@ -95,6 +95,23 @@ public class CouponStockRedisService {
 		redisTemplate.delete(CouponStockKeys.fairnessLogKey(couponId));
 	}
 
+	/** fairness-log 한 줄("순번:userId:결과")을 파싱한 값. */
+	public record FairnessLogEntry(long rank, long userId, String outcome) { }
+
+	public List<FairnessLogEntry> fairnessLog(long couponId, long afterRank, int limit) {
+		Set<String> raw = redisTemplate.opsForZSet().rangeByScore(
+				CouponStockKeys.fairnessLogKey(couponId), afterRank + 1, Double.POSITIVE_INFINITY, 0, limit + 1);
+		if (raw == null) {
+			return List.of();
+		}
+		return raw.stream()
+				.map(entry -> {
+					String[] parts = entry.split(":", 3);
+					return new FairnessLogEntry(Long.parseLong(parts[0]), Long.parseLong(parts[1]), parts[2]);
+				})
+				.toList();
+	}
+
 	public CouponFairnessReport analyzeFairness(long couponId) {
 		Set<String> entries = redisTemplate.opsForZSet().range(CouponStockKeys.fairnessLogKey(couponId), 0, -1); // 순번(score) 오름차순
 

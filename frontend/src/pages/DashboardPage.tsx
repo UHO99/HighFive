@@ -7,6 +7,7 @@ import { CouponStatusCard } from "../components/CouponStatusCard";
 import { RedisStockCard } from "../components/RedisStockCard";
 import { DbStorageCard } from "../components/DbStorageCard";
 import { CouponIssueHistoryCard } from "../components/CouponIssueHistoryCard";
+import { ConsistencyStatusCard } from "../components/ConsistencyStatusCard";
 import { FloatingActionMenu } from "../components/FloatingActionMenu";
 import { useMonitoringDashboard } from "../hooks/useMonitoringDashboard";
 import {
@@ -238,7 +239,11 @@ export function DashboardPage() {
         <div className="row">
           <RedisStockCard vals={vals} onDrainPending={handleDrainPending} />
           <DbStorageCard vals={vals} dummyDataCounts={dummyDataCounts} beforeCounts={dummyStatus.before} />
-          <CouponIssueHistoryCard />
+          <CouponIssueHistoryCard couponId={couponId} />
+        </div>
+
+        <div className="row">
+          <ConsistencyStatusCard />
         </div>
       </div>
 

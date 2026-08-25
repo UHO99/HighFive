@@ -36,6 +36,18 @@ public class DummyDataAll {
         }
     }
 
+    /**
+     * 더미데이터 생성기가 항상 만들어내는 고정 건수 (SEED=42라 매번 동일) - 대시보드 Before/After
+     * 표의 "BEFORE" 기준값으로 쓴다. 재적재를 한 번도 안 했어도(=이번 프로세스 안에서 실제 before
+     * 스냅샷이 없어도) 이 값을 기준으로 삼으면, 그 이후 관리자가 수동으로 만든 쿠폰/발급 건수만큼
+     * AFTER와의 델타가 그대로 드러난다.
+     */
+    public static final Counts SEED_BASELINE = Counts.snapshot(
+            DummyDataGenerator.USER_COUNT,
+            CouponDummyGenerator.PAST_COUPON_COUNT,
+            (long) CouponDummyGenerator.PAST_COUPON_COUNT * CouponDummyGenerator.ISSUES_PER_COUPON
+    );
+
     public static void main(String[] args) throws Exception {
         run(null);
     }

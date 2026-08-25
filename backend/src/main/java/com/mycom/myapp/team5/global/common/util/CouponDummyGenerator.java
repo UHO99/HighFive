@@ -33,8 +33,9 @@ public class CouponDummyGenerator {
     private static final Path ISSUE_CSV  = OUT_DIR.resolve("coupon_issue.csv");
 
     // ── 규모 ────────────────────────────────────────────
-    private static final int PAST_COUPON_COUNT = 30;        // 과거 종료 쿠폰
-    private static final int ISSUES_PER_COUPON = 100_000;   // 쿠폰당 발급 건수
+    // DummyDataAll의 SEED_BASELINE이 참조한다(Before/After 표의 "Seed 값") - package-private.
+    static final int PAST_COUPON_COUNT = 30;        // 과거 종료 쿠폰
+    static final int ISSUES_PER_COUPON = 100_000;   // 쿠폰당 발급 건수
     private static final long SEED             = 42L;       // 고정 → 항상 같은 데이터
 
     // 시연용 쿠폰 (부하 테스트 대상)
