@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fetchK6Scenarios, type CouponSummary } from "../lib/api";
+import { fetchK6Scenarios, type CouponSummary, type K6RunOptions } from "../lib/api";
 import type { K6Scenario } from "../lib/scenarios";
 
 interface Props {
@@ -7,7 +7,7 @@ interface Props {
   coupons: CouponSummary[];
   defaultCouponId: number;
   onCancel: () => void;
-  onConfirm: (scenario: K6Scenario, couponId: number, stock?: number, maxVus?: number) => void;
+  onConfirm: (scenario: K6Scenario, couponId: number, options: K6RunOptions) => void;
 }
 
 export function ScenarioDialog({ coupons, defaultCouponId, onCancel, onConfirm }: Props) {
@@ -18,6 +18,12 @@ export function ScenarioDialog({ coupons, defaultCouponId, onCancel, onConfirm }
   );
   const [error, setError] = useState<string | null>(null);
   const [maxVusInput, setMaxVusInput] = useState(50);
+  // advanced 시나리오(main_test.js) 전용 - 기본값은 스크립트 기본값과 맞춰둔다.
+  const [requestRatioInput, setRequestRatioInput] = useState(2);
+  const [arrivalInput, setArrivalInput] = useState<"burst" | "even">("burst");
+  const [durationInput, setDurationInput] = useState(10);
+  const [spamRatioInput, setSpamRatioInput] = useState(0);
+  const [spamClicksInput, setSpamClicksInput] = useState(3);
 
   const selectedScenario = scenarios.find((s) => s.id === selectedId);
   // 재고는 사용자가 또 입력할 값이 아니다 - 이미 선택한 쿠폰의 실제 재고를 그대로 쓴다.
@@ -124,6 +130,77 @@ export function ScenarioDialog({ coupons, defaultCouponId, onCancel, onConfirm }
           </div>
         )}
 
+        {selectedScenario?.advanced && (
+          <>
+            <div className="scale-input-row">
+              <label className="form-field">
+                <span className="form-label">요청 배수 (재고 × N명이 몰림)</span>
+                <input
+                  type="number"
+                  min={1}
+                  className="form-input"
+                  value={requestRatioInput}
+                  onChange={(e) => setRequestRatioInput(Number(e.target.value))}
+                />
+              </label>
+              <label className="form-field">
+                <span className="form-label">유입 방식</span>
+                <select
+                  className="form-input"
+                  value={arrivalInput}
+                  onChange={(e) => setArrivalInput(e.target.value as "burst" | "even")}
+                >
+                  <option value="burst">한꺼번에 (오픈 직후)</option>
+                  <option value="even">시간에 걸쳐</option>
+                </select>
+              </label>
+              {arrivalInput === "even" && (
+                <label className="form-field">
+                  <span className="form-label">유입 시간(초)</span>
+                  <input
+                    type="number"
+                    min={1}
+                    className="form-input"
+                    value={durationInput}
+                    onChange={(e) => setDurationInput(Number(e.target.value))}
+                  />
+                </label>
+              )}
+            </div>
+
+            <div className="scale-input-row">
+              <label className="form-field">
+                <span className="form-label">연타 유저 비율 (0~1)</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={1}
+                  step={0.1}
+                  className="form-input"
+                  value={spamRatioInput}
+                  onChange={(e) => setSpamRatioInput(Number(e.target.value))}
+                />
+              </label>
+              {spamRatioInput > 0 && (
+                <label className="form-field">
+                  <span className="form-label">연타 횟수</span>
+                  <input
+                    type="number"
+                    min={2}
+                    className="form-input"
+                    value={spamClicksInput}
+                    onChange={(e) => setSpamClicksInput(Number(e.target.value))}
+                  />
+                </label>
+              )}
+            </div>
+            <span className="dialog-subtitle">
+              연타를 켜면 같은 유저가 동시에 여러 번 눌러 "1인 최대 1매"가 지켜지는지 검증한다 -
+              중복 거부가 나오는 게 정상이고, 그래도 성공 건수는 재고를 넘지 않아야 한다.
+            </span>
+          </>
+        )}
+
         <div className="dialog-actions">
           <button type="button" className="dialog-btn ghost" onClick={onCancel}>
             취소
@@ -135,11 +212,20 @@ export function ScenarioDialog({ coupons, defaultCouponId, onCancel, onConfirm }
             onClick={() => {
               const scenario = scenarios.find((s) => s.id === selectedId);
               if (!scenario || selectedCouponId === null) return;
+
+              const options: K6RunOptions = {};
               if (scenario.configurable) {
-                onConfirm(scenario, selectedCouponId, selectedCoupon?.totalQuantity, maxVusInput);
-              } else {
-                onConfirm(scenario, selectedCouponId);
+                options.stock = selectedCoupon?.totalQuantity;
+                options.maxVus = maxVusInput;
               }
+              if (scenario.advanced) {
+                options.requestRatio = requestRatioInput;
+                options.arrival = arrivalInput;
+                if (arrivalInput === "even") options.duration = durationInput;
+                options.spamRatio = spamRatioInput;
+                if (spamRatioInput > 0) options.spamClicks = spamClicksInput;
+              }
+              onConfirm(scenario, selectedCouponId, options);
             }}
           >
             실행
