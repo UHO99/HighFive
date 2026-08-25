@@ -139,7 +139,7 @@ export function CouponIssueHistoryCard({ couponId }: Props) {
       ) : rows.length === 0 ? (
         <span className="tile-label-md">발급 이력이 없습니다</span>
       ) : (
-        <div className="history-table-wrap history-table-wrap-fill" onScroll={handleScroll}>
+        <div className="history-table-wrap history-table-wrap-30rows" onScroll={handleScroll}>
           <table className="history-table history-table-compact">
             <thead>
               <tr>
@@ -160,11 +160,11 @@ export function CouponIssueHistoryCard({ couponId }: Props) {
                 return (
                   <tr key={`${r.rank}-${r.userId}`}>
                     <td>{i + 1}</td>
-                    <td className="history-cell-mono">#{r.rank}</td>
+                    <td className="history-cell-mono history-cell-highlight">#{r.rank}</td>
                     <td>
                       유저 {r.userId} · <span style={{ color: reason.color }}>{reason.text}</span>
                     </td>
-                    <td className="history-cell-mono">
+                    <td className="history-cell-mono history-cell-highlight">
                       {r.redisTimeMicros === null ? "-" : formatTimestampMicros(r.redisTimeMicros)}
                     </td>
                     <td className="history-cell-mono">
