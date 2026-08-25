@@ -44,7 +44,7 @@ public class CouponIssueStreamProducerTest {
 		couponStockRedisService.initStock(COUPON_ID, 1);
 
 		// when
-		producer.requestIssue(COUPON_ID, USER_ID);
+		producer.requestIssue(COUPON_ID, USER_ID, System.currentTimeMillis());
 
 		// then
 		Long streamSize = stringRedisTemplate.opsForStream().size(CouponStreamKeys.streamKey(COUPON_ID));
@@ -55,10 +55,10 @@ public class CouponIssueStreamProducerTest {
 	void 이미_발급받은_회원이_다시_요청하면_예외가_발생하고_스트림에_추가로_안_쌓인다() {
 		// given
 		couponStockRedisService.initStock(COUPON_ID, 10);
-		producer.requestIssue(COUPON_ID, USER_ID); // 최초 1회는 성공
+		producer.requestIssue(COUPON_ID, USER_ID, System.currentTimeMillis()); // 최초 1회는 성공
 
 		// when & then
-		assertThatThrownBy(() -> producer.requestIssue(COUPON_ID, USER_ID)).isInstanceOf(CouponException.class).extracting(e -> ((CouponException) e).getErrorCode()).isEqualTo(CouponErrorCode.COUPON_ISSUE_DUPLICATE);
+		assertThatThrownBy(() -> producer.requestIssue(COUPON_ID, USER_ID, System.currentTimeMillis())).isInstanceOf(CouponException.class).extracting(e -> ((CouponException) e).getErrorCode()).isEqualTo(CouponErrorCode.COUPON_ISSUE_DUPLICATE);
 
 		Long streamSize = stringRedisTemplate.opsForStream().size(CouponStreamKeys.streamKey(COUPON_ID));
 		assertThat(streamSize).isEqualTo(1L); // 두 번째 요청은 안 쌓여야 정상
@@ -70,7 +70,7 @@ public class CouponIssueStreamProducerTest {
 		couponStockRedisService.initStock(COUPON_ID, 0);
 
 		// when & then
-		assertThatThrownBy(() -> producer.requestIssue(COUPON_ID, USER_ID)).isInstanceOf(CouponException.class).extracting(e -> ((CouponException) e).getErrorCode()).isEqualTo(CouponErrorCode.COUPON_SOLD_OUT);
+		assertThatThrownBy(() -> producer.requestIssue(COUPON_ID, USER_ID, System.currentTimeMillis())).isInstanceOf(CouponException.class).extracting(e -> ((CouponException) e).getErrorCode()).isEqualTo(CouponErrorCode.COUPON_SOLD_OUT);
 
 		Long streamSize = stringRedisTemplate.opsForStream().size(CouponStreamKeys.streamKey(COUPON_ID));
 		assertThat(streamSize == null || streamSize == 0L).isTrue();
@@ -81,6 +81,6 @@ public class CouponIssueStreamProducerTest {
 		// given: initStock을 호출하지 않은 상태 (쿠폰 오픈 전을 흉내냄)
 
 		// when & then
-		assertThatThrownBy(() -> producer.requestIssue(COUPON_ID, USER_ID)).isInstanceOf(CouponException.class).extracting(e -> ((CouponException) e).getErrorCode()).isEqualTo(CouponErrorCode.COUPON_INVENTORY_NOT_STOCKED);
+		assertThatThrownBy(() -> producer.requestIssue(COUPON_ID, USER_ID, System.currentTimeMillis())).isInstanceOf(CouponException.class).extracting(e -> ((CouponException) e).getErrorCode()).isEqualTo(CouponErrorCode.COUPON_INVENTORY_NOT_STOCKED);
 	}
 }

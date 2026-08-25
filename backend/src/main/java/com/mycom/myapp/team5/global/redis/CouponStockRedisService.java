@@ -13,9 +13,6 @@ import com.mycom.myapp.team5.domain.coupon.exception.CouponException;
 
 import lombok.RequiredArgsConstructor;
 
-/**
- * Redis Lua 스크립트로 "1인 1매 확인"과 "재고 원자적 차감"을 하나의 원자적 연산으로 묶는다. 두 검사를 별도 호출로 나누면 그 사이에 실패 시 수동으로 되돌리는 보상 로직이 필요한데, Lua 스크립트는 Redis 안에서 끊기지 않고 통째로 실행되므로 그 문제가 아예 발생하지 않는다.
- */
 @Component
 @RequiredArgsConstructor
 public class CouponStockRedisService {
@@ -23,9 +20,12 @@ public class CouponStockRedisService {
 	private final StringRedisTemplate redisTemplate;
 
 	// 반환값: 1 = 발급 성공, 0 = 품절, -1 = 이미 발급됨(중복), -2 = 재고 미적재(쿠폰 오픈 안 됨)
+	// 기록 형식: "{순번}:{userId}:{결과}:{Redis처리시각ms}:{게이트진입시각ms}:{컨트롤러진입시각ms}"
 	private static final String ISSUE_SCRIPT = "local function record(result) " + //
 			"  local seq = redis.call('incr', KEYS[3]) " + //
-			"  redis.call('zadd', KEYS[4], seq, seq .. ':' .. ARGV[1] .. ':' .. result) " + //
+			"  local t = redis.call('TIME') " + //
+			"  local redisTimeMs = tonumber(t[1]) * 1000 + math.floor(tonumber(t[2]) / 1000) " + //
+			"  redis.call('zadd', KEYS[4], seq, seq .. ':' .. ARGV[1] .. ':' .. result .. ':' .. redisTimeMs .. ':' .. ARGV[2] .. ':' .. ARGV[3]) " + //
 			"end " + //
 			"if redis.call('sismember', KEYS[2], ARGV[1]) == 1 then " + //
 			"  record('DUPLICATE') " + //
@@ -41,7 +41,7 @@ public class CouponStockRedisService {
 			"end " + //
 			"redis.call('decr', KEYS[1]) " + //
 			"redis.call('sadd', KEYS[2], ARGV[1]) " + //
-			"record('SUCCESS') " + // 
+			"record('SUCCESS') " + //
 			"return 1";
 
 	private static final DefaultRedisScript<Long> ISSUE = new DefaultRedisScript<>(ISSUE_SCRIPT, Long.class);
@@ -62,16 +62,21 @@ public class CouponStockRedisService {
 	}
 
 	/**
-	 * 발급을 시도한다. 성공하면 조용히 반환하고(Redis 안에서 재고 차감+1인1매 기록이 끝난 상태), 실패 사유별로 다른 CouponException을 던진다.
+	 * 발급을 시도한다. 성공하면 조용히 반환하고, 실패 사유별로 다른 CouponException을 던진다.
+	 *
+	 * @param gateEnteredAtMs
+	 *     이 요청이 Redis 게이트(Producer)에 진입한 시각
+	 * @param controllerEnteredAtMs
+	 *     이 요청이 컨트롤러에 최초 도달한 시각. gateEnteredAtMs와의 차이가 곧 validateIssueable() 등 게이트 진입 전 단계의 소요 시간이다.
 	 */
-	public void issue(long couponId, long userId) {
+	public void issue(long couponId, long userId, long gateEnteredAtMs, long controllerEnteredAtMs) {
 		List<String> keys = List.of( //
 				CouponStockKeys.stockKey(couponId), //
 				CouponStockKeys.issuedSetKey(couponId), //
 				CouponStockKeys.fairnessSeqKey(couponId), //
 				CouponStockKeys.fairnessLogKey(couponId));
 
-		Long result = redisTemplate.execute(ISSUE, keys, String.valueOf(userId));
+		Long result = redisTemplate.execute(ISSUE, keys, String.valueOf(userId), String.valueOf(gateEnteredAtMs), String.valueOf(controllerEnteredAtMs));
 		long code = result == null ? -2 : result;
 
 		if (code == 1) {
@@ -83,37 +88,34 @@ public class CouponStockRedisService {
 		if (code == -2) {
 			throw new CouponException(CouponErrorCode.COUPON_INVENTORY_NOT_STOCKED);
 		}
-		// code == 0
 		throw new CouponException(CouponErrorCode.COUPON_SOLD_OUT);
 	}
 
 	/**
-	 * 발급 순서 기록을 초기화한다. 반드시 "진짜 오픈" 시점에만 호출해야 하며, replenishMissingStock()(Redis 재시작 복구)에서는 호출하면 안 된다. (진행 중인 테스트의 기록이 유실되기 때문)
+	 * 발급 순서 기록을 초기화한다. 반드시 "진짜 오픈" 시점에만 호출해야 하며, replenishMissingStock()에서는 호출하면 안 된다.
 	 */
 	public void resetFairnessLog(long couponId) {
 		redisTemplate.delete(CouponStockKeys.fairnessSeqKey(couponId));
 		redisTemplate.delete(CouponStockKeys.fairnessLogKey(couponId));
 	}
 
-	/** fairness-log 한 줄("순번:userId:결과")을 파싱한 값. */
-	public record FairnessLogEntry(long rank, long userId, String outcome) { }
+	/** fairness-log 한 줄을 파싱한 값. */
+	public record FairnessLogEntry(long rank, long userId, String outcome, long redisTimeMs, long gateEnteredAtMs, long controllerEnteredAtMs) {
+	}
 
 	public List<FairnessLogEntry> fairnessLog(long couponId, long afterRank, int limit) {
-		Set<String> raw = redisTemplate.opsForZSet().rangeByScore(
-				CouponStockKeys.fairnessLogKey(couponId), afterRank + 1, Double.POSITIVE_INFINITY, 0, limit + 1);
+		Set<String> raw = redisTemplate.opsForZSet().rangeByScore(CouponStockKeys.fairnessLogKey(couponId), afterRank + 1, Double.POSITIVE_INFINITY, 0, limit + 1);
 		if (raw == null) {
 			return List.of();
 		}
-		return raw.stream()
-				.map(entry -> {
-					String[] parts = entry.split(":", 3);
-					return new FairnessLogEntry(Long.parseLong(parts[0]), Long.parseLong(parts[1]), parts[2]);
-				})
-				.toList();
+		return raw.stream().map(entry -> {
+			String[] parts = entry.split(":", 6); // 3 → 6으로 변경
+			return new FairnessLogEntry(Long.parseLong(parts[0]), Long.parseLong(parts[1]), parts[2], Long.parseLong(parts[3]), Long.parseLong(parts[4]), Long.parseLong(parts[5]));
+		}).toList();
 	}
 
 	public CouponFairnessReport analyzeFairness(long couponId) {
-		Set<String> entries = redisTemplate.opsForZSet().range(CouponStockKeys.fairnessLogKey(couponId), 0, -1); // 순번(score) 오름차순
+		Set<String> entries = redisTemplate.opsForZSet().range(CouponStockKeys.fairnessLogKey(couponId), 0, -1);
 
 		boolean sawFailureBoundary = false;
 		long inversions = 0;
@@ -121,11 +123,11 @@ public class CouponStockRedisService {
 
 		if (entries != null) {
 			for (String entry : entries) {
-				String[] parts = entry.split(":", 3);
+				String[] parts = entry.split(":", 6); // 3 → 6으로 변경
 				String outcome = parts[2];
 
 				if ("DUPLICATE".equals(outcome))
-					continue; // 1인 1매 위반은 공정성 판단과 무관
+					continue;
 
 				total++;
 				if ("SOLDOUT".equals(outcome)) {
