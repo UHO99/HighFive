@@ -1431,6 +1431,40 @@ body {
   font-family: "JetBrains Mono", monospace;
 }
 
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding-top: 10px;
+}
+
+.pagination-btn {
+  border: 1px solid #e7e9f0;
+  background: #fff;
+  color: #3a3d4d;
+  border-radius: 8px;
+  padding: 5px 12px;
+  font: 600 12px "Inter", sans-serif;
+  cursor: pointer;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: #f7f8fb;
+}
+
+.pagination-btn:disabled {
+  color: #c4c7d4;
+  cursor: default;
+}
+
+.pagination-label {
+  color: #8b8fa3;
+  font: 600 12px "Inter", sans-serif;
+  padding: 0 4px;
+  white-space: nowrap;
+}
+
 /* ---------- before / after (더미데이터 적재) ---------- */
 
 .ba-table-wrap {
