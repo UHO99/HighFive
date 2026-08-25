@@ -498,6 +498,104 @@ body {
   border-radius: 999px;
 }
 
+/* ---------- consistency status (동기화/검증) ---------- */
+
+.consistency-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.consistency-block {
+  flex: 1;
+  min-width: 0;
+  background: #f7f8fb;
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.consistency-ring {
+  flex: none;
+}
+
+.consistency-ring-text {
+  font: 700 10.5px/1 "JetBrains Mono", monospace;
+  fill: #171b2e;
+}
+
+.consistency-block-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.consistency-block-title {
+  font: 700 12.5px/1 "Inter", sans-serif;
+  color: #171b2e;
+}
+
+.consistency-mismatch {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+/* 불일치 건수를 텍스트가 아니라 배지로 강조 - "재검증 대상"과 헷갈리지 않게 시각적으로 분리한다. */
+.consistency-mismatch-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #fee2e2;
+  color: #dc2626;
+  font-weight: 700;
+  font-size: 11px;
+}
+
+.consistency-caption {
+  font: 400 10.5px/1.4 "Inter", sans-serif;
+  color: #8b8fa3;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.consistency-mismatch-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-top: 1px solid #f0f1f5;
+  padding-top: 6px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.consistency-mismatch-item {
+  font: 500 11.5px/1.4 "JetBrains Mono", monospace;
+}
+
+.consistency-mismatch-item-open {
+  color: #dc2626;
+}
+
+.consistency-mismatch-item-resolved {
+  color: #9aa0b4;
+}
+
+.consistency-mismatch-status {
+  display: inline-block;
+  min-width: 40px;
+  font-weight: 700;
+  margin-right: 4px;
+}
+
+.consistency-mismatch-time {
+  color: inherit;
+  opacity: 0.85;
+}
+
 /* ---------- donut ---------- */
 
 .donut-row {
@@ -1164,6 +1262,13 @@ body {
 .history-table-compact td {
   padding: 6px 9px;
   font-size: 11.5px;
+}
+
+.history-loading-more {
+  text-align: center;
+  color: #9aa0b4;
+  font-size: 11px;
+  padding: 6px 9px;
 }
 
 .history-cell-mono {

@@ -8,7 +8,7 @@ import com.mycom.myapp.team5.domain.coupon.dto.CouponSummary;
 import com.mycom.myapp.team5.domain.coupon.dto.CouponUpdateRequest;
 import com.mycom.myapp.team5.domain.coupon.service.CouponService;
 import com.mycom.myapp.team5.domain.coupon.service.CouponStatusService;
-import com.mycom.myapp.team5.domain.couponissue.dto.CouponFairnessTimelineEntry;
+import com.mycom.myapp.team5.domain.couponissue.dto.CouponFairnessTimelinePage;
 import com.mycom.myapp.team5.domain.couponissue.dto.CouponIssueHistoryResponse;
 import com.mycom.myapp.team5.domain.couponissue.service.CouponIssueService;
 import com.mycom.myapp.team5.global.aspect.LogDescription;
@@ -30,7 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /**
- * A003/A004/A005 관리자 쿠폰 API + 대시보드용 open/close/목록 + 시나리오 7 발급 내역 + 선착순 검증.
+ * A003/A004/A005 관리자 쿠폰 API + 대시보드용 open/close/목록 + 시나리오 7 발급 내역.
  */
 @RestController
 @RequiredArgsConstructor
@@ -121,26 +121,36 @@ public class AdminCouponController {
     }
 
     /**
-     * 선착순 공정성 검증 - Redis fairness-log 기반 inversion 감지.
+     * 선착순 공정성 검증 - Redis fairness-log(coupon:fairness-log:{couponId})에 발급 시도마다 순번과
+     * 결과(SUCCESS/SOLDOUT/DUPLICATE)를 기록해둔 걸(CouponStockRedisService.issue()) 순서대로 훑어서,
+     * 품절 판정 이후에 성공이 끼어든 적(inversion, 새치기)이 있는지 센다. couponId가 존재하지 않으면
+     * CP001(404). 오픈된 적 없는 쿠폰이거나 resetFairnessLog() 이후 시도가 없으면 totalAttempts=0으로
+     * "공정함"(isFair=true)이 나온다 - 검증할 시도 자체가 없었다는 뜻이므로 구분해서 봐야 한다.
      */
     @LogDescription("쿠폰 선착순 공정성 검증 (관리자)")
     @GetMapping("/api/admin/coupons/{couponId}/fairness")
     public ResponseEntity<ApiResponse<CouponFairnessReport>> getCouponFairness(
             @PathVariable(name = "couponId") long couponId
     ) {
-        couponService.getCoupon(couponId);
+        couponService.getCoupon(couponId); // 존재하지 않는 쿠폰이면 CP001로 막는다.
         return ResponseEntity.ok(ApiResponse.success(couponStockRedisService.analyzeFairness(couponId)));
     }
 
     /**
-     * 대시보드 "쿠폰 발급 이력 · 선착순" 카드용 타임라인.
+     * 대시보드 "발급 로그" 카드용 - Redis fairness-log의 실제 처리 순서(rank)에 DB 상태/시각을 얹은
+     * 커서 페이지. afterRank(기본 0) 다음부터 오름차순으로 최대 limit(기본 50)건만 내려준다. rank는
+     * 재고 차감과 같은 원자적 연산으로 매겨지므로 비동기 배치로 반영되는 DB issued_at보다 실제 처리
+     * 순서를 더 정확히 보여준다. 전체를 한 번에 안 내려주므로 로그가 아무리 쌓여도 응답 크기가 limit에만
+     * 비례한다 - 프론트는 스크롤이 바닥에 닿거나 폴링할 때마다 nextCursor를 afterRank로 넘겨 이어붙인다.
      */
     @LogDescription("쿠폰 선착순 타임라인 조회 (관리자)")
     @GetMapping("/api/admin/coupons/{couponId}/fairness/timeline")
-    public ResponseEntity<ApiResponse<List<CouponFairnessTimelineEntry>>> getFairnessTimeline(
-            @PathVariable(name = "couponId") long couponId
+    public ResponseEntity<ApiResponse<CouponFairnessTimelinePage>> getFairnessTimeline(
+            @PathVariable(name = "couponId") long couponId,
+            @RequestParam(name = "afterRank", defaultValue = "0") long afterRank,
+            @RequestParam(name = "limit", defaultValue = "50") int limit
     ) {
         couponService.getCoupon(couponId);
-        return ResponseEntity.ok(ApiResponse.success(couponIssueService.getFairnessTimeline(couponId)));
+        return ResponseEntity.ok(ApiResponse.success(couponIssueService.getFairnessTimeline(couponId, afterRank, limit)));
     }
 }

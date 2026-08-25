@@ -12,7 +12,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -29,32 +31,40 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class CouponStockValidationService {
 
+    public static final long INTERVAL_MS = 60_000;
+
     private final CouponRepository couponRepository;
     private final CouponIssueRepository couponIssueRepository;
     private final CouponStreamPendingChecker pendingChecker;
     private final RedisStreamConfig redisStreamConfig;
     private final MismatchNotifier mismatchNotifier;
+    private final CouponConsistencyStatusHolder statusHolder;
 
-    @Scheduled(fixedDelay = 60_000)
+    // (검증 대상) CLOSE된 쿠폰만 본다 - OPEN 중에는 coupon_issue가 계속 늘어나는 중이라
+    // "실측값 == 기록값" 비교 자체가 의미가 없다. 그래서 OPEN 쿠폰은 여기 targets에 절대 안 잡힌다.
+    @Scheduled(fixedDelay = INTERVAL_MS)
     public void verifyClosedCoupons() {
+        Instant now = Instant.now();
         List<Coupon> targets = couponRepository.findByStatusAndConsistencyConfirmedAtIsNull(CouponStatus.CLOSE);
         if (targets.isEmpty()) {
+            statusHolder.updateVerify(now, 0, 0, 0);
+            statusHolder.recordMismatchCycle(now, List.of());
             return;
         }
 
         Map<Long, Long> issuedCounts = countIssued(targets);
 
-        int mismatchCount = 0;
+        List<CouponMismatchReport> mismatches = new ArrayList<>();
         for (Coupon coupon : targets) {
-            if (verify(coupon, issuedCounts.getOrDefault(coupon.getId(), 0L))) {
-                mismatchCount++;
-            }
+            verify(coupon, issuedCounts.getOrDefault(coupon.getId(), 0L), mismatches);
         }
 
-        log.info("S013 정합성 검증 배치 실행 완료 - 대상={}건, 불일치={}건", targets.size(), mismatchCount);
+        log.info("S013 정합성 검증 배치 실행 완료 - 대상={}건, 불일치={}건", targets.size(), mismatches.size());
+        statusHolder.updateVerify(now, targets.size(), targets.size() - mismatches.size(), mismatches.size());
+        statusHolder.recordMismatchCycle(now, mismatches);
     }
 
-    private boolean verify(Coupon coupon, long actualIssuedCount) {
+    private void verify(Coupon coupon, long actualIssuedCount, List<CouponMismatchReport> mismatches) {
         long pendingCount = pendingChecker.pendingCount(coupon.getId());
 
         CouponMismatchReport report = new CouponMismatchReport(
@@ -63,11 +73,11 @@ public class CouponStockValidationService {
 
         if (report.isMismatch()) {
             mismatchNotifier.notify(report);
-            return true;
+            mismatches.add(report);
+            return;
         }
 
         confirmAndRetire(coupon);
-        return false;
     }
 
     // 드레인 완료 + 기록값=실측값이 처음 확인된 시점 - 스트림 정리가 실제로 성공했을 때만
