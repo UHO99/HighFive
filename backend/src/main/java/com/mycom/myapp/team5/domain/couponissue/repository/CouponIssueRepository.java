@@ -3,7 +3,6 @@ package com.mycom.myapp.team5.domain.couponissue.repository;
 import java.util.List;
 import java.util.Optional;
 
-import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -11,6 +10,9 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.mycom.myapp.team5.domain.couponissue.entity.CouponIssue;
+import com.mycom.myapp.team5.global.common.enums.CouponIssueStatus;
+
+import jakarta.persistence.LockModeType;
 
 public interface CouponIssueRepository extends JpaRepository<CouponIssue, Long> {
 
@@ -48,4 +50,7 @@ public interface CouponIssueRepository extends JpaRepository<CouponIssue, Long> 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT ci FROM CouponIssue ci WHERE ci.id = :id AND ci.userId = :userId")
     Optional<CouponIssue> findByIdAndUserIdForUpdate(@Param("id") Long id, @Param("userId") Long userId);
+    
+    // (유스케이스 U004/S010 특정 상태의 발급 건수 카운트 (replenishMissingStock 등에서 사용)
+    long countByCouponIdAndStatus(Long couponId, CouponIssueStatus status);
 }
