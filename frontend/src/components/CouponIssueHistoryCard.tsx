@@ -3,7 +3,7 @@ import {
   fetchCouponFairness, fetchFairnessTimeline,
   type CouponFairnessReport, type CouponFairnessTimelineEntry,
 } from "../lib/api";
-import { formatMs, formatTimeMs } from "../lib/format";
+import { formatMs, formatTimestampMicros, formatTimestampMs } from "../lib/format";
 
 const POLL_INTERVAL_MS = 3000;
 /** 한 번에 받아오는 건수 - 로그가 아무리 쌓여도 요청/렌더 비용이 이 값에만 비례하도록 고정한다. */
@@ -120,7 +120,18 @@ export function CouponIssueHistoryCard({ couponId }: Props) {
   return (
     <div className="card card-wide">
       <div className="card-title-row">
-        {/* 기존 그대로 */}
+        <span className="card-title card-title-tight">발급 로그</span>
+        {fairness && (
+          <span
+            className="overissue-badge"
+            style={{
+              background: fairness.fair ? "#e9f9ee" : "#fff4e6",
+              color: fairness.fair ? "#16a34a" : "#e0821f",
+            }}
+          >
+            {fairness.fair ? "공정" : `새치기 ${fairness.inversionCount}건`} · 전체 {fairness.totalAttempts}건 시도
+          </span>
+        )}
       </div>
 
       {error ? (
