@@ -24,8 +24,9 @@ public class CouponStockRedisService {
 	private static final String ISSUE_SCRIPT = "local function record(result) " + //
 			"  local seq = redis.call('incr', KEYS[3]) " + //
 			"  local t = redis.call('TIME') " + //
-			"  local redisTimeMicros = tonumber(t[1]) * 1000000 + tonumber(t[2]) " + //  변경 - 마이크로초 그대로
-			"  redis.call('zadd', KEYS[4], seq, seq .. ':' .. ARGV[1] .. ':' .. result .. ':' .. redisTimeMicros .. ':' .. ARGV[2] .. ':' .. ARGV[3]) " + //
+			"  local redisTimeMicros = tonumber(t[1]) * 1000000 + tonumber(t[2]) " + //
+			"  local redisTimeStr = string.format('%.0f', redisTimeMicros) " + //  추가 - 지수표기 방지
+			"  redis.call('zadd', KEYS[4], seq, seq .. ':' .. ARGV[1] .. ':' .. result .. ':' .. redisTimeStr .. ':' .. ARGV[2] .. ':' .. ARGV[3]) " + //  변경
 			"end " + //
 			"if redis.call('sismember', KEYS[2], ARGV[1]) == 1 then " + //
 			"  record('DUPLICATE') " + //
