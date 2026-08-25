@@ -11,6 +11,7 @@ import com.mycom.myapp.team5.domain.coupon.entity.Coupon;
 import com.mycom.myapp.team5.domain.coupon.repository.CouponRepository;
 import com.mycom.myapp.team5.domain.coupon.service.CouponStatusService;
 import com.mycom.myapp.team5.domain.couponissue.repository.CouponIssueRepository;
+import com.mycom.myapp.team5.global.common.enums.CouponIssueStatus;
 import com.mycom.myapp.team5.global.common.enums.CouponStatus;
 import com.mycom.myapp.team5.global.redis.CouponStockKeys;
 import com.mycom.myapp.team5.global.redis.CouponStockRedisService;
@@ -75,8 +76,10 @@ public class CouponStatusScheduler {
         for (Coupon coupon : openCoupons) {
             if (Boolean.FALSE.equals(stringRedisTemplate.hasKey(CouponStockKeys.stockKey(coupon.getId())))) {
             	// 발급 건수를 차감해 복구해야 초과 발급을 막는다 (OPEN은 issuedQuantity 가 null -> 실측 카운트)
+            	// ISSUED 상태만 카운트하여 CANCELED/EXPIRED는 재고에 영향 X
             	long issued = coupon.getIssuedQuantity() != null 
-            			? coupon.getIssuedQuantity() : couponIssueRepository.countByCouponId(coupon.getId());
+            			? coupon.getIssuedQuantity() 
+            			: couponIssueRepository.countByCouponIdAndStatus(coupon.getId(), CouponIssueStatus.ISSUED);
                 int remaining = (int) Math.max(0L, coupon.getTotalQuantity() - issued);
                 couponStockRedisService.initStock(coupon.getId(), remaining);
                 log.info("Redis 재고 보정 완료 - couponId={}, remaining={}", coupon.getId(), remaining);

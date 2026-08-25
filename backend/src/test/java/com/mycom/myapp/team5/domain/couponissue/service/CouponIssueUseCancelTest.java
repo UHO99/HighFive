@@ -11,7 +11,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
 
 import com.mycom.myapp.team5.domain.coupon.entity.Coupon;
 import com.mycom.myapp.team5.domain.coupon.exception.CouponErrorCode;
@@ -24,7 +23,6 @@ import com.mycom.myapp.team5.domain.user.repository.UserRepository;
 import com.mycom.myapp.team5.global.common.enums.CouponIssueStatus;
 
 @SpringBootTest
-@Transactional
 public class CouponIssueUseCancelTest {
 	@Autowired
 	private CouponIssueService couponIssueService;
@@ -54,7 +52,7 @@ public class CouponIssueUseCancelTest {
 	
 	private long createCoupon(int totalQuantity) {
 		Coupon coupon = Coupon.builder()
-				.name("사용취소-테스트-쿠폰")
+				.name("사용취소-테스트-쿠폰-" + System.nanoTime())
 				.totalQuantity(totalQuantity)
 				.startAt(LocalDateTime.now().minusMinutes(1))
 				.endAt(LocalDateTime.now().plusDays(1))
@@ -64,7 +62,8 @@ public class CouponIssueUseCancelTest {
 		return saved.getId();
 	}
 	
-	private long createUser(String email) {
+	private long createUser(String prefix) {
+		String email = prefix + "-" + System.nanoTime() + "@test.com";
 		User saved = userRepository.save(User.builder().email(email).build());
 		createdUserIds.add(saved.getId());
 		return saved.getId();
@@ -84,7 +83,7 @@ public class CouponIssueUseCancelTest {
 	@Test
 	public void 사용_성공_ISSUED에서_USED_전이() {
 		long couponId = createCoupon(100);
-		long userId = createUser("user1@test.com");
+		long userId = createUser("use-success");
 		long issueId = createIssue(userId, couponId);
 		
 		couponIssueService.useCoupon(userId, issueId);
@@ -98,7 +97,7 @@ public class CouponIssueUseCancelTest {
 	@Test
 	public void 이미_사용된_쿠폰_재사용시_CI003() {
 		long couponId = createCoupon(100);
-		long userId = createUser("user2@test.com");
+		long userId = createUser("use-duplicate");
 		long issueId = createIssue(userId, couponId);
 		
 		couponIssueService.useCoupon(userId, issueId);
@@ -115,7 +114,7 @@ public class CouponIssueUseCancelTest {
 	@Test
 	public void 취소된_쿠폰_사용시_CI003() {
 		long couponId = createCoupon(100);
-		long userId = createUser("user3@test.com");
+		long userId = createUser("use-canceled");
 		long issueId = createIssue(userId, couponId);
 		
 		CouponIssue issue = couponIssueRepository.findById(issueId).orElseThrow();
@@ -124,7 +123,7 @@ public class CouponIssueUseCancelTest {
 		try {
 			couponIssueService.useCoupon(userId, issueId);
 			fail("CI003 예외 발생");
-		}catch(CouponException e) {
+		} catch(CouponException e) {
 			assertThat(e.getErrorCode()).isEqualTo(CouponErrorCode.COUPON_ISSUE_STATUS_CONFLICT);
 		}
 	}
@@ -133,8 +132,8 @@ public class CouponIssueUseCancelTest {
 	@Test
 	public void 타인_쿠폰_사용시_CI002() {
 		long couponId = createCoupon(100);
-		long ownerId = createUser("owner@test.com");
-		long userId = createUser("user4@test.com");
+		long ownerId = createUser("owner");
+		long userId = createUser("other-user");
 		long issueId = createIssue(ownerId, couponId);
 		
 		try {
@@ -149,7 +148,7 @@ public class CouponIssueUseCancelTest {
 	@Test
 	public void 미사용_쿠폰_취소시_CI003() {
 		long couponId = createCoupon(100);
-		long userId = createUser("user5@test.com");
+		long userId = createUser("cancel-success");
 		long issueId = createIssue(userId, couponId);
 
 		try {

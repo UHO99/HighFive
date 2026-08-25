@@ -3,7 +3,7 @@ import {
   fetchCouponFairness, fetchFairnessTimeline,
   type CouponFairnessReport, type CouponFairnessTimelineEntry,
 } from "../lib/api";
-import { formatMs } from "../lib/format";
+import { formatMs, formatTimeMs } from "../lib/format";
 
 const POLL_INTERVAL_MS = 3000;
 /** 한 번에 받아오는 건수 - 로그가 아무리 쌓여도 요청/렌더 비용이 이 값에만 비례하도록 고정한다. */
@@ -139,6 +139,9 @@ export function CouponIssueHistoryCard({ couponId }: Props) {
                 <th>게이트 진입</th>     {/* 추가 */}
                 <th>Redis 처리</th>      {/* 추가 */}
                 <th>발급시각</th>
+                <th>컨트롤러진입</th>
+                <th>게이트진입</th>
+                <th>Redis처리</th>
                 <th>대기(게이트)</th>
                 <th>처리(Redis)</th>
               </tr>
@@ -164,6 +167,15 @@ export function CouponIssueHistoryCard({ couponId }: Props) {
                     </td>
                     <td className="history-cell-mono">
                       {r.issuedAt === null ? "-" : new Date(r.issuedAt).toLocaleTimeString("ko-KR")}
+                    </td>
+                    <td className="history-cell-mono">
+                      {r.controllerEnteredAtMs === null ? "-" : formatTimeMs(r.controllerEnteredAtMs)}
+                    </td>
+                    <td className="history-cell-mono">
+                      {r.gateEnteredAtMs === null ? "-" : formatTimeMs(r.gateEnteredAtMs)}
+                    </td>
+                    <td className="history-cell-mono">
+                      {r.redisTimeMs === null ? "-" : formatTimeMs(r.redisTimeMs)}
                     </td>
                     <td className="history-cell-mono">{r.gateWaitMs === null ? "-" : formatMs(r.gateWaitMs)}</td>
                     <td className="history-cell-mono">{r.redisWaitMs === null ? "-" : formatMs(r.redisWaitMs)}</td>
