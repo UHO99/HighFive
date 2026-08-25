@@ -114,11 +114,10 @@ public class CouponIssueServiceImpl implements CouponIssueService {
 		List<CouponFairnessTimelineEntry> result = new ArrayList<>(logEntries.size());
 		for (CouponStockRedisService.FairnessLogEntry entry : logEntries) {
 			CouponIssue issue = issueByUserId.get(entry.userId());
-			boolean hasTimings = entry.controllerEnteredAtMs() != null && entry.gateEnteredAtMs() != null && entry.redisTimeMs() != null;
-			result.add(new CouponFairnessTimelineEntry(entry.rank(), entry.userId(), entry.outcome(), issue != null ? issue.getStatus() : null, issue != null ? issue.getIssuedAt() : null, hasTimings ? entry.controllerEnteredAtMs() : null, // 추가
-					hasTimings ? entry.gateEnteredAtMs() : null, // 추가
-					hasTimings ? entry.redisTimeMs() : null, // 추가
-					hasTimings ? entry.gateEnteredAtMs() - entry.controllerEnteredAtMs() : null, hasTimings ? entry.redisTimeMs() - entry.gateEnteredAtMs() : null));
+			boolean hasTimings = entry.controllerEnteredAtMs() != null && entry.gateEnteredAtMs() != null && entry.redisTimeMicros() != null;
+			result.add(new CouponFairnessTimelineEntry(entry.rank(), entry.userId(), entry.outcome(), issue != null ? issue.getStatus() : null, issue != null ? issue.getIssuedAt() : null, hasTimings ? entry.controllerEnteredAtMs() : null, hasTimings ? entry.gateEnteredAtMs() : null, hasTimings ? entry.redisTimeMicros() : null, // 변경 - redisTimeMs() → redisTimeMicros()
+					hasTimings ? entry.gateEnteredAtMs() - entry.controllerEnteredAtMs() : null, hasTimings ? (entry.redisTimeMicros() / 1000) - entry.gateEnteredAtMs() : null // 변경 - µs→ms 환산 후 차감
+			));
 		}
 
 		long nextCursor = logEntries.get(logEntries.size() - 1).rank();
