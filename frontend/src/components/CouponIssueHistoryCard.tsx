@@ -138,7 +138,7 @@ export function CouponIssueHistoryCard({ couponId }: Props) {
       ) : rows.length === 0 ? (
         <span className="tile-label-md">발급 이력이 없습니다</span>
       ) : (
-        <div className="history-table-wrap history-table-wrap-compact" onScroll={handleScroll}>
+        <div className="history-table-wrap history-table-wrap-fill" onScroll={handleScroll}>
           <table className="history-table history-table-compact">
             <thead>
               <tr>
