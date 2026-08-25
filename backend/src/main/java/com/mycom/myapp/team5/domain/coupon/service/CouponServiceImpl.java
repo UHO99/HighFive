@@ -45,23 +45,32 @@ public class CouponServiceImpl implements CouponService {
 	}
 
 	/**
-	 * A004: READY 상태 쿠폰의 재고/기간만 DB에서 수정한다. Redis는 갱신하지 않는다.
+	 * A004: READY 상태 쿠폰의 재고/기간을 DB에서 수정한다. OPEN 상태는 마감 예약(endAt)만 허용한다
+	 * (재고/시작시각을 같이 바꾸려는 요청은 CP003). Redis는 갱신하지 않는다.
 	 */
 	@Override
 	@Transactional
 	public CouponResponse update(long couponId, CouponUpdateRequest request) {
 		Coupon coupon = couponRepository.findById(couponId).orElseThrow(() -> new CouponException(CouponErrorCode.COUPON_NOT_FOUND));
 
-		if (coupon.getStatus() != CouponStatus.READY) {
-			throw new CouponException(CouponErrorCode.COUPON_STATUS_CONFLICT);
+		if (coupon.getStatus() == CouponStatus.READY) {
+			LocalDateTime nextStartAt = request.startAt() != null ? request.startAt() : coupon.getStartAt();
+			LocalDateTime nextEndAt = request.endAt() != null ? request.endAt() : coupon.getEndAt();
+			validatePeriod(nextStartAt, nextEndAt);
+			coupon.updateStockAndPeriod(request.totalQuantity(), request.startAt(), request.endAt());
+			return CouponResponse.from(coupon);
 		}
 
-		LocalDateTime nextStartAt = request.startAt() != null ? request.startAt() : coupon.getStartAt();
-		LocalDateTime nextEndAt = request.endAt() != null ? request.endAt() : coupon.getEndAt();
-		validatePeriod(nextStartAt, nextEndAt);
+		if (coupon.getStatus() == CouponStatus.OPEN) {
+			if (request.totalQuantity() != null || request.startAt() != null) {
+				throw new CouponException(CouponErrorCode.COUPON_STATUS_CONFLICT);
+			}
+			validatePeriod(coupon.getStartAt(), request.endAt());
+			coupon.updateStockAndPeriod(null, null, request.endAt());
+			return CouponResponse.from(coupon);
+		}
 
-		coupon.updateStockAndPeriod(request.totalQuantity(), request.startAt(), request.endAt());
-		return CouponResponse.from(coupon);
+		throw new CouponException(CouponErrorCode.COUPON_STATUS_CONFLICT);
 	}
 
 	@Override
