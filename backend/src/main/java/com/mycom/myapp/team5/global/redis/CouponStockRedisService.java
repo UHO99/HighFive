@@ -20,12 +20,12 @@ public class CouponStockRedisService {
 	private final StringRedisTemplate redisTemplate;
 
 	// 반환값: 1 = 발급 성공, 0 = 품절, -1 = 이미 발급됨(중복), -2 = 재고 미적재(쿠폰 오픈 안 됨)
-	// 기록 형식: "{순번}:{userId}:{결과}:{Redis처리시각ms}:{게이트진입시각ms}:{컨트롤러진입시각ms}"
+	// 기록 형식: "{순번}:{userId}:{결과}:{Redis처리시각µs}:{게이트진입시각ms}:{컨트롤러진입시각ms}"
 	private static final String ISSUE_SCRIPT = "local function record(result) " + //
 			"  local seq = redis.call('incr', KEYS[3]) " + //
 			"  local t = redis.call('TIME') " + //
-			"  local redisTimeMs = tonumber(t[1]) * 1000 + math.floor(tonumber(t[2]) / 1000) " + //
-			"  redis.call('zadd', KEYS[4], seq, seq .. ':' .. ARGV[1] .. ':' .. result .. ':' .. redisTimeMs .. ':' .. ARGV[2] .. ':' .. ARGV[3]) " + //
+			"  local redisTimeMicros = tonumber(t[1]) * 1000000 + tonumber(t[2]) " + //  변경 - 마이크로초 그대로
+			"  redis.call('zadd', KEYS[4], seq, seq .. ':' .. ARGV[1] .. ':' .. result .. ':' .. redisTimeMicros .. ':' .. ARGV[2] .. ':' .. ARGV[3]) " + //
 			"end " + //
 			"if redis.call('sismember', KEYS[2], ARGV[1]) == 1 then " + //
 			"  record('DUPLICATE') " + //
@@ -100,10 +100,9 @@ public class CouponStockRedisService {
 	}
 
 	/**
-	 * fairness-log 한 줄을 파싱한 값. redisTimeMs/gateEnteredAtMs/controllerEnteredAtMs는 시각 기록이
-	 * 추가되기 전(레거시 3필드 "{순번}:{userId}:{결과}") 항목이면 null이다.
+	 * fairness-log 한 줄을 파싱한 값. redisTimeMicros는 마이크로초 단위 epoch 시각(Redis 서버 TIME 명령 그대로). gateEnteredAtMs/controllerEnteredAtMs는 여전히 밀리초 단위(System.currentTimeMillis() 기준).
 	 */
-	public record FairnessLogEntry(long rank, long userId, String outcome, Long redisTimeMs, Long gateEnteredAtMs, Long controllerEnteredAtMs) {
+	public record FairnessLogEntry(long rank, long userId, String outcome, Long redisTimeMicros, Long gateEnteredAtMs, Long controllerEnteredAtMs) {
 	}
 
 	public List<FairnessLogEntry> fairnessLog(long couponId, long afterRank, int limit) {
@@ -114,12 +113,7 @@ public class CouponStockRedisService {
 		return raw.stream().map(entry -> {
 			String[] parts = entry.split(":", 6);
 			boolean hasTimings = parts.length >= 6; // 시각 기록 추가 전에 쌓인 레거시 항목은 3필드뿐이다
-			return new FairnessLogEntry(
-					Long.parseLong(parts[0]), Long.parseLong(parts[1]), parts[2],
-					hasTimings ? Long.parseLong(parts[3]) : null,
-					hasTimings ? Long.parseLong(parts[4]) : null,
-					hasTimings ? Long.parseLong(parts[5]) : null
-			);
+			return new FairnessLogEntry(Long.parseLong(parts[0]), Long.parseLong(parts[1]), parts[2], hasTimings ? Long.parseLong(parts[3]) : null, hasTimings ? Long.parseLong(parts[4]) : null, hasTimings ? Long.parseLong(parts[5]) : null);
 		}).toList();
 	}
 
