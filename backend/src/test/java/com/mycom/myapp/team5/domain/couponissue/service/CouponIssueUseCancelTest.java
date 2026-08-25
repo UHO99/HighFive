@@ -145,17 +145,54 @@ public class CouponIssueUseCancelTest {
 		}
 	}
 	
-	// 5) 취소 성공 - ISSUED -> CANCELED
+	// 5) 미사용(ISSUED) 상태에서 취소 시도 -> CI003 (취소는 "사용 후"에만 가능)
 	@Test
-	public void 취소_성공_ISSUED에서_CANCELED로_전이() {
+	public void 미사용_쿠폰_취소시_CI003() {
 		long couponId = createCoupon(100);
 		long userId = createUser("user5@test.com");
 		long issueId = createIssue(userId, couponId);
-		
+
+		try {
+			couponIssueService.cancelCoupon(userId, issueId);
+			fail("CI003 예외 발생");
+		} catch (CouponException e) {
+			assertThat(e.getErrorCode()).isEqualTo(CouponErrorCode.COUPON_ISSUE_STATUS_CONFLICT);
+		}
+	}
+
+	// 6) 사용 후 취소 성공 - USED -> CANCELED (오사용 정정 시나리오), usedAt은 보존
+	@Test
+	public void 취소_성공_USED에서_CANCELED로_전이() {
+		long couponId = createCoupon(100);
+		long userId = createUser("user6@test.com");
+		long issueId = createIssue(userId, couponId);
+
+		couponIssueService.useCoupon(userId, issueId);
+		LocalDateTime usedAtBeforeCancel = couponIssueRepository.findById(issueId).orElseThrow().getUsedAt();
+
 		couponIssueService.cancelCoupon(userId, issueId);
-		
+
 		CouponIssue updated = couponIssueRepository.findById(issueId).orElseThrow();
 		assertThat(updated.getStatus()).isEqualTo(CouponIssueStatus.CANCELED);
 		assertThat(updated.getCanceledAt()).isNotNull();
+		assertThat(updated.getUsedAt()).isEqualTo(usedAtBeforeCancel);
+	}
+
+	// 7) 이미 취소된 쿠폰 재취소 시도 -> CI003 (CANCELED/EXPIRED는 여전히 막힘)
+	@Test
+	public void 이미_취소된_쿠폰_재취소시_CI003() {
+		long couponId = createCoupon(100);
+		long userId = createUser("user7@test.com");
+		long issueId = createIssue(userId, couponId);
+
+		couponIssueService.useCoupon(userId, issueId);
+		couponIssueService.cancelCoupon(userId, issueId);
+
+		try {
+			couponIssueService.cancelCoupon(userId, issueId);
+			fail("CI003 예외 발생");
+		} catch (CouponException e) {
+			assertThat(e.getErrorCode()).isEqualTo(CouponErrorCode.COUPON_ISSUE_STATUS_CONFLICT);
+		}
 	}
 }

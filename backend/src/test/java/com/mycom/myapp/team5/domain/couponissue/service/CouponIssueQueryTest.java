@@ -7,11 +7,11 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.util.ReflectionTestUtils;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.mycom.myapp.team5.domain.coupon.entity.Coupon;
 import com.mycom.myapp.team5.domain.coupon.exception.CouponErrorCode;
@@ -25,7 +25,6 @@ import com.mycom.myapp.team5.domain.user.repository.UserRepository;
 import com.mycom.myapp.team5.global.common.enums.CouponIssueStatus;
 
 @SpringBootTest
-@Transactional
 public class CouponIssueQueryTest {
 	@Autowired
 	private CouponIssueService couponIssueService;
@@ -39,15 +38,33 @@ public class CouponIssueQueryTest {
 	@Autowired
 	private UserRepository userRepository;
 	
+	@Autowired
+	private JdbcTemplate jdbcTemplate;  // ← 추가
+	
+	private final List<Long> createdCouponIds = new ArrayList<>();
+	private final List<Long> createdIssueIds = new ArrayList<>();
+	private final List<Long> createdUserIds = new ArrayList<>();
+	
+	@AfterEach
+	void tearDown() {
+		createdIssueIds.forEach(couponIssueRepository::deleteById);
+		createdCouponIds.forEach(couponRepository::deleteById);
+		createdUserIds.forEach(userRepository::deleteById);
+		createdIssueIds.clear();
+		createdCouponIds.clear();
+		createdUserIds.clear();
+	}
+	
 	// 쿠폰(캠페인) 생성
 	private long createCoupon(String name) {
 		Coupon coupon = Coupon.builder()
-				.name(name)
+				.name(name + "-" + System.nanoTime())
 				.totalQuantity(100)
 				.startAt(LocalDateTime.now().plusDays(1))
 				.endAt(LocalDateTime.now().plusDays(2))
 				.build();
 		Coupon saved = couponRepository.save(coupon);
+		createdCouponIds.add(saved.getId());
 		return saved.getId();
 	}
 	
@@ -58,12 +75,15 @@ public class CouponIssueQueryTest {
 				.couponId(couponId)
 				.build();
 		CouponIssue saved = couponIssueRepository.save(issue);
+		createdIssueIds.add(saved.getId());
 		return saved.getId();
 	}
 	
 	// 사용자 생성 (coupon_issue.user_id FK 대응)
-	private long createUser(String email) {
+	private long createUser(String prefix) {
+		String email = prefix + "-" + System.nanoTime() + "@test.com";
 		User saved = userRepository.save(User.builder().email(email).build());
+		createdUserIds.add(saved.getId());
 		return saved.getId();
 	}
 	
@@ -72,18 +92,31 @@ public class CouponIssueQueryTest {
 	public void 내_쿠폰_목록_최근발급순_정렬_및_쿠폰명_매핑() throws Exception {
 		long pizzaCouponId = createCoupon("피자 쿠폰");
 		long chickenCouponId = createCoupon("치킨 쿠폰");
-		long userId = createUser("coupon1@test.com");
+		long userId = createUser("query");
 		
-		CouponIssue pizzaIssue = CouponIssue.builder().userId(userId).couponId(pizzaCouponId).build();
-		ReflectionTestUtils.setField(pizzaIssue, "issuedAt", LocalDateTime.now().minusDays(1));
-		couponIssueRepository.save(pizzaIssue);
-		createIssue(userId, chickenCouponId);			// 나중에 발급
+		Coupon pizzaCoupon = couponRepository.findById(pizzaCouponId).orElseThrow();
+		Coupon chickenCoupon = couponRepository.findById(chickenCouponId).orElseThrow();
+		
+		CouponIssue pizzaIssue = CouponIssue.builder()
+				.userId(userId)
+				.couponId(pizzaCouponId)
+				.build();
+		pizzaIssue = couponIssueRepository.save(pizzaIssue);
+		createdIssueIds.add(pizzaIssue.getId());
+		
+		// JdbcTemplate으로 issuedAt 직접 업데이트 (엔티티 수정 불필요)
+		jdbcTemplate.update(
+			"UPDATE coupon_issue SET issued_at = ? WHERE id = ?",
+			LocalDateTime.now().minusDays(1), pizzaIssue.getId()
+		);
+		
+		createIssue(userId, chickenCouponId);  // 나중에 발급 (최신)
 		
 		List<MyCouponResponse> result = couponIssueService.getMyCoupons(userId);
 		
 		assertThat(result).hasSize(2);
-		assertThat(result.get(0).couponName()).isEqualTo("치킨 쿠폰");		// 최신이 먼저
-		assertThat(result.get(1).couponName()).isEqualTo("피자 쿠폰");
+		assertThat(result.get(0).couponName()).isEqualTo(chickenCoupon.getName());
+		assertThat(result.get(1).couponName()).isEqualTo(pizzaCoupon.getName());
 		assertThat(result.get(0).status()).isEqualTo(CouponIssueStatus.ISSUED);
 		assertThat(result.get(0).issueId()).isNotNull();
 		assertThat(result.get(0).couponId()).isEqualTo(chickenCouponId);
@@ -93,8 +126,8 @@ public class CouponIssueQueryTest {
 	@Test
 	public void 다른_사용자_쿠폰은_조회되지_않음() {
 		long couponId = createCoupon("치킨 쿠폰");
-		long user1 = createUser("u1@test.com");
-		long user2 = createUser("u2@test.com");
+		long user1 = createUser("u1");
+		long user2 = createUser("u2");
 		
 		createIssue(user1, couponId);
 		createIssue(user2, couponId);	  				// 다른 사용자
@@ -102,13 +135,13 @@ public class CouponIssueQueryTest {
 		List<MyCouponResponse> result = couponIssueService.getMyCoupons(user1);
 		
 		assertThat(result).hasSize(1);
-		assertThat(result.get(0).couponName()).isEqualTo("치킨 쿠폰");
+		assertThat(result.get(0).couponName()).contains("치킨 쿠폰");
 	}
 	
 	// 3) 발급 이력 없는 사용자 - 빈 목록(예외 처리 X)
 	@Test
 	public void 발급이력_없는_사용자_빈_목록() {
-		long userId = createUser("noissue@test.com");			 // 발급 이력 없는 사용자
+		long userId = createUser("noissue");			 // 발급 이력 없는 사용자
 		List<MyCouponResponse> result = couponIssueService.getMyCoupons(userId);
 		
 		assertThat(result).isEmpty();
@@ -118,13 +151,13 @@ public class CouponIssueQueryTest {
 	@Test
 	public void 본인_쿠폰_단건_조회_성공() {
 		long couponId = createCoupon("치킨 쿠폰");
-		long userId = createUser("coupon2@test.com");
+		long userId = createUser("query");
 		long issueId = createIssue(userId, couponId);
 		
 		MyCouponResponse result = couponIssueService.getMyCoupon(userId, issueId);
 		
 		assertThat(result.issueId()).isEqualTo(issueId);
-		assertThat(result.couponName()).isEqualTo("치킨 쿠폰");
+		assertThat(result.couponName()).contains("치킨 쿠폰");
 		assertThat(result.status()).isEqualTo(CouponIssueStatus.ISSUED);
 	}
 	
@@ -132,8 +165,8 @@ public class CouponIssueQueryTest {
 	@Test
 	public void 타인_쿠폰_단건_조회_실패() {
 		long couponId = createCoupon("치킨 쿠폰");
-		long ownerId = createUser("owner@test.com");   		// 소유자
-		long userId = createUser("coupon3@test.com");		// 조회자
+		long ownerId = createUser("owner");   		// 소유자
+		long userId = createUser("query");		// 조회자
 		long issueId = createIssue(ownerId, couponId);
 		
 		try {
@@ -148,10 +181,10 @@ public class CouponIssueQueryTest {
 	@Test
 	public void 없는_이력_단건_조회_실패() {
 	    long couponId = createCoupon("치킨 쿠폰");
-	    long userId = createUser("coupon6@test.com");
+	    long userId = createUser("query");
 	    long issueId = createIssue(userId, couponId);
 	    couponIssueRepository.deleteById(issueId);   // 존재하던 이력 삭제 → "없는 이력" 상태
-
+	
 		try {
 			couponIssueService.getMyCoupon(userId, issueId);
 			fail("CI002 예외 발생");

@@ -56,7 +56,7 @@ public class CouponStockRedisServiceConcurrencyTest {
 				long userId = i;
 				executor.submit(() -> {
 					try {
-						couponStockRedisService.issue(COUPON_ID, userId);
+						couponStockRedisService.issue(COUPON_ID, userId, System.currentTimeMillis(), System.currentTimeMillis());
 						successCount.incrementAndGet();
 					}
 					catch (CouponException e) {
@@ -108,7 +108,7 @@ public class CouponStockRedisServiceConcurrencyTest {
 			for (int i = 0; i < attemptCount; i++) {
 				executor.submit(() -> {
 					try {
-						couponStockRedisService.issue(COUPON_ID, sameUserId);
+						couponStockRedisService.issue(COUPON_ID, sameUserId, System.currentTimeMillis(), System.currentTimeMillis());
 						successCount.incrementAndGet();
 					}
 					catch (CouponException ignored) {
