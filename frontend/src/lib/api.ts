@@ -515,10 +515,15 @@ export interface CouponFairnessTimelineEntry {
   outcome: "SUCCESS" | "SOLDOUT" | "DUPLICATE";
   status: "ISSUED" | "USED" | "CANCELED" | "EXPIRED" | null;
   issuedAt: string | null;
+  /** 컨트롤러 도달 시각(epoch ms). 레거시 항목이면 null. */
   controllerEnteredAtMs: number | null;
+  /** Redis 게이트 진입 시각(epoch ms). 레거시 항목이면 null. */
   gateEnteredAtMs: number | null;
-  redisTimeMicros: number | null;   // 변경
+  /** Redis 서버가 TIME으로 찍은 처리 시각(epoch microseconds, Redis TIME 그대로). 레거시 항목이면 null. */
+  redisTimeMicros: number | null;
+  /** 컨트롤러 도달 → Redis 게이트 진입 소요(ms). 레거시 항목이면 null. */
   gateWaitMs: number | null;
+  /** Redis 게이트 진입 → Lua 처리 소요(ms). 서버 간 시계 차이로 음수가 나올 수 있다. 레거시 항목이면 null. */
   redisWaitMs: number | null;
   /** 컨트롤러 도달 시각(epoch ms). 레거시 항목이면 null. */
   controllerEnteredAtMs: number | null;
