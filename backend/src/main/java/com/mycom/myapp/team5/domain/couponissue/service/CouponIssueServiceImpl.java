@@ -138,7 +138,8 @@ public class CouponIssueServiceImpl implements CouponIssueService{
 					issue != null ? issue.getStatus() : null,
 					issue != null ? issue.getIssuedAt() : null,
 					hasTimings ? entry.gateEnteredAtMs() - entry.controllerEnteredAtMs() : null,
-					hasTimings ? entry.redisTimeMs() - entry.gateEnteredAtMs() : null
+					hasTimings ? entry.redisTimeMs() - entry.gateEnteredAtMs() : null,
+					entry.controllerEnteredAtMs(), entry.gateEnteredAtMs(), entry.redisTimeMs()
 			));
 		}
 
