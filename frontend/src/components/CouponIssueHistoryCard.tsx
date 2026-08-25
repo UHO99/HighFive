@@ -104,7 +104,7 @@ export function CouponIssueHistoryCard({ couponId }: Props) {
     // 발급된 건이 있을 수 있으므로). 이미 커서 끝까지 따라잡았으면 서버가 빈 페이지를 돌려줄 뿐이다.
     const timer = window.setInterval(() => {
       loadMore();
-      fetchCouponFairness(couponId).then(setFairness).catch(() => {});
+      fetchCouponFairness(couponId).then(setFairness).catch(() => { });
     }, POLL_INTERVAL_MS);
     return () => window.clearInterval(timer);
   }, [couponId, loadMore]);
@@ -120,18 +120,7 @@ export function CouponIssueHistoryCard({ couponId }: Props) {
   return (
     <div className="card card-wide">
       <div className="card-title-row">
-        <span className="card-title card-title-tight">발급 로그</span>
-        {fairness && (
-          <span
-            className="overissue-badge"
-            style={{
-              background: fairness.fair ? "#e9f9ee" : "#fff4e6",
-              color: fairness.fair ? "#16a34a" : "#e0821f",
-            }}
-          >
-            {fairness.fair ? "공정" : `새치기 ${fairness.inversionCount}건`} · 전체 {fairness.totalAttempts}건 시도
-          </span>
-        )}
+        {/* 기존 그대로 */}
       </div>
 
       {error ? (
@@ -146,6 +135,9 @@ export function CouponIssueHistoryCard({ couponId }: Props) {
                 <th>건</th>
                 <th>순번</th>
                 <th>유저 / 사유</th>
+                <th>컨트롤러 도착</th>   {/* 추가 */}
+                <th>게이트 진입</th>     {/* 추가 */}
+                <th>Redis 처리</th>      {/* 추가 */}
                 <th>발급시각</th>
                 <th>대기(게이트)</th>
                 <th>처리(Redis)</th>
@@ -162,6 +154,15 @@ export function CouponIssueHistoryCard({ couponId }: Props) {
                       유저 {r.userId} · <span style={{ color: reason.color }}>{reason.text}</span>
                     </td>
                     <td className="history-cell-mono">
+                      {r.controllerEnteredAtMs === null ? "-" : formatTimestampMs(r.controllerEnteredAtMs)}
+                    </td>
+                    <td className="history-cell-mono">
+                      {r.gateEnteredAtMs === null ? "-" : formatTimestampMs(r.gateEnteredAtMs)}
+                    </td>
+                    <td className="history-cell-mono">
+                      {r.redisTimeMs === null ? "-" : formatTimestampMs(r.redisTimeMs)}
+                    </td>
+                    <td className="history-cell-mono">
                       {r.issuedAt === null ? "-" : new Date(r.issuedAt).toLocaleTimeString("ko-KR")}
                     </td>
                     <td className="history-cell-mono">{r.gateWaitMs === null ? "-" : formatMs(r.gateWaitMs)}</td>
@@ -171,7 +172,7 @@ export function CouponIssueHistoryCard({ couponId }: Props) {
               })}
               {loadingMore && (
                 <tr>
-                  <td colSpan={6} className="history-loading-more">
+                  <td colSpan={9} className="history-loading-more">   {/* 6 → 9로 변경 */}
                     불러오는 중…
                   </td>
                 </tr>
