@@ -108,6 +108,19 @@ export interface MismatchHistoryEntry {
   pendingCount: number;
 }
 
+/** S012가 실제로 issuedQuantity를 써넣은(=드레인 완료 후 동기화된) 순간의 로그 한 줄. */
+export interface SyncLogEntry {
+  couponId: number;
+  syncedAt: string;
+  issuedQuantity: number;
+}
+
+/** S013이 "드레인 완료 + 기록값=실측값"을 확정한 순간의 로그 한 줄. */
+export interface VerifyLogEntry {
+  couponId: number;
+  confirmedAt: string;
+}
+
 /**
  * backend CouponConsistencyStatusResponse(domain/coupon/dto)와 1:1로 대응한다. couponId와 무관한
  * 시스템 전체 상태라 모니터링 대시보드 조회(couponId 스코프)와 별도 경로다 - 오픈된 쿠폰이 없어서
@@ -121,6 +134,7 @@ export interface CouponConsistencyStatusResponse {
     intervalMs: number;
     targetCount: number;
     syncedCount: number;
+    log: SyncLogEntry[];
   };
   verify: {
     lastRunAt: string | null;
@@ -129,6 +143,7 @@ export interface CouponConsistencyStatusResponse {
     confirmedCount: number;
     mismatchCount: number;
     mismatchHistory: MismatchHistoryEntry[];
+    log: VerifyLogEntry[];
   };
 }
 
@@ -251,6 +266,10 @@ export interface CouponSummary {
   name: string;
   status: CouponStatus;
   totalQuantity: number;
+  /** 오픈 예약 시각 - 수동으로만 오픈/클로즈해온 쿠폰이면 null. */
+  startAt: string | null;
+  /** 마감 예약 시각 - 수동으로만 오픈/클로즈해온 쿠폰이면 null. */
+  endAt: string | null;
 }
 
 /**
@@ -284,13 +303,19 @@ export interface CouponDetail {
 
 /**
  * 관리자 쿠폰 생성 - AdminCouponController.create(). READY로만 등록되고 Redis 재고는 안 건드린다
- * (initStock은 openCoupon 시점에 별도로 일어남 - 아래 openCoupon 참고).
+ * (initStock은 openCoupon 시점에 별도로 일어남 - 아래 openCoupon 참고). startAt/endAt을 채워서
+ * "예약"해두면 S010/S011 스케줄러가 그 시각에 맞춰 자동으로 오픈/클로즈한다.
  */
-export async function createCoupon(name: string, totalQuantity: number): Promise<CouponDetail> {
+export async function createCoupon(
+  name: string,
+  totalQuantity: number,
+  startAt?: string | null,
+  endAt?: string | null,
+): Promise<CouponDetail> {
   const res = await fetch(`${API_BASE}/admin/coupons`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, totalQuantity }),
+    body: JSON.stringify({ name, totalQuantity, startAt: startAt || null, endAt: endAt || null }),
   });
   return parseApiResponse<CouponDetail>(res, "쿠폰 생성 실패");
 }
@@ -311,6 +336,23 @@ export async function closeCoupon(couponId: number): Promise<void> {
     const body = await res.json().catch(() => null);
     throw new Error(body?.message ?? `쿠폰 클로즈 실패 (HTTP ${res.status})`);
   }
+}
+
+/**
+ * AdminCouponController.update() - A004. READY 쿠폰은 startAt(오픈 예약)까지 자유롭게 수정 가능하고,
+ * OPEN 쿠폰은 endAt(마감 예약)만 허용된다(백엔드에서 강제). 지금은 "예약 오픈"/"예약 마감" 용도로만
+ * 쓴다 - totalQuantity는 안 건드린다.
+ */
+export async function updateCouponPeriod(
+  couponId: number,
+  period: { startAt?: string; endAt?: string },
+): Promise<CouponDetail> {
+  const res = await fetch(`${API_BASE}/admin/coupons/${couponId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ totalQuantity: null, startAt: period.startAt ?? null, endAt: period.endAt ?? null }),
+  });
+  return parseApiResponse<CouponDetail>(res, "쿠폰 예약 수정 실패");
 }
 
 /** backend K6ScenarioResponse(domain/k6test/dto)와 1:1로 대응한다. backend K6Scenario enum이 유일한 소스. */
@@ -478,6 +520,12 @@ export interface CouponFairnessTimelineEntry {
   redisTimeMicros: number | null;   // 변경
   gateWaitMs: number | null;
   redisWaitMs: number | null;
+  /** 컨트롤러 도달 시각(epoch ms). 레거시 항목이면 null. */
+  controllerEnteredAtMs: number | null;
+  /** Redis 게이트 진입 시각(epoch ms). 레거시 항목이면 null. */
+  gateEnteredAtMs: number | null;
+  /** Redis 서버가 TIME으로 찍은 처리 시각(epoch ms). 레거시 항목이면 null. */
+  redisTimeMs: number | null;
 }
 
 /**

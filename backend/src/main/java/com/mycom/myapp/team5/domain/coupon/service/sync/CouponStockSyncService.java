@@ -52,6 +52,7 @@ public class CouponStockSyncService {
         }
 
         Map<Long, Long> issuedCounts = countIssued(drained);
+        Instant now = Instant.now();
         for (Coupon coupon : drained) {
             long issuedCount = issuedCounts.getOrDefault(coupon.getId(), 0L);
             Integer before = coupon.getIssuedQuantity();
@@ -59,9 +60,10 @@ public class CouponStockSyncService {
             couponRepository.save(coupon);
             log.info("쿠폰 정합성 동기화 완료 - couponId={}, issuedQuantity(전={}, 후={})",
                     coupon.getId(), before, issuedCount);
+            statusHolder.recordSyncCompletion(coupon.getId(), now, (int) issuedCount);
         }
 
-        statusHolder.updateSync(Instant.now(), targets.size(), drained.size());
+        statusHolder.updateSync(now, targets.size(), drained.size());
     }
 
     private boolean isDrained(long couponId) {

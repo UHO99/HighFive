@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
-import { fetchConsistencyStatus, type CouponConsistencyStatusResponse, type MismatchHistoryEntry } from "../lib/api";
+import {
+  fetchConsistencyStatus,
+  type CouponConsistencyStatusResponse, type MismatchHistoryEntry, type SyncLogEntry, type VerifyLogEntry,
+} from "../lib/api";
+
+const FMT = new Intl.NumberFormat("ko-KR");
 
 const POLL_INTERVAL_MS = 3000;
 const CLOCK_TICK_MS = 1000;
@@ -66,7 +71,9 @@ export function ConsistencyStatusCard() {
               intervalMs={status.sync.intervalMs}
               now={now}
               summary={`대상 ${status.sync.targetCount}건 · 처리 ${status.sync.syncedCount}건`}
-            />
+            >
+              <SyncLogList entries={status.sync.log} />
+            </ConsistencyBlock>
             <ConsistencyBlock
               title="검증"
               lastRunAt={status.verify.lastRunAt}
@@ -78,7 +85,9 @@ export function ConsistencyStatusCard() {
                   ? `불일치 ${status.verify.mismatchCount}건`
                   : undefined
               }
-            />
+            >
+              <VerifyLogList entries={status.verify.log} />
+            </ConsistencyBlock>
           </div>
 
           <span className="consistency-caption">
@@ -105,9 +114,10 @@ interface ConsistencyBlockProps {
   now: number;
   summary: string;
   extra?: string;
+  children?: React.ReactNode;
 }
 
-function ConsistencyBlock({ title, lastRunAt, intervalMs, now, summary, extra }: ConsistencyBlockProps) {
+function ConsistencyBlock({ title, lastRunAt, intervalMs, now, summary, extra, children }: ConsistencyBlockProps) {
   const elapsedMs = lastRunAt === null ? Infinity : now - Date.parse(lastRunAt);
   const stale = elapsedMs > intervalMs * STALE_MULTIPLIER;
   const remainingMs = Math.max(0, intervalMs - elapsedMs);
@@ -125,7 +135,44 @@ function ConsistencyBlock({ title, lastRunAt, intervalMs, now, summary, extra }:
         </span>
         {stale && <span className="consistency-mismatch">응답 없음</span>}
       </div>
+      {/* 링+요약 텍스트 옆에 남는 공간에 "실제로 완료된" 건의 최근 로그를 보여준다 - 대상/처리
+          카운트는 매 사이클 갱신되는 집계값일 뿐이라, "몇 번 쿠폰이 언제 끝났는지"는 여기서 봐야 한다. */}
+      <div className="consistency-block-log">{children}</div>
     </div>
+  );
+}
+
+/** 동기화(S012) 완료 로그 - 실제로 issuedQuantity가 써진(=드레인 완료 후 처음 동기화된) 순간만 한 줄씩. */
+function SyncLogList({ entries }: { entries: SyncLogEntry[] }) {
+  if (entries.length === 0) {
+    return <span className="consistency-log-empty">완료 내역 없음</span>;
+  }
+  return (
+    <>
+      {entries.map((e) => (
+        <div key={`${e.couponId}-${e.syncedAt}`} className="consistency-log-item">
+          쿠폰 #{e.couponId} · {FMT.format(e.issuedQuantity)}건
+          <span className="consistency-log-time"> · {new Date(e.syncedAt).toLocaleTimeString("ko-KR")}</span>
+        </div>
+      ))}
+    </>
+  );
+}
+
+/** 검증(S013) 확정 로그 - "드레인 완료 + 기록값=실측값"이 처음 확정된 순간만 한 줄씩. */
+function VerifyLogList({ entries }: { entries: VerifyLogEntry[] }) {
+  if (entries.length === 0) {
+    return <span className="consistency-log-empty">완료 내역 없음</span>;
+  }
+  return (
+    <>
+      {entries.map((e) => (
+        <div key={`${e.couponId}-${e.confirmedAt}`} className="consistency-log-item">
+          쿠폰 #{e.couponId} · 확정
+          <span className="consistency-log-time"> · {new Date(e.confirmedAt).toLocaleTimeString("ko-KR")}</span>
+        </div>
+      ))}
+    </>
   );
 }
 

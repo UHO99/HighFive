@@ -89,8 +89,10 @@ public class CouponStockValidationService {
         if (!retired) {
             return;
         }
+        Instant confirmedAt = Instant.now();
         coupon.confirmConsistency(LocalDateTime.now());
         couponRepository.save(coupon);
+        statusHolder.recordVerifyConfirmation(coupon.getId(), confirmedAt);
     }
 
     private Map<Long, Long> countIssued(List<Coupon> coupons) {
