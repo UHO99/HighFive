@@ -248,11 +248,16 @@ body {
 
 .row:last-child {
   margin-bottom: 0;
+  /* 파이프라인/정합성 컬럼 + 발급 로그 카드 - 로그가 아무리 쌓여도 이 행 자체는 .main의 남은
+     공간만큼만 차지하고, 넘치는 내용은 각 카드 내부(overflow:auto)에서만 스크롤되게 한다. */
+  flex: 1 1 0;
+  min-height: 0;
 }
 
 .card {
   flex: 1;
   min-width: 0;
+  min-height: 0;
   background: #fff;
   border: 1px solid #e7e9f0;
   border-radius: 12px;
@@ -638,6 +643,8 @@ body {
   gap: 10px;
   flex: 2;
   min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .pipeline-col>.card {
