@@ -46,11 +46,13 @@ public class CouponController {
 	@PostMapping("/{couponId}/issue")
 	public ResponseEntity<ApiResponse<Void>> requestIssue(@PathVariable("couponId") long couponId, @RequestParam("userId") long userId) {
 
+		long controllerEnteredAtMs = System.currentTimeMillis(); // 추가
+
 		// 발급 전 OPEN 상태 검증 (READY/CLOSE/미존재 쿠폰은 여기서 차단)
 		couponService.validateIssueable(couponId);
 
 		// Redis 재고 차감 + Stream 적재 (기존 파이프라인 유지)
-		producer.requestIssue(couponId, userId);
+		producer.requestIssue(couponId, userId, controllerEnteredAtMs);
 
 		return ResponseEntity.accepted().body(ApiResponse.successNoData());
 	}
