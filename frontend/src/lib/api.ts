@@ -324,6 +324,19 @@ export interface K6ScenarioDto {
   targetVus: string;
   /** true면 실행 전에 재고(stock)/동시접속(maxVus)을 숫자로 입력받아야 한다. */
   configurable: boolean;
+  /** true면 요청배수·유입방식·연타 같은 추가 조건까지 입력받는다(main_test.js). */
+  advanced: boolean;
+}
+
+/** k6 실행 옵션 - 시나리오가 실제로 읽는 것만 채워 보내면 되고, 안 채운 건 스크립트 기본값이 쓰인다. */
+export interface K6RunOptions {
+  stock?: number;
+  maxVus?: number;
+  requestRatio?: number;
+  arrival?: "burst" | "even";
+  duration?: number;
+  spamRatio?: number;
+  spamClicks?: number;
 }
 
 /** backend K6StatusResponse(domain/k6test/dto)와 1:1로 대응한다. */
@@ -357,13 +370,12 @@ export async function fetchK6Scenarios(): Promise<K6ScenarioDto[]> {
 export async function runK6Scenario(
   scenarioId: string,
   couponId: number,
-  stock?: number,
-  maxVus?: number
+  options: K6RunOptions = {}
 ): Promise<K6StatusResponse> {
   const res = await fetch(`${API_BASE}/api/admin/k6/run`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ scenarioId, couponId, stock, maxVus }),
+    body: JSON.stringify({ scenarioId, couponId, ...options }),
   });
   return parseApiResponse<K6StatusResponse>(res, "k6 실행 실패");
 }

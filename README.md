@@ -52,8 +52,13 @@ docker compose down -v    # DB 데이터까지 초기화
    const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
    const COUPON_ID = __ENV.COUPON_ID || '1';
    ```
-2. `K6Scenario` enum에 상수 추가 (`id, file, name, description, rampUp, hold, targetVus`) - 대시보드
-   시나리오 다이얼로그에 그대로 노출되는 값들이다.
+2. `K6Scenario` enum에 상수 추가 (`id, file, name, description, rampUp, hold, targetVus, configurable, advanced`)
+   - 앞의 일곱 개는 대시보드 시나리오 다이얼로그에 그대로 노출되는 값이고, 뒤의 두 개는 실행 전에
+   어떤 입력창을 띄울지를 정한다:
+   - `configurable` : 재고(`STOCK`)/동시접속(`MAX_VUS`) 입력. 재고는 선택한 쿠폰의 실제 값을 자동으로 쓴다.
+   - `advanced` : 요청배수(`REQUEST_RATIO`)·유입방식(`ARRIVAL`/`DURATION`)·연타(`SPAM_RATIO`/`SPAM_CLICKS`)까지 입력.
+     스크립트가 그 env var를 실제로 읽을 때만 true로 둘 것 - 안 읽는 스크립트에 true를 주면 입력창만
+     뜨고 값은 무시된다.
 3. 백엔드 재빌드 + k6 이미지 재빌드 (둘 다 해야 목록/실행이 새 시나리오를 반영한다):
    ```bash
    docker compose build k6 && docker compose up -d --build
