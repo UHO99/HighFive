@@ -33,7 +33,7 @@ public class DummyDataLoadServiceImpl implements DummyDataLoadService {
             if (current.loading()) {
                 throw new DummyDataException(DummyDataErrorCode.ALREADY_LOADING);
             }
-            current = new DummyDataStatus(true, Instant.now(), null, before, current.lastResult(), null);
+            current = new DummyDataStatus(true, Instant.now(), null, DummyDataAll.SEED_BASELINE, current.lastResult(), null);
         }
 
         Thread thread = new Thread(this::runLoad, "dummy-data-load");
