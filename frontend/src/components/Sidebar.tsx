@@ -1,4 +1,20 @@
-export function Sidebar() {
+import type { KeyboardEvent } from "react";
+
+interface Props {
+  /** 더미데이터가 한 번도 적재되지 않았으면 발급 이력 자체가 의미 없다 - FAB의 다른 기능들과 같은 기준. */
+  couponHistoryDisabled: boolean;
+  onOpenCouponHistory: () => void;
+}
+
+export function Sidebar({ couponHistoryDisabled, onOpenCouponHistory }: Props) {
+  const handleCouponHistoryKeyDown = (e: KeyboardEvent) => {
+    if (couponHistoryDisabled) return;
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onOpenCouponHistory();
+    }
+  };
+
   return (
     <aside className="sidebar">
       <div className="sidebar-brand">
@@ -9,8 +25,16 @@ export function Sidebar() {
       <span className="sidebar-section-label">모니터링</span>
       <nav className="sidebar-nav">
         <div className="sidebar-nav-item active">대시보드</div>
-        <div className="sidebar-nav-item">쿠폰 발급 이력 · 선착순</div>
-        <div className="sidebar-nav-item">시스템 상태</div>
+        <div
+          className={`sidebar-nav-item${couponHistoryDisabled ? " sidebar-nav-item-disabled" : ""}`}
+          role="button"
+          tabIndex={couponHistoryDisabled ? -1 : 0}
+          onClick={couponHistoryDisabled ? undefined : onOpenCouponHistory}
+          onKeyDown={handleCouponHistoryKeyDown}
+          title={couponHistoryDisabled ? "먼저 데이터 적재를 완료하세요" : undefined}
+        >
+          쿠폰 발급 이력 · 선착순
+        </div>
       </nav>
 
       <div className="sidebar-profile">
