@@ -6,6 +6,7 @@ import {
   MonitoringCouponNotFoundError,
   runK6Scenario,
   stopK6Scenario,
+  type K6RunOptions,
   type K6StatusResponse,
   type MonitoringDashboardResponse,
 } from "../lib/api";
@@ -169,8 +170,12 @@ function toVals(data: MonitoringDashboardResponse, now: number, k6Status: K6Stat
 
 export interface UseMonitoringDashboardResult {
   vals: DashboardVals;
-  startTest: (scenarioId: string, targetCouponId: number, stock?: number, maxVus?: number) => Promise<void>;
+  startTest: (scenarioId: string, targetCouponId: number, options?: K6RunOptions) => Promise<void>;
   stopTest: () => Promise<void>;
+  /** 2초 자동 폴링과 별개로, 지금 당장 대시보드 전체(모니터링 + k6 상태)를 다시 조회한다. */
+  refresh: () => Promise<void>;
+  /** refresh() 진행 중 여부 - 버튼 중복 클릭 방지 및 "새로고침 중" 표시에 쓴다. */
+  refreshing: boolean;
   /** 진짜 연결 실패(네트워크 오류/5xx 등) - 헤더가 빨간 "백엔드 연결 실패"로 보여준다. */
   error: string | null;
   /** couponId가 DB에 없어서 404 - 오픈된 쿠폰이 없을 때 정상적으로 발생하므로 error와 분리해서 다룬다. */
@@ -183,6 +188,7 @@ export function useMonitoringDashboard(couponId: number): UseMonitoringDashboard
   const [k6Status, setK6Status] = useState<K6StatusResponse>(ZERO_K6_STATUS);
   const [error, setError] = useState<string | null>(null);
   const [couponMissing, setCouponMissing] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const dataPollRef = useRef<number | null>(null);
   const clockTickRef = useRef<number | null>(null);
@@ -256,8 +262,8 @@ export function useMonitoringDashboard(couponId: number): UseMonitoringDashboard
 
   // couponId(이 훅이 모니터링 중인 쿠폰)와 별개로 targetCouponId를 명시적으로 받는다 - 대시보드에
   // 보이는 쿠폰과 다른 쿠폰을 대상으로 테스트를 시작할 수도 있어서(ScenarioDialog의 쿠폰 선택).
-  const startTest = useCallback(async (scenarioId: string, targetCouponId: number, stock?: number, maxVus?: number) => {
-    const next = await runK6Scenario(scenarioId, targetCouponId, stock, maxVus);
+  const startTest = useCallback(async (scenarioId: string, targetCouponId: number, options?: K6RunOptions) => {
+    const next = await runK6Scenario(scenarioId, targetCouponId, options);
     setK6Status(next);
   }, []);
 
@@ -266,5 +272,27 @@ export function useMonitoringDashboard(couponId: number): UseMonitoringDashboard
     setK6Status(next);
   }, []);
 
-  return { vals: toVals(data, now, k6Status), startTest, stopTest, error, couponMissing };
+  // 2초 자동 폴링과 별개로 즉시 한 번 더 조회한다 - 폴링 주기를 기다리지 않고 "지금 상태"를 바로 보고 싶을 때용.
+  const refresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const [next, k6Next] = await Promise.all([fetchMonitoringDashboard(couponId), fetchK6Status()]);
+      setData(next);
+      setError(null);
+      setCouponMissing(false);
+      setK6Status(k6Next);
+    } catch (e) {
+      if (e instanceof MonitoringCouponNotFoundError) {
+        setError(null);
+        setCouponMissing(true);
+      } else {
+        setError(e instanceof Error ? e.message : "모니터링 조회 실패");
+        setCouponMissing(false);
+      }
+    } finally {
+      setRefreshing(false);
+    }
+  }, [couponId]);
+
+  return { vals: toVals(data, now, k6Status), startTest, stopTest, refresh, refreshing, error, couponMissing };
 }

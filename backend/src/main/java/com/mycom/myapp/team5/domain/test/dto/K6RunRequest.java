@@ -1,7 +1,10 @@
 package com.mycom.myapp.team5.domain.test.dto;
 
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 
 public record K6RunRequest(
@@ -17,6 +20,28 @@ public record K6RunRequest(
         Integer stock,
 
         @Positive(message = "동시접속 수는 1 이상")
-        Integer maxVus
+        Integer maxVus,
+
+        // 아래는 advanced 시나리오(main_test.js)에서만 쓰인다. null이면 스크립트 기본값이 적용된다.
+        /** 총 요청 유저 수 = 재고 × 이 값. 1이면 재고와 딱 맞고, 2면 재고의 2배가 몰린다. */
+        @Positive(message = "요청 배수는 1 이상")
+        Integer requestRatio,
+
+        /** burst = 최대한 빨리 몰아넣기 / even = duration 초에 걸쳐 균등 유입 */
+        @Pattern(regexp = "burst|even", message = "유입 방식은 burst 또는 even")
+        String arrival,
+
+        /** arrival=even 일 때 유입 시간(초) */
+        @Positive(message = "유입 시간은 1초 이상")
+        Integer duration,
+
+        /** 연타하는 유저 비율 (0.0 ~ 1.0). 0이면 전원 1회만 클릭한다. */
+        @DecimalMin(value = "0.0", message = "연타 비율은 0 이상")
+        @DecimalMax(value = "1.0", message = "연타 비율은 1 이하")
+        Double spamRatio,
+
+        /** 연타하는 유저가 몇 번 누르는지 */
+        @Positive(message = "연타 횟수는 1 이상")
+        Integer spamClicks
 ) {
 }

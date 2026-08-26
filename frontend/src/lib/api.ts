@@ -108,6 +108,19 @@ export interface MismatchHistoryEntry {
   pendingCount: number;
 }
 
+/** S012가 실제로 issuedQuantity를 써넣은(=드레인 완료 후 동기화된) 순간의 로그 한 줄. */
+export interface SyncLogEntry {
+  couponId: number;
+  syncedAt: string;
+  issuedQuantity: number;
+}
+
+/** S013이 "드레인 완료 + 기록값=실측값"을 확정한 순간의 로그 한 줄. */
+export interface VerifyLogEntry {
+  couponId: number;
+  confirmedAt: string;
+}
+
 /**
  * backend CouponConsistencyStatusResponse(domain/coupon/dto)와 1:1로 대응한다. couponId와 무관한
  * 시스템 전체 상태라 모니터링 대시보드 조회(couponId 스코프)와 별도 경로다 - 오픈된 쿠폰이 없어서
@@ -121,6 +134,7 @@ export interface CouponConsistencyStatusResponse {
     intervalMs: number;
     targetCount: number;
     syncedCount: number;
+    log: SyncLogEntry[];
   };
   verify: {
     lastRunAt: string | null;
@@ -129,6 +143,7 @@ export interface CouponConsistencyStatusResponse {
     confirmedCount: number;
     mismatchCount: number;
     mismatchHistory: MismatchHistoryEntry[];
+    log: VerifyLogEntry[];
   };
 }
 
@@ -142,7 +157,7 @@ export async function fetchConsistencyStatus(): Promise<CouponConsistencyStatusR
  * couponId가 DB에 아예 없을 때(CouponErrorCode.COUPON_NOT_FOUND) 백엔드가 던지는 404 - 오픈된 쿠폰이
  * 하나도 없는 정상 상태에서도 발생하므로, 진짜 연결 실패(네트워크 오류/5xx)와 구분해서 다뤄야 한다.
  */
-export class MonitoringCouponNotFoundError extends Error {}
+export class MonitoringCouponNotFoundError extends Error { }
 
 export async function fetchMonitoringDashboard(couponId: number): Promise<MonitoringDashboardResponse> {
   const res = await fetch(`${API_BASE}/api/admin/monitoring/coupons/${couponId}`);
@@ -251,6 +266,10 @@ export interface CouponSummary {
   name: string;
   status: CouponStatus;
   totalQuantity: number;
+  /** 오픈 예약 시각 - 수동으로만 오픈/클로즈해온 쿠폰이면 null. */
+  startAt: string | null;
+  /** 마감 예약 시각 - 수동으로만 오픈/클로즈해온 쿠폰이면 null. */
+  endAt: string | null;
 }
 
 /**
@@ -284,13 +303,19 @@ export interface CouponDetail {
 
 /**
  * 관리자 쿠폰 생성 - AdminCouponController.create(). READY로만 등록되고 Redis 재고는 안 건드린다
- * (initStock은 openCoupon 시점에 별도로 일어남 - 아래 openCoupon 참고).
+ * (initStock은 openCoupon 시점에 별도로 일어남 - 아래 openCoupon 참고). startAt/endAt을 채워서
+ * "예약"해두면 S010/S011 스케줄러가 그 시각에 맞춰 자동으로 오픈/클로즈한다.
  */
-export async function createCoupon(name: string, totalQuantity: number): Promise<CouponDetail> {
+export async function createCoupon(
+  name: string,
+  totalQuantity: number,
+  startAt?: string | null,
+  endAt?: string | null,
+): Promise<CouponDetail> {
   const res = await fetch(`${API_BASE}/admin/coupons`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, totalQuantity }),
+    body: JSON.stringify({ name, totalQuantity, startAt: startAt || null, endAt: endAt || null }),
   });
   return parseApiResponse<CouponDetail>(res, "쿠폰 생성 실패");
 }
@@ -313,6 +338,23 @@ export async function closeCoupon(couponId: number): Promise<void> {
   }
 }
 
+/**
+ * AdminCouponController.update() - A004. READY 쿠폰은 startAt(오픈 예약)까지 자유롭게 수정 가능하고,
+ * OPEN 쿠폰은 endAt(마감 예약)만 허용된다(백엔드에서 강제). 지금은 "예약 오픈"/"예약 마감" 용도로만
+ * 쓴다 - totalQuantity는 안 건드린다.
+ */
+export async function updateCouponPeriod(
+  couponId: number,
+  period: { startAt?: string; endAt?: string },
+): Promise<CouponDetail> {
+  const res = await fetch(`${API_BASE}/admin/coupons/${couponId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ totalQuantity: null, startAt: period.startAt ?? null, endAt: period.endAt ?? null }),
+  });
+  return parseApiResponse<CouponDetail>(res, "쿠폰 예약 수정 실패");
+}
+
 /** backend K6ScenarioResponse(domain/k6test/dto)와 1:1로 대응한다. backend K6Scenario enum이 유일한 소스. */
 export interface K6ScenarioDto {
   id: string;
@@ -324,6 +366,19 @@ export interface K6ScenarioDto {
   targetVus: string;
   /** true면 실행 전에 재고(stock)/동시접속(maxVus)을 숫자로 입력받아야 한다. */
   configurable: boolean;
+  /** true면 요청배수·유입방식·연타 같은 추가 조건까지 입력받는다(main_test.js). */
+  advanced: boolean;
+}
+
+/** k6 실행 옵션 - 시나리오가 실제로 읽는 것만 채워 보내면 되고, 안 채운 건 스크립트 기본값이 쓰인다. */
+export interface K6RunOptions {
+  stock?: number;
+  maxVus?: number;
+  requestRatio?: number;
+  arrival?: "burst" | "even";
+  duration?: number;
+  spamRatio?: number;
+  spamClicks?: number;
 }
 
 /** backend K6StatusResponse(domain/k6test/dto)와 1:1로 대응한다. */
@@ -357,13 +412,12 @@ export async function fetchK6Scenarios(): Promise<K6ScenarioDto[]> {
 export async function runK6Scenario(
   scenarioId: string,
   couponId: number,
-  stock?: number,
-  maxVus?: number
+  options: K6RunOptions = {}
 ): Promise<K6StatusResponse> {
   const res = await fetch(`${API_BASE}/api/admin/k6/run`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ scenarioId, couponId, stock, maxVus }),
+    body: JSON.stringify({ scenarioId, couponId, ...options }),
   });
   return parseApiResponse<K6StatusResponse>(res, "k6 실행 실패");
 }
@@ -461,30 +515,50 @@ export interface CouponFairnessTimelineEntry {
   outcome: "SUCCESS" | "SOLDOUT" | "DUPLICATE";
   status: "ISSUED" | "USED" | "CANCELED" | "EXPIRED" | null;
   issuedAt: string | null;
+  /** 컨트롤러 도달 시각(epoch ms). 레거시 항목이면 null. */
+  controllerEnteredAtMs: number | null;
+  /** Redis 게이트 진입 시각(epoch ms). 레거시 항목이면 null. */
+  gateEnteredAtMs: number | null;
+  /** Redis 서버가 TIME으로 찍은 처리 시각(epoch microseconds, Redis TIME 그대로). 레거시 항목이면 null. */
+  redisTimeMicros: number | null;
+  /** 컨트롤러 도달 → Redis 게이트 진입 소요(ms). 레거시 항목이면 null. */
+  gateWaitMs: number | null;
+  /** Redis 게이트 진입 → Lua 처리 소요(ms). 서버 간 시계 차이로 음수가 나올 수 있다. 레거시 항목이면 null. */
+  redisWaitMs: number | null;
 }
 
 /**
- * backend CouponFairnessTimelinePage(domain/couponissue/dto)와 1:1로 대응한다. nextCursor를 다음
- * 요청의 afterRank로 그대로 넘기면 이어서 오름차순으로 읽힌다.
+ * backend CouponFairnessTimelinePage(domain/couponissue/dto)와 1:1로 대응한다. page는 1부터
+ * 시작하고, totalPages는 totalElements를 size로 올림 나눗셈한 값이다(로그가 0건이면 0).
  */
 export interface CouponFairnessTimelinePage {
   items: CouponFairnessTimelineEntry[];
-  nextCursor: number;
-  hasMore: boolean;
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
 }
 
 /**
- * AdminCouponController.getFairnessTimeline() - afterRank 다음부터 오름차순 최대 limit건(커서
- * 페이지네이션). 전체를 한 번에 안 받아오므로 로그가 아무리 쌓여도 요청 하나의 비용은 limit에만
- * 비례한다.
+ * backend CouponFairnessOutcomeFilter(domain/couponissue/dto)와 1:1로 대응한다. FAILURE는
+ * SOLDOUT/DUPLICATE를 합쳐 보여주는 편의 필터 - 백엔드가 발급 시도 시점에 outcome별 ZSET을 함께
+ * 채워두므로, 어떤 필터로 조회하든 전체 로그 스캔 없이 offset/size만으로 응답한다.
+ */
+export type CouponFairnessOutcomeFilter = "ALL" | "SUCCESS" | "FAILURE" | "DUPLICATE" | "SOLDOUT";
+
+/**
+ * AdminCouponController.getFairnessTimeline() - 1-based page/size 오프셋 페이지네이션. 전체를
+ * 한 번에 안 받아오므로 로그가 아무리 쌓여도 요청 하나의 비용은 size에만 비례한다. outcome 필터가
+ * 걸리면 totalElements/totalPages도 그 필터 기준으로 계산돼서 내려온다.
  */
 export async function fetchFairnessTimeline(
   couponId: number,
-  afterRank: number,
-  limit: number,
+  page: number,
+  size: number,
+  outcome: CouponFairnessOutcomeFilter = "ALL",
 ): Promise<CouponFairnessTimelinePage> {
   const res = await fetch(
-    `${API_BASE}/api/admin/coupons/${couponId}/fairness/timeline?afterRank=${afterRank}&limit=${limit}`,
+    `${API_BASE}/api/admin/coupons/${couponId}/fairness/timeline?page=${page}&size=${size}&outcome=${outcome}`,
   );
   return parseApiResponse<CouponFairnessTimelinePage>(res, "선착순 타임라인 조회 실패");
 }

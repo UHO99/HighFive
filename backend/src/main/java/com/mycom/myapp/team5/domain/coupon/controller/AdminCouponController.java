@@ -8,6 +8,7 @@ import com.mycom.myapp.team5.domain.coupon.dto.CouponSummary;
 import com.mycom.myapp.team5.domain.coupon.dto.CouponUpdateRequest;
 import com.mycom.myapp.team5.domain.coupon.service.CouponService;
 import com.mycom.myapp.team5.domain.coupon.service.CouponStatusService;
+import com.mycom.myapp.team5.domain.couponissue.dto.CouponFairnessOutcomeFilter;
 import com.mycom.myapp.team5.domain.couponissue.dto.CouponFairnessTimelinePage;
 import com.mycom.myapp.team5.domain.couponissue.dto.CouponIssueHistoryResponse;
 import com.mycom.myapp.team5.domain.couponissue.service.CouponIssueService;
@@ -56,7 +57,7 @@ public class AdminCouponController {
     @LogDescription("쿠폰 재고/기간 수정 (관리자)")
     @PatchMapping("/admin/coupons/{couponId}")
     public ResponseEntity<ApiResponse<CouponResponse>> update(
-            @PathVariable(name = "couponId") long couponId,
+            @PathVariable long couponId,
             @Valid @RequestBody CouponUpdateRequest request
     ) {
         return ResponseEntity.ok(ApiResponse.success(couponService.update(couponId, request)));
@@ -71,7 +72,7 @@ public class AdminCouponController {
     @LogDescription("쿠폰 현황 단건 조회 (관리자)")
     @GetMapping("/admin/coupons/{couponId}")
     public ResponseEntity<ApiResponse<CouponOverviewResponse>> getOverview(
-            @PathVariable(name = "couponId") long couponId
+            @PathVariable long couponId
     ) {
         return ResponseEntity.ok(ApiResponse.success(couponService.getOverview(couponId)));
     }
@@ -81,7 +82,7 @@ public class AdminCouponController {
     @LogDescription("전체 쿠폰 목록 조회 (관리자)")
     @GetMapping("/api/admin/coupons")
     public ResponseEntity<ApiResponse<List<CouponSummary>>> listCoupons(
-            @RequestParam(name = "status", required = false) CouponStatus status
+            @RequestParam(required = false) CouponStatus status
     ) {
         List<CouponSummary> coupons = status != null
                 ? couponService.listByStatus(status)
@@ -91,21 +92,21 @@ public class AdminCouponController {
 
     @LogDescription("쿠폰 수동 오픈 (관리자)")
     @PostMapping("/api/admin/coupons/{couponId}/open")
-    public ResponseEntity<ApiResponse<Void>> openCoupon(@PathVariable(name = "couponId") long couponId) {
+    public ResponseEntity<ApiResponse<Void>> openCoupon(@PathVariable long couponId) {
         couponStatusService.openCoupon(couponId);
         return ResponseEntity.ok(ApiResponse.successNoData());
     }
 
     @LogDescription("쿠폰 수동 마감 (관리자)")
     @PostMapping("/api/admin/coupons/{couponId}/close")
-    public ResponseEntity<ApiResponse<Void>> closeCoupon(@PathVariable(name = "couponId") long couponId) {
+    public ResponseEntity<ApiResponse<Void>> closeCoupon(@PathVariable long couponId) {
         couponStatusService.closeCoupon(couponId);
         return ResponseEntity.ok(ApiResponse.successNoData());
     }
 
     @LogDescription("쿠폰 상태 조회 (관리자)")
     @GetMapping("/api/admin/coupons/{couponId}/status")
-    public ResponseEntity<ApiResponse<CouponStatus>> getCouponStatus(@PathVariable(name = "couponId") long couponId) {
+    public ResponseEntity<ApiResponse<CouponStatus>> getCouponStatus(@PathVariable long couponId) {
         return ResponseEntity.ok(ApiResponse.success(couponStatusService.getStatus(couponId)));
     }
 
@@ -115,7 +116,7 @@ public class AdminCouponController {
     @LogDescription("관리자 쿠폰 발급 내역 조회")
     @GetMapping("/api/admin/coupons/{couponId}/issues")
     public ResponseEntity<ApiResponse<List<CouponIssueHistoryResponse>>> getCouponIssues(
-            @PathVariable(name = "couponId") long couponId
+            @PathVariable long couponId
     ) {
         return ResponseEntity.ok(ApiResponse.success(couponIssueService.getIssuesByCouponId(couponId)));
     }
@@ -130,27 +131,21 @@ public class AdminCouponController {
     @LogDescription("쿠폰 선착순 공정성 검증 (관리자)")
     @GetMapping("/api/admin/coupons/{couponId}/fairness")
     public ResponseEntity<ApiResponse<CouponFairnessReport>> getCouponFairness(
-            @PathVariable(name = "couponId") long couponId
+            @PathVariable long couponId
     ) {
         couponService.getCoupon(couponId); // 존재하지 않는 쿠폰이면 CP001로 막는다.
         return ResponseEntity.ok(ApiResponse.success(couponStockRedisService.analyzeFairness(couponId)));
     }
 
-    /**
-     * 대시보드 "발급 로그" 카드용 - Redis fairness-log의 실제 처리 순서(rank)에 DB 상태/시각을 얹은
-     * 커서 페이지. afterRank(기본 0) 다음부터 오름차순으로 최대 limit(기본 50)건만 내려준다. rank는
-     * 재고 차감과 같은 원자적 연산으로 매겨지므로 비동기 배치로 반영되는 DB issued_at보다 실제 처리
-     * 순서를 더 정확히 보여준다. 전체를 한 번에 안 내려주므로 로그가 아무리 쌓여도 응답 크기가 limit에만
-     * 비례한다 - 프론트는 스크롤이 바닥에 닿거나 폴링할 때마다 nextCursor를 afterRank로 넘겨 이어붙인다.
-     */
     @LogDescription("쿠폰 선착순 타임라인 조회 (관리자)")
     @GetMapping("/api/admin/coupons/{couponId}/fairness/timeline")
     public ResponseEntity<ApiResponse<CouponFairnessTimelinePage>> getFairnessTimeline(
-            @PathVariable(name = "couponId") long couponId,
-            @RequestParam(name = "afterRank", defaultValue = "0") long afterRank,
-            @RequestParam(name = "limit", defaultValue = "50") int limit
+            @PathVariable long couponId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "50") int size,
+            @RequestParam(defaultValue = "ALL") CouponFairnessOutcomeFilter outcome
     ) {
         couponService.getCoupon(couponId);
-        return ResponseEntity.ok(ApiResponse.success(couponIssueService.getFairnessTimeline(couponId, afterRank, limit)));
+        return ResponseEntity.ok(ApiResponse.success(couponIssueService.getFairnessTimeline(couponId, page, size, outcome)));
     }
 }

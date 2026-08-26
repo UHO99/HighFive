@@ -117,7 +117,7 @@ class CouponAdminUserApiTest {
         }
 
         @Test
-        @DisplayName("OPEN 쿠폰 수정 시 CP003")
+        @DisplayName("OPEN 쿠폰의 재고/시작시각을 같이 바꾸려 하면 CP003")
         void update_open_conflict() {
             Coupon coupon = readyCoupon(1L, 100);
             coupon.open();
@@ -127,6 +127,21 @@ class CouponAdminUserApiTest {
                     .isInstanceOf(CouponException.class)
                     .extracting(ex -> ((CouponException) ex).getErrorCode())
                     .isEqualTo(CouponErrorCode.COUPON_STATUS_CONFLICT);
+        }
+
+        @Test
+        @DisplayName("OPEN 쿠폰은 마감 예약(endAt)만 수정할 수 있다")
+        void update_open_endAtOnly_success() {
+            Coupon coupon = readyCoupon(1L, 100);
+            coupon.open();
+            given(couponRepository.findById(1L)).willReturn(Optional.of(coupon));
+
+            CouponResponse response = couponService.update(1L, new CouponUpdateRequest(null, null, END.plusHours(1)));
+
+            assertThat(response.status()).isEqualTo(CouponStatus.OPEN);
+            assertThat(response.totalQuantity()).isEqualTo(100);
+            assertThat(response.startAt()).isEqualTo(START);
+            assertThat(response.endAt()).isEqualTo(END.plusHours(1));
         }
 
         @Test

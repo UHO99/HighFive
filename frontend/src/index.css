@@ -26,9 +26,11 @@ body {
   0% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.35;
   }
+
   100% {
     opacity: 1;
   }
@@ -98,6 +100,23 @@ body {
   font: 500 14px/1 "Inter", sans-serif;
   padding: 9px 10px;
   border-radius: 8px;
+}
+
+.sidebar-nav-item[role="button"] {
+  cursor: pointer;
+}
+
+.sidebar-nav-item[role="button"]:hover {
+  background: #f2f3f7;
+}
+
+.sidebar-nav-item-disabled {
+  color: #c4c7d4;
+  cursor: default;
+}
+
+.sidebar-nav-item-disabled:hover {
+  background: none;
 }
 
 .sidebar-nav-item.active {
@@ -246,11 +265,16 @@ body {
 
 .row:last-child {
   margin-bottom: 0;
+  /* 파이프라인/정합성 컬럼 + 발급 로그 카드 - 로그가 아무리 쌓여도 이 행 자체는 .main의 남은
+     공간만큼만 차지하고, 넘치는 내용은 각 카드 내부(overflow:auto)에서만 스크롤되게 한다. */
+  flex: 1 1 0;
+  min-height: 0;
 }
 
 .card {
   flex: 1;
   min-width: 0;
+  min-height: 0;
   background: #fff;
   border: 1px solid #e7e9f0;
   border-radius: 12px;
@@ -502,7 +526,8 @@ body {
 
 .consistency-row {
   display: flex;
-  gap: 10px;
+  flex-direction: column;
+  gap: 8px;
   margin-bottom: 6px;
 }
 
@@ -511,10 +536,10 @@ body {
   min-width: 0;
   background: #f7f8fb;
   border-radius: 8px;
-  padding: 8px 10px;
+  padding: 9px 12px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .consistency-ring {
@@ -536,6 +561,37 @@ body {
 .consistency-block-title {
   font: 700 12.5px/1 "Inter", sans-serif;
   color: #171b2e;
+}
+
+/* 링+요약 옆에 남는 공간에 얹는 "실제 완료" 로그 - 대상/처리 집계 숫자와 달리 어떤 쿠폰이 언제
+   끝났는지 한 줄씩 보여준다. */
+.consistency-block-log {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 54px;
+  overflow-y: auto;
+  padding-left: 12px;
+  border-left: 1px solid #e7e9f0;
+}
+
+.consistency-log-item {
+  font: 500 10.5px/1.4 "JetBrains Mono", monospace;
+  color: #5b5f72;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.consistency-log-time {
+  color: #9aa0b4;
+}
+
+.consistency-log-empty {
+  font: 500 10.5px/1 "Inter", sans-serif;
+  color: #c7cad6;
 }
 
 .consistency-mismatch {
@@ -596,51 +652,159 @@ body {
   opacity: 0.85;
 }
 
-/* ---------- donut ---------- */
+/* ---------- pipeline column layout (파이프라인 카드 + 정합성 카드를 왼쪽 컬럼에 세로로 쌓음) ---------- */
 
-.donut-row {
+.pipeline-col {
   display: flex;
-  align-items: center;
-  gap: 18px;
-  margin-bottom: 12px;
-  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  flex: 2;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
 }
 
-.donut {
-  width: 88px;
-  height: 88px;
+.pipeline-col>.card {
   flex: none;
-  border-radius: 50%;
+}
+
+/* ---------- 발급 파이프라인(통합) 카드 ---------- */
+
+.pf-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  margin-bottom: 8px;
+}
+
+.pf-node {
+  flex: 1 1 0;
+  min-width: 0;
+  background: #f7f8fb;
+  border-radius: 10px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pf-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: #fff6f2;
+  border: 1px solid #ffd9c4;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex: none;
 }
 
-.donut-inner {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  background: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.donut-inner-text {
-  font: 700 15px/1 "Inter", sans-serif;
+.pf-node-title {
+  font: 700 12px/1.25 "Inter", sans-serif;
   color: #171b2e;
 }
 
-.donut-caption {
-  font: 500 12px/1.5 "Inter", sans-serif;
+.pf-metric {
+  font: 500 10.5px/1.5 "Inter", sans-serif;
+  color: #5b5f72;
+}
+
+.pf-metric b {
+  color: #171b2e;
+  font-family: "JetBrains Mono", monospace;
+  font-weight: 700;
+}
+
+.pf-metric.warn b {
+  color: #e0821f;
+}
+
+.pf-metric.danger b {
+  color: #dc2626;
+}
+
+.pf-drain-btn {
+  align-self: flex-start;
+  font: 600 9.5px/1 "Inter", sans-serif;
+  color: #dc2626;
+  background: #fff;
+  border: 1px solid #f3c9c9;
+  border-radius: 999px;
+  padding: 4px 9px;
+  cursor: pointer;
+  margin-top: 2px;
+}
+
+@keyframes pfDot {
+  0% {
+    transform: translateX(-6px);
+    opacity: 0;
+  }
+
+  35% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateX(30px);
+    opacity: 0;
+  }
+}
+
+.pf-arrow {
+  flex: 0 0 52px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  position: relative;
+}
+
+.pf-arrow-track {
+  position: relative;
+  width: 36px;
+  height: 2px;
+  background: #eef0f4;
+  border-radius: 2px;
+  overflow: visible;
+}
+
+.pf-arrow-track::after {
+  content: "";
+  position: absolute;
+  top: -3px;
+  left: -6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff6a3d;
+  animation: pfDot 1.3s linear infinite;
+}
+
+.pf-arrow-chevron {
+  color: #c7cad6;
+  display: flex;
+}
+
+.pf-arrow-label {
+  font: 700 10px/1 "JetBrains Mono", monospace;
+  color: #8b8fa3;
+  white-space: nowrap;
+}
+
+.pf-footer {
+  margin-top: 5px;
+  padding-top: 5px;
+  border-top: 1px solid #f0f1f5;
+  font: 500 10.5px/1.4 "Inter", sans-serif;
   color: #8b8fa3;
 }
 
-.pel-delay-caption {
-  font: 400 11.5px/1 "Inter", sans-serif;
-  color: #8b8fa3;
-  display: block;
-  margin-top: 5px;
+.pf-footer b {
+  color: #5b5f72;
+  font-weight: 600;
 }
 
 /* ---------- floating action menu ---------- */
@@ -712,6 +876,7 @@ body {
     opacity: 0;
     transform: translateY(8px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -839,6 +1004,7 @@ body {
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -862,6 +1028,7 @@ body {
     opacity: 0;
     transform: translateY(12px) scale(0.98);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -1258,6 +1425,12 @@ body {
   max-height: 258px;
 }
 
+/* 옆의 파이프라인+정합성 스택 높이만큼 카드가 늘어난 만큼, 고정 max-height 대신 남은 공간을 꽉 채운다. */
+.history-table-wrap-fill {
+  flex: 1;
+  max-height: none;
+}
+
 .history-table-compact th,
 .history-table-compact td {
   padding: 6px 9px;
@@ -1273,6 +1446,68 @@ body {
 
 .history-cell-mono {
   font-family: "JetBrains Mono", monospace;
+}
+
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.filter-btn {
+  border: 1px solid #e7e9f0;
+  background: #fff;
+  color: #6b6f80;
+  border-radius: 999px;
+  padding: 4px 12px;
+  font: 600 11.5px "Inter", sans-serif;
+  cursor: pointer;
+}
+
+.filter-btn:hover {
+  background: #f7f8fb;
+}
+
+.filter-btn-active {
+  background: #eef0fd;
+  border-color: #5b6bd6;
+  color: #5b6bd6;
+}
+
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding-top: 10px;
+}
+
+.pagination-btn {
+  border: 1px solid #e7e9f0;
+  background: #fff;
+  color: #3a3d4d;
+  border-radius: 8px;
+  padding: 5px 12px;
+  font: 600 12px "Inter", sans-serif;
+  cursor: pointer;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: #f7f8fb;
+}
+
+.pagination-btn:disabled {
+  color: #c4c7d4;
+  cursor: default;
+}
+
+.pagination-label {
+  color: #8b8fa3;
+  font: 600 12px "Inter", sans-serif;
+  padding: 0 4px;
+  white-space: nowrap;
 }
 
 /* ---------- before / after (더미데이터 적재) ---------- */
@@ -1293,7 +1528,7 @@ body {
 .ba-table th,
 .ba-table td {
   text-align: right;
-  padding: 6px 9px;
+  padding: 5px 9px;
   border-bottom: 1px solid #f0f1f5;
 }
 
@@ -1327,4 +1562,16 @@ body {
 
 .ba-delta-pos {
   color: #ff6a3d;
+}
+
+/* 발급 로그 - 화면에 한 번에 30개(헤더 제외)가 보이도록 높이 고정. 그 이상은 스크롤. */
+.history-table-wrap-30rows {
+  max-height: 976.5px;
+  flex: 1 1 auto;
+}
+
+/* 발급 로그 - rank(순번), Redis처리 시각처럼 신뢰 가능한(증명된) 값임을 강조 */
+.history-cell-highlight {
+  color: #2563eb;
+  font-weight: 700;
 }
