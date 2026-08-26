@@ -496,6 +496,10 @@ export interface CouponIssueHistoryResponse {
   usedAt: string | null;
   canceledAt: string | null;
   expiredAt: string | null;
+  /** 마스킹된 사용자 이름. users에 없으면 null. */
+  userName: string | null;
+  /** 마스킹된 사용자 이메일. users에 없으면 null. */
+  userEmail: string | null;
 }
 
 export async function fetchCouponIssues(couponId: number): Promise<CouponIssueHistoryResponse[]> {
@@ -525,6 +529,10 @@ export interface CouponFairnessTimelineEntry {
   gateWaitMs: number | null;
   /** Redis 게이트 진입 → Lua 처리 소요(ms). 서버 간 시계 차이로 음수가 나올 수 있다. 레거시 항목이면 null. */
   redisWaitMs: number | null;
+  /** 마스킹된 사용자 이름. users에 없으면 null. */
+  userName: string | null;
+  /** 마스킹된 사용자 이메일. users에 없으면 null. */
+  userEmail: string | null;
 }
 
 /**

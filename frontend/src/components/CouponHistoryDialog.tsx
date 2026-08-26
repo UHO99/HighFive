@@ -67,6 +67,8 @@ export function CouponHistoryDialog({ couponId, onClose }: Props) {
                 <tr>
                   <th>이력 ID</th>
                   <th>User ID</th>
+                  <th>이름</th>
+                  <th>이메일</th>
                   <th>쿠폰 ID</th>
                   <th>상태</th>
                   <th>발급 시각</th>
@@ -77,6 +79,8 @@ export function CouponHistoryDialog({ couponId, onClose }: Props) {
                   <tr key={r.issueId}>
                     <td>{r.issueId}</td>
                     <td>{r.userId}</td>
+                    <td>{r.userName ?? "-"}</td>
+                    <td>{r.userEmail ?? "-"}</td>
                     <td>{r.couponId}</td>
                     <td>{STATUS_LABEL[r.status]}</td>
                     <td>{new Date(r.issuedAt).toLocaleString("ko-KR")}</td>

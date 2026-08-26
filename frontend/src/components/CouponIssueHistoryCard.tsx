@@ -183,7 +183,10 @@ export function CouponIssueHistoryCard({ couponId }: Props) {
                     <tr key={`${r.rank}-${r.userId}`}>
                       <td className="history-cell-mono history-cell-highlight">#{r.rank}</td>
                       <td>
-                        유저 {r.userId} · <span style={{ color: reason.color }}>{reason.text}</span>
+                        {r.userName ?? `유저 ${r.userId}`}
+                        {r.userEmail ? ` (${r.userEmail})` : ""}
+                        {" · "}
+                        <span style={{ color: reason.color }}>{reason.text}</span>
                       </td>
                       <td className="history-cell-mono history-cell-highlight">
                         {r.redisTimeMicros === null ? "-" : formatTimestampMicros(r.redisTimeMicros)}
