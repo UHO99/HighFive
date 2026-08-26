@@ -54,7 +54,9 @@ const unexpected = new Counter('issue_unexpected');
 // 0에서 peak까지 DURATION초 동안 선형으로 올리면 그 아래 면적(=총 도착 건수)이 peak*DURATION/2다.
 // 그래서 peak를 이렇게 잡으면 램프업이 끝나는 순간 정확히 ITERATIONS명이 들어와 있다 -
 // "테스트 유저 20,000명 / ramp-up 60s"를 두 조건 다 만족시키는 유일한 방법이다.
-const RAMP_PEAK_RATE = Math.max(1, Math.ceil((2 * ITERATIONS) / DURATION));
+// 1% 여유를 얹어 목표보다 조금 더 잡는다 - k6가 램프업 곡선을 이산 시간으로 근사하느라
+// 정확히 맞추면 몇 건 모자라기 때문. 넘치는 분은 default()에서 잘라 정확히 ITERATIONS만 보낸다.
+const RAMP_PEAK_RATE = Math.max(1, Math.ceil((2 * ITERATIONS * 1.01) / DURATION));
 
 function scenario() {
   if (ARRIVAL === 'ramp') {
@@ -114,6 +116,8 @@ function classify(res) {
 
 export default function () {
   const iter = exec.scenario.iterationInTest;
+  // ramp는 도착률로만 제어돼 총량 보장이 없다 - 예산을 넘은 순번은 요청 없이 끝낸다.
+  if (iter >= ITERATIONS) return;
   // VU 번호가 아니라 전체 반복 순번 기준 - VU가 여러 번 돌아도 의도치 않게 같은 사람이 되지 않는다.
   const userId = (iter % USER_COUNT) + 1;
   const url = `${BASE_URL}/coupons/${COUPON_ID}/issue?userId=${userId}`;
