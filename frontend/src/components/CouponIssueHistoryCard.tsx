@@ -5,7 +5,6 @@ import {
 } from "../lib/api";
 import { formatTimestampMicros, formatTimestampMs } from "../lib/format";
 
-const POLL_INTERVAL_MS = 3000;
 /** 한 페이지에 받아오는 건수 - 로그가 아무리 쌓여도 요청/렌더 비용이 이 값에만 비례하도록 고정한다. */
 const PAGE_SIZE = 50;
 /** 백엔드가 이 값을 totalPages로 clamp해준다는 걸 이용해, "최신 페이지"를 한 번의 요청으로 구한다. */
@@ -50,19 +49,19 @@ const FILTER_OPTIONS: { value: CouponFairnessOutcomeFilter; label: string }[] = 
 
 interface Props {
   couponId: number;
+  /** true→false로 바뀌는 순간(테스트 종료)에만 로그를 다시 불러온다. */
+  testRunning: boolean;
 }
 
 /**
- * "재고 · Redis" 카드 옆 실시간 발급 로그 - GET /api/admin/coupons/{couponId}/fairness/timeline을
+ * "재고 · Redis" 카드 옆 발급 로그 - GET /api/admin/coupons/{couponId}/fairness/timeline을
  * 오프셋(page/size) 페이지네이션으로 부른다. rank는 Redis fairness-log의 원자적 처리 순번(재고 차감과
  * 같은 Lua 스크립트 안에서 매겨짐)이라 DB issued_at 기반 정렬보다 실제 처리 순서를 정확히 보여준다.
- * 한 번에 PAGE_SIZE만큼만 렌더링하고(이전 페이지 목록을 누적하지 않음) 폴링도 "현재 보고 있는 페이지"만
- * 다시 받아오므로, 로그가 수만 건으로 쌓여도(부하테스트 중 등) DOM/요청 비용이 늘지 않는다 - 이전의
- * "스크롤마다 이어붙이기" 방식은 시간이 지날수록 행이 계속 누적돼 렉의 원인이 됐다. SOLDOUT/DUPLICATE
- * 건은 DB 행이 없어서 발급시각이 "-"로 표시된다. 제목 옆 공정성 배지는 analyzeFairness()를 그대로
- * 노출하는 GET .../fairness를 별도로 호출한다 - 집계 로직의 단일 소스는 백엔드에만 둔다.
+ * 부하 테스트 도중 3초 폴링은 요청 폭주와 화면 뒤흔들림만 컸던 반면, 테스트가 끝나기 전까지는 어차피
+ * 로그가 최종 확정되지 않으므로, "쿠폰/필터가 바뀔 때 1회 + 테스트가 막 끝나는 순간 1회"만 다시 불러온다.
+ * 페이지 이동/필터 변경 시 조회하는 방식과 페이지네이션 자체는 기존과 동일하게 유지한다.
  */
-export function CouponIssueHistoryCard({ couponId }: Props) {
+export function CouponIssueHistoryCard({ couponId, testRunning }: Props) {
   const [rows, setRows] = useState<CouponFairnessTimelineEntry[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
@@ -75,10 +74,12 @@ export function CouponIssueHistoryCard({ couponId }: Props) {
   // page/size만으로 필터링된 결과와 정확한 totalElements/totalPages를 받는다.
   const [filter, setFilter] = useState<CouponFairnessOutcomeFilter>("ALL");
 
-  // setState(비동기)로는 "지금 이 순간 어느 페이지를 보고 있는지"를 폴링 콜백에서 바로 못 믿는다 -
-  // 페이지 이동과 3초 폴링이 겹칠 때 서로 다른 페이지를 요청하지 않도록 동기적으로 갱신되는 ref를 둔다.
+  // setState(비동기)로는 "지금 이 순간 어느 페이지를 보고 있는지"를 재조회 콜백에서 바로 못 믿는다 -
+  // 페이지 이동과 테스트 종료 감지가 겹칠 때 서로 다른 페이지를 요청하지 않도록 동기적으로 갱신되는 ref를 둔다.
   const pageRef = useRef(1);
   const loadingRef = useRef(false);
+  // 직전 렌더링의 testRunning 값을 기억해서 "true -> false로 바뀌는 그 순간"만 정확히 잡아낸다.
+  const wasRunningRef = useRef(testRunning);
 
   const goToPage = useCallback((target: number) => {
     if (loadingRef.current) return;
@@ -102,25 +103,33 @@ export function CouponIssueHistoryCard({ couponId }: Props) {
       });
   }, [couponId, filter]);
 
+  const refetchFairness = useCallback(() => {
+    fetchCouponFairness(couponId).then(setFairness).catch(() => {
+      // 조회 실패는 마지막으로 알던 배지를 그대로 유지한다.
+    });
+  }, [couponId]);
+
+  // 쿠폰이나 필터가 바뀌면 최신 페이지부터 1회 조회한다.
   useEffect(() => {
     setRows([]);
     setFairness(null);
     setError(null);
     pageRef.current = 1;
 
-    // 코드나 필터가 바뀌면 처음엔 가장 최근 페이지(=그 필터 기준 마지막 페이지)부터 보여준다.
     goToPage(LATEST_PAGE);
-    fetchCouponFairness(couponId).then(setFairness).catch(() => {
-      // 조회 실패는 마지막으로 알던 배지를 그대로 유지한다.
-    });
+    refetchFairness();
+  }, [couponId, filter, goToPage, refetchFairness]);
 
-    // 3초마다 "현재 보고 있는 페이지"만 다시 받아온다 - 페이지를 넘기지 않는 한 보던 위치를 유지한다.
-    const timer = window.setInterval(() => {
+  // 폴링 대신, "테스트가 방금 끝난 순간"에만 현재 보고 있는 페이지를 다시 불러온다.
+  useEffect(() => {
+    const wasRunning = wasRunningRef.current;
+    wasRunningRef.current = testRunning;
+
+    if (wasRunning && !testRunning) {
       goToPage(pageRef.current);
-      fetchCouponFairness(couponId).then(setFairness).catch(() => { });
-    }, POLL_INTERVAL_MS);
-    return () => window.clearInterval(timer);
-  }, [couponId, filter, goToPage]);
+      refetchFairness();
+    }
+  }, [testRunning, goToPage, refetchFairness]);
 
   const hasPrev = page > 1;
   const hasNext = totalPages > 0 && page < totalPages;
@@ -164,45 +173,45 @@ export function CouponIssueHistoryCard({ couponId }: Props) {
               {filter === "ALL" ? "발급 이력이 없습니다" : "조건에 맞는 발급 내역이 없습니다"}
             </span>
           ) : (
-          <div className="history-table-wrap history-table-wrap-fill">
-            <table className="history-table history-table-compact">
-              <thead>
-                <tr>
-                  <th>순번</th>
-                  <th>유저 / 사유</th>
-                  <th>Redis처리</th>              {/* 순서 변경 - 신뢰도 1순위 */}
-                  <th>컨트롤러진입</th>
-                  <th>게이트진입</th>
-                  <th>발급시각(DB 저장 시각)</th>   {/* 이름 변경 - "이 값이 rank 순서와 다를 수 있다"는 걸 명확히 */}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => {
-                  const reason = reasonLabel(r);
-                  return (
-                    <tr key={`${r.rank}-${r.userId}`}>
-                      <td className="history-cell-mono history-cell-highlight">#{r.rank}</td>
-                      <td>
-                        유저 {r.userId} · <span style={{ color: reason.color }}>{reason.text}</span>
-                      </td>
-                      <td className="history-cell-mono history-cell-highlight">
-                        {r.redisTimeMicros === null ? "-" : formatTimestampMicros(r.redisTimeMicros)}
-                      </td>
-                      <td className="history-cell-mono">
-                        {r.controllerEnteredAtMs === null ? "-" : formatTimestampMs(r.controllerEnteredAtMs)}
-                      </td>
-                      <td className="history-cell-mono">
-                        {r.gateEnteredAtMs === null ? "-" : formatTimestampMs(r.gateEnteredAtMs)}
-                      </td>
-                      <td className="history-cell-mono">
-                        {r.issuedAt === null ? "-" : formatTimestampMs(new Date(r.issuedAt).getTime())}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+            <div className="history-table-wrap history-table-wrap-fill">
+              <table className="history-table history-table-compact">
+                <thead>
+                  <tr>
+                    <th>순번</th>
+                    <th>유저 / 사유</th>
+                    <th>Redis처리</th>
+                    <th>컨트롤러진입</th>
+                    <th>게이트진입</th>
+                    <th>발급시각(DB 저장 시각)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r) => {
+                    const reason = reasonLabel(r);
+                    return (
+                      <tr key={`${r.rank}-${r.userId}`}>
+                        <td className="history-cell-mono history-cell-highlight">#{r.rank}</td>
+                        <td>
+                          유저 {r.userId} · <span style={{ color: reason.color }}>{reason.text}</span>
+                        </td>
+                        <td className="history-cell-mono history-cell-highlight">
+                          {r.redisTimeMicros === null ? "-" : formatTimestampMicros(r.redisTimeMicros)}
+                        </td>
+                        <td className="history-cell-mono">
+                          {r.controllerEnteredAtMs === null ? "-" : formatTimestampMs(r.controllerEnteredAtMs)}
+                        </td>
+                        <td className="history-cell-mono">
+                          {r.gateEnteredAtMs === null ? "-" : formatTimestampMs(r.gateEnteredAtMs)}
+                        </td>
+                        <td className="history-cell-mono">
+                          {r.issuedAt === null ? "-" : formatTimestampMs(new Date(r.issuedAt).getTime())}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
 
           <div className="pagination-bar">
