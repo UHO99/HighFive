@@ -20,7 +20,7 @@ import lombok.RequiredArgsConstructor;
 
 /**
  * U001 사용자 쿠폰 조회 + 발급 요청.
- * 관리자 API는 AdminCouponController 담당.
+ * 관리자 API는 AdminCouponController 담당 (develop CouponController의 /api/admin 중복 매핑 방지).
  */
 @RestController
 @RequestMapping("/coupons")
@@ -38,18 +38,22 @@ public class CouponController {
 
 	@LogDescription("쿠폰 정보 조회")
 	@GetMapping("/{couponId}")
-	public ResponseEntity<ApiResponse<CouponResponse>> getCoupon(@PathVariable(name = "couponId") long couponId) {
+	public ResponseEntity<ApiResponse<CouponResponse>> getCoupon(@PathVariable("couponId") long couponId) {
 		return ResponseEntity.ok(ApiResponse.success(couponService.getCoupon(couponId)));
 	}
 
 	@LogDescription("쿠폰 발급 요청")
 	@PostMapping("/{couponId}/issue")
-	public ResponseEntity<ApiResponse<Void>> requestIssue(
-			@PathVariable(name = "couponId") long couponId,
-			@RequestParam(name = "userId") long userId
-	) {
+	public ResponseEntity<ApiResponse<Void>> requestIssue(@PathVariable("couponId") long couponId, @RequestParam("userId") long userId) {
+
+		long controllerEnteredAtMs = System.currentTimeMillis(); // 추가
+
+		// 발급 전 OPEN 상태 검증 (READY/CLOSE/미존재 쿠폰은 여기서 차단)
 		couponService.validateIssueable(couponId);
-		producer.requestIssue(couponId, userId);
+
+		// Redis 재고 차감 + Stream 적재 (기존 파이프라인 유지)
+		producer.requestIssue(couponId, userId, controllerEnteredAtMs);
+
 		return ResponseEntity.accepted().body(ApiResponse.successNoData());
 	}
 }

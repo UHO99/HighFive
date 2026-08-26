@@ -84,8 +84,8 @@ public class CouponIssueServiceImpl implements CouponIssueService{
 	public void cancelCoupon(long userId, long issueId) {
 		CouponIssue issue = couponIssueRepository.findByIdAndUserIdForUpdate(issueId, userId)
 				.orElseThrow(() -> new CouponException(CouponErrorCode.COUPON_ISSUE_NOT_FOUND));
-		
-		if(issue.getStatus() != CouponIssueStatus.ISSUED) {
+
+		if (issue.getStatus() != CouponIssueStatus.ISSUED) {
 			throw new CouponException(CouponErrorCode.COUPON_ISSUE_STATUS_CONFLICT);
 		}
 		issue.cancel(); 					// entity 메서드 호출 (status=CANCELED, canceledAt=now)
@@ -132,10 +132,14 @@ public class CouponIssueServiceImpl implements CouponIssueService{
 		List<CouponFairnessTimelineEntry> result = new ArrayList<>(logEntries.size());
 		for (CouponStockRedisService.FairnessLogEntry entry : logEntries) {
 			CouponIssue issue = issueByUserId.get(entry.userId());
+			boolean hasTimings = entry.controllerEnteredAtMs() != null && entry.gateEnteredAtMs() != null && entry.redisTimeMs() != null;
 			result.add(new CouponFairnessTimelineEntry(
 					entry.rank(), entry.userId(), entry.outcome(),
 					issue != null ? issue.getStatus() : null,
-					issue != null ? issue.getIssuedAt() : null
+					issue != null ? issue.getIssuedAt() : null,
+					hasTimings ? entry.gateEnteredAtMs() - entry.controllerEnteredAtMs() : null,
+					hasTimings ? entry.redisTimeMs() - entry.gateEnteredAtMs() : null,
+					entry.controllerEnteredAtMs(), entry.gateEnteredAtMs(), entry.redisTimeMs()
 			));
 		}
 
