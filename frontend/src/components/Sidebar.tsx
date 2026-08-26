@@ -33,7 +33,7 @@ export function Sidebar({ couponHistoryDisabled, onOpenCouponHistory }: Props) {
           onKeyDown={handleCouponHistoryKeyDown}
           title={couponHistoryDisabled ? "먼저 데이터 적재를 완료하세요" : undefined}
         >
-          쿠폰 발급 이력 · 선착순
+          전체 쿠폰 발급 이력
         </div>
       </nav>
 

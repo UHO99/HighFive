@@ -250,7 +250,7 @@ export function DashboardPage() {
             />
             <ConsistencyStatusCard />
           </div>
-          <CouponIssueHistoryCard couponId={couponId} />
+          <CouponIssueHistoryCard couponId={couponId} testRunning={vals.testRunning} />
         </div>
       </div>
 
@@ -273,7 +273,6 @@ export function DashboardPage() {
 
       {couponHistoryDialogOpen && (
         <CouponHistoryDialog
-          couponId={couponId}
           onClose={() => setCouponHistoryDialogOpen(false)}
         />
       )}
