@@ -2,6 +2,7 @@ package com.mycom.myapp.team5.domain.couponissue.service;
 
 import java.util.List;
 
+import com.mycom.myapp.team5.domain.couponissue.dto.CouponFairnessOutcomeFilter;
 import com.mycom.myapp.team5.domain.couponissue.dto.CouponFairnessTimelinePage;
 import com.mycom.myapp.team5.domain.couponissue.dto.CouponIssueHistoryResponse;
 import com.mycom.myapp.team5.domain.couponissue.dto.MyCouponResponse;
@@ -23,13 +24,8 @@ public interface CouponIssueService {
 	@LogDescription("관리자 쿠폰 발급 내역 조회")
 	List<CouponIssueHistoryResponse> getIssuesByCouponId(long couponId);
 
-	/**
-	 * 대시보드 "발급 로그" 카드용 - Redis fairness-log의 실제 처리 순서(rank)에 DB 상태/시각을 얹은
-	 * 오프셋 페이지(1-based page). rank가 빈틈없는 연속 정수라 offset=(page-1)*size가 그대로
-	 * ZSET 인덱스 구간에 대응한다 - 쿠폰이 없으면 CP001.
-	 */
 	@LogDescription("쿠폰 선착순 타임라인 조회 (관리자)")
-	CouponFairnessTimelinePage getFairnessTimeline(long couponId, int page, int size);
+	CouponFairnessTimelinePage getFairnessTimeline(long couponId, int page, int size, CouponFairnessOutcomeFilter filter);
 
 	// 쿠폰 사용 (본인 소유, ISSUED만 가능, 그 외 CI003)
 	@LogDescription("내 쿠폰 사용")

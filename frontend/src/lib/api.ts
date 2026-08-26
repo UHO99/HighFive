@@ -540,16 +540,25 @@ export interface CouponFairnessTimelinePage {
 }
 
 /**
+ * backend CouponFairnessOutcomeFilter(domain/couponissue/dto)와 1:1로 대응한다. FAILURE는
+ * SOLDOUT/DUPLICATE를 합쳐 보여주는 편의 필터 - 백엔드가 발급 시도 시점에 outcome별 ZSET을 함께
+ * 채워두므로, 어떤 필터로 조회하든 전체 로그 스캔 없이 offset/size만으로 응답한다.
+ */
+export type CouponFairnessOutcomeFilter = "ALL" | "SUCCESS" | "FAILURE" | "DUPLICATE" | "SOLDOUT";
+
+/**
  * AdminCouponController.getFairnessTimeline() - 1-based page/size 오프셋 페이지네이션. 전체를
- * 한 번에 안 받아오므로 로그가 아무리 쌓여도 요청 하나의 비용은 size에만 비례한다.
+ * 한 번에 안 받아오므로 로그가 아무리 쌓여도 요청 하나의 비용은 size에만 비례한다. outcome 필터가
+ * 걸리면 totalElements/totalPages도 그 필터 기준으로 계산돼서 내려온다.
  */
 export async function fetchFairnessTimeline(
   couponId: number,
   page: number,
   size: number,
+  outcome: CouponFairnessOutcomeFilter = "ALL",
 ): Promise<CouponFairnessTimelinePage> {
   const res = await fetch(
-    `${API_BASE}/api/admin/coupons/${couponId}/fairness/timeline?page=${page}&size=${size}`,
+    `${API_BASE}/api/admin/coupons/${couponId}/fairness/timeline?page=${page}&size=${size}&outcome=${outcome}`,
   );
   return parseApiResponse<CouponFairnessTimelinePage>(res, "선착순 타임라인 조회 실패");
 }

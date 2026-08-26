@@ -13,6 +13,7 @@ import com.mycom.myapp.team5.domain.coupon.entity.Coupon;
 import com.mycom.myapp.team5.domain.coupon.exception.CouponErrorCode;
 import com.mycom.myapp.team5.domain.coupon.exception.CouponException;
 import com.mycom.myapp.team5.domain.coupon.repository.CouponRepository;
+import com.mycom.myapp.team5.domain.couponissue.dto.CouponFairnessOutcomeFilter;
 import com.mycom.myapp.team5.domain.couponissue.dto.CouponFairnessTimelineEntry;
 import com.mycom.myapp.team5.domain.couponissue.dto.CouponFairnessTimelinePage;
 import com.mycom.myapp.team5.domain.couponissue.dto.CouponIssueHistoryResponse;
@@ -94,17 +95,17 @@ public class CouponIssueServiceImpl implements CouponIssueService {
 
 	@Override
 	@Transactional(readOnly = true)
-	public CouponFairnessTimelinePage getFairnessTimeline(long couponId, int page, int size) {
+	public CouponFairnessTimelinePage getFairnessTimeline(long couponId, int page, int size, CouponFairnessOutcomeFilter filter) {
 		if (!couponRepository.existsById(couponId)) {
 			throw new CouponException(CouponErrorCode.COUPON_NOT_FOUND);
 		}
 
-		long totalElements = couponStockRedisService.fairnessLogCount(couponId);
+		long totalElements = couponStockRedisService.fairnessLogCount(couponId, filter);
 		int totalPages = size <= 0 ? 0 : (int) ((totalElements + size - 1) / size);
 		int safePage = totalPages == 0 ? 1 : Math.min(Math.max(page, 1), totalPages);
 		long offset = (long) (safePage - 1) * size;
 
-		List<CouponStockRedisService.FairnessLogEntry> logEntries = couponStockRedisService.fairnessLogPage(couponId, offset, size);
+		List<CouponStockRedisService.FairnessLogEntry> logEntries = couponStockRedisService.fairnessLogPage(couponId, offset, size, filter);
 		if (logEntries.isEmpty()) {
 			return new CouponFairnessTimelinePage(List.of(), safePage, size, totalElements, totalPages);
 		}

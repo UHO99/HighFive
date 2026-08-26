@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   fetchCouponFairness, fetchFairnessTimeline,
-  type CouponFairnessReport, type CouponFairnessTimelineEntry,
+  type CouponFairnessOutcomeFilter, type CouponFairnessReport, type CouponFairnessTimelineEntry,
 } from "../lib/api";
 import { formatTimestampMicros, formatTimestampMs } from "../lib/format";
 
@@ -40,6 +40,14 @@ function reasonLabel(row: CouponFairnessTimelineEntry): { text: string; color: s
   return { text: OUTCOME_LABEL[outcome], color: OUTCOME_COLOR[outcome] };
 }
 
+const FILTER_OPTIONS: { value: CouponFairnessOutcomeFilter; label: string }[] = [
+  { value: "ALL", label: "전체" },
+  { value: "SUCCESS", label: "성공" },
+  { value: "FAILURE", label: "실패" },
+  { value: "DUPLICATE", label: "중복" },
+  { value: "SOLDOUT", label: "재고 소진" },
+];
+
 interface Props {
   couponId: number;
 }
@@ -62,6 +70,10 @@ export function CouponIssueHistoryCard({ couponId }: Props) {
   const [fairness, setFairness] = useState<CouponFairnessReport | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // outcome 필터는 서버(fairness/timeline?outcome=)로 그대로 전달된다 - 백엔드가 발급 시도
+  // 시점에 outcome별 ZSET을 함께 색인해두므로, 필터가 걸려도 전체 로그를 스캔하지 않고
+  // page/size만으로 필터링된 결과와 정확한 totalElements/totalPages를 받는다.
+  const [filter, setFilter] = useState<CouponFairnessOutcomeFilter>("ALL");
 
   // setState(비동기)로는 "지금 이 순간 어느 페이지를 보고 있는지"를 폴링 콜백에서 바로 못 믿는다 -
   // 페이지 이동과 3초 폴링이 겹칠 때 서로 다른 페이지를 요청하지 않도록 동기적으로 갱신되는 ref를 둔다.
@@ -72,7 +84,7 @@ export function CouponIssueHistoryCard({ couponId }: Props) {
     if (loadingRef.current) return;
     loadingRef.current = true;
     setLoading(true);
-    fetchFairnessTimeline(couponId, target, PAGE_SIZE)
+    fetchFairnessTimeline(couponId, target, PAGE_SIZE, filter)
       .then((result) => {
         setRows(result.items);
         setPage(result.page);
@@ -88,7 +100,7 @@ export function CouponIssueHistoryCard({ couponId }: Props) {
         loadingRef.current = false;
         setLoading(false);
       });
-  }, [couponId]);
+  }, [couponId, filter]);
 
   useEffect(() => {
     setRows([]);
@@ -96,7 +108,7 @@ export function CouponIssueHistoryCard({ couponId }: Props) {
     setError(null);
     pageRef.current = 1;
 
-    // 코드가 바뀌면 처음엔 가장 최근 페이지(=지금까지의 마지막 페이지)부터 보여준다.
+    // 코드나 필터가 바뀌면 처음엔 가장 최근 페이지(=그 필터 기준 마지막 페이지)부터 보여준다.
     goToPage(LATEST_PAGE);
     fetchCouponFairness(couponId).then(setFairness).catch(() => {
       // 조회 실패는 마지막으로 알던 배지를 그대로 유지한다.
@@ -108,7 +120,7 @@ export function CouponIssueHistoryCard({ couponId }: Props) {
       fetchCouponFairness(couponId).then(setFairness).catch(() => { });
     }, POLL_INTERVAL_MS);
     return () => window.clearInterval(timer);
-  }, [couponId, goToPage]);
+  }, [couponId, filter, goToPage]);
 
   const hasPrev = page > 1;
   const hasNext = totalPages > 0 && page < totalPages;
@@ -132,10 +144,26 @@ export function CouponIssueHistoryCard({ couponId }: Props) {
 
       {error ? (
         <span className="dialog-error">{error}</span>
-      ) : rows.length === 0 && !loading ? (
-        <span className="tile-label-md">발급 이력이 없습니다</span>
       ) : (
         <>
+          <div className="filter-bar">
+            {FILTER_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                className={`filter-btn${filter === opt.value ? " filter-btn-active" : ""}`}
+                onClick={() => setFilter(opt.value)}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          {rows.length === 0 && !loading ? (
+            <span className="tile-label-md">
+              {filter === "ALL" ? "발급 이력이 없습니다" : "조건에 맞는 발급 내역이 없습니다"}
+            </span>
+          ) : (
           <div className="history-table-wrap history-table-wrap-fill">
             <table className="history-table history-table-compact">
               <thead>
@@ -175,6 +203,7 @@ export function CouponIssueHistoryCard({ couponId }: Props) {
               </tbody>
             </table>
           </div>
+          )}
 
           <div className="pagination-bar">
             <button type="button" className="pagination-btn" onClick={() => goToPage(1)} disabled={!hasPrev || loading}>

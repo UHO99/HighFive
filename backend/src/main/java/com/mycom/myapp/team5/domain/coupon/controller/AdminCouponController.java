@@ -8,6 +8,7 @@ import com.mycom.myapp.team5.domain.coupon.dto.CouponSummary;
 import com.mycom.myapp.team5.domain.coupon.dto.CouponUpdateRequest;
 import com.mycom.myapp.team5.domain.coupon.service.CouponService;
 import com.mycom.myapp.team5.domain.coupon.service.CouponStatusService;
+import com.mycom.myapp.team5.domain.couponissue.dto.CouponFairnessOutcomeFilter;
 import com.mycom.myapp.team5.domain.couponissue.dto.CouponFairnessTimelinePage;
 import com.mycom.myapp.team5.domain.couponissue.dto.CouponIssueHistoryResponse;
 import com.mycom.myapp.team5.domain.couponissue.service.CouponIssueService;
@@ -141,9 +142,10 @@ public class AdminCouponController {
     public ResponseEntity<ApiResponse<CouponFairnessTimelinePage>> getFairnessTimeline(
             @PathVariable long couponId,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "50") int size
+            @RequestParam(defaultValue = "50") int size,
+            @RequestParam(defaultValue = "ALL") CouponFairnessOutcomeFilter outcome
     ) {
         couponService.getCoupon(couponId);
-        return ResponseEntity.ok(ApiResponse.success(couponIssueService.getFairnessTimeline(couponId, page, size)));
+        return ResponseEntity.ok(ApiResponse.success(couponIssueService.getFairnessTimeline(couponId, page, size, outcome)));
     }
 }

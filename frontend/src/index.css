@@ -102,6 +102,23 @@ body {
   border-radius: 8px;
 }
 
+.sidebar-nav-item[role="button"] {
+  cursor: pointer;
+}
+
+.sidebar-nav-item[role="button"]:hover {
+  background: #f2f3f7;
+}
+
+.sidebar-nav-item-disabled {
+  color: #c4c7d4;
+  cursor: default;
+}
+
+.sidebar-nav-item-disabled:hover {
+  background: none;
+}
+
 .sidebar-nav-item.active {
   background: #ff6a3d;
   color: #fff;
@@ -1429,6 +1446,34 @@ body {
 
 .history-cell-mono {
   font-family: "JetBrains Mono", monospace;
+}
+
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.filter-btn {
+  border: 1px solid #e7e9f0;
+  background: #fff;
+  color: #6b6f80;
+  border-radius: 999px;
+  padding: 4px 12px;
+  font: 600 11.5px "Inter", sans-serif;
+  cursor: pointer;
+}
+
+.filter-btn:hover {
+  background: #f7f8fb;
+}
+
+.filter-btn-active {
+  background: #eef0fd;
+  border-color: #5b6bd6;
+  color: #5b6bd6;
 }
 
 .pagination-bar {
