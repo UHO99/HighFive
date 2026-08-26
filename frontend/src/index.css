@@ -1576,3 +1576,39 @@ body {
   color: #2563eb;
   font-weight: 700;
 }
+
+.coupon-select-list {
+  max-height: 180px;
+  overflow-y: auto;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 12px;
+}
+
+.coupon-select-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.coupon-select-item {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 12px;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.coupon-select-item:hover {
+  background: #f7f8fb;
+}
+
+.coupon-select-item-active {
+  background: #eef2ff;
+  font-weight: 700;
+}
+
+.coupon-select-id {
+  color: #8b8fa3;
+  font-family: monospace;
+}
