@@ -2,7 +2,6 @@ import { useState } from "react";
 import type { DashboardVals } from "../hooks/useMonitoringDashboard";
 import type { CouponDetail, CouponSummary, K6RunOptions } from "../lib/api";
 import type { K6Scenario } from "../lib/scenarios";
-import { CouponHistoryDialog } from "./CouponHistoryDialog";
 import { CouponManageDialog } from "./CouponManageDialog";
 import { ScenarioDialog } from "./ScenarioDialog";
 
@@ -14,6 +13,10 @@ interface Props {
   dataReady: boolean;
   /** 지금 적재가 진행 중인지 - "데이터 적재" 버튼 중복 클릭만 막는다. */
   dataLoading: boolean;
+  /** 2초 자동 폴링과 별개로 대시보드 전체를 지금 당장 다시 조회한다. */
+  onRefresh: () => void;
+  /** onRefresh() 진행 중 여부 - 중복 클릭 방지 및 "새로고침 중" 표시용. */
+  refreshing: boolean;
   onStartTest: (scenario: K6Scenario, couponId: number, options: K6RunOptions) => void;
   onStopTest: () => void;
   onLoadData: () => void;
@@ -24,13 +27,12 @@ interface Props {
 }
 
 export function FloatingActionMenu({
-  vals, coupons, couponId, dataReady, dataLoading, onStartTest, onStopTest, onLoadData, onResetMetrics,
+  vals, coupons, couponId, dataReady, dataLoading, onRefresh, refreshing, onStartTest, onStopTest, onLoadData, onResetMetrics,
   onCouponCreated, onCouponOpened, onCouponClosed,
 }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [couponManageDialogOpen, setCouponManageDialogOpen] = useState(false);
-  const [couponHistoryDialogOpen, setCouponHistoryDialogOpen] = useState(false);
 
   const handleTestButtonClick = () => {
     setMenuOpen(false);
@@ -95,13 +97,12 @@ export function FloatingActionMenu({
               type="button"
               className="fab-action"
               onClick={() => {
-                setCouponHistoryDialogOpen(true);
+                onRefresh();
                 setMenuOpen(false);
               }}
-              disabled={otherActionsDisabled}
-              title={otherActionsDisabled ? lockedTitle : undefined}
+              disabled={refreshing}
             >
-              쿠폰 이력 조회
+              {refreshing ? "새로고침 중..." : "지금 새로고침"}
             </button>
             <button
               type="button"
@@ -146,13 +147,6 @@ export function FloatingActionMenu({
           onCouponCreated={onCouponCreated}
           onCouponOpened={onCouponOpened}
           onCouponClosed={onCouponClosed}
-        />
-      )}
-
-      {couponHistoryDialogOpen && (
-        <CouponHistoryDialog
-          couponId={couponId}
-          onClose={() => setCouponHistoryDialogOpen(false)}
         />
       )}
     </>
