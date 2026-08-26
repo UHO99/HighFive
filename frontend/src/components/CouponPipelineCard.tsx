@@ -1,3 +1,48 @@
+import type { DashboardVals } from "../hooks/useMonitoringDashboard";
+import type { DummyDataCounts } from "../lib/api";
+
+const FMT = new Intl.NumberFormat("ko-KR");
+
+interface Props {
+  vals: DashboardVals;
+  onDrainPending: () => void;
+  dummyDataCounts: DummyDataCounts | null;
+  /** 마지막 적재를 "시작하기 직전" 스냅샷 - Before 열에 쓴다. 한 번도 적재 안 했으면 null. */
+  beforeCounts: DummyDataCounts | null;
+}
+
+function formatDelta(before: number, after: number): string {
+  const d = after - before;
+  if (d === 0) return "±0";
+  return d > 0 ? `+${FMT.format(d)}` : FMT.format(d);
+}
+
+function ArrowIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 6l6 6-6 6" />
+    </svg>
+  );
+}
+
+interface FlowArrowProps {
+  label: string;
+}
+
+function FlowArrow({ label }: FlowArrowProps) {
+  return (
+    <div className="pf-arrow">
+      <span className="pf-arrow-label">{label}</span>
+      <div className="pf-arrow-track" />
+      <span className="pf-arrow-chevron"><ArrowIcon /></span>
+    </div>
+  );
+}
+
+/**
+ * 재고·Redis / DB 저장 카드를 하나로 합친 "발급 파이프라인" 카드 - Lua 원자 발급 -> Stream 적재 ->
+ * Flush 배치 묶기 -> DB Batch Insert 4단계를 노드+화살표로 이어 보여준다.
+ */
 export function CouponPipelineCard({ vals, onDrainPending, dummyDataCounts, beforeCounts }: Props) {
   return (
     <div className="card">
@@ -68,7 +113,6 @@ export function CouponPipelineCard({ vals, onDrainPending, dummyDataCounts, befo
         </div>
       </div>
 
-      {/* 1. 더미데이터 적재 결과 */}
       <span className="section-label">더미데이터 적재 결과</span>
       {dummyDataCounts === null ? (
         <span className="tile-label-md">기록 없음</span>
@@ -108,7 +152,6 @@ export function CouponPipelineCard({ vals, onDrainPending, dummyDataCounts, befo
         </div>
       )}
 
-      {/* 2. 발급 수 현황(가제) */}
       <span className="section-label">발급 수 현황 (가제)</span>
       {dummyDataCounts === null || beforeCounts === null ? (
         <span className="tile-label-md">적재 기록 없음</span>
