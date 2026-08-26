@@ -6,7 +6,10 @@ import com.mycom.myapp.team5.domain.coupon.repository.CouponRepository;
 import com.mycom.myapp.team5.domain.couponissue.dto.CouponIssueHistoryResponse;
 import com.mycom.myapp.team5.domain.couponissue.entity.CouponIssue;
 import com.mycom.myapp.team5.domain.couponissue.repository.CouponIssueRepository;
+import com.mycom.myapp.team5.domain.user.entity.User;
+import com.mycom.myapp.team5.domain.user.repository.UserRepository;
 import com.mycom.myapp.team5.global.common.enums.CouponIssueStatus;
+import com.mycom.myapp.team5.global.redis.CouponStockRedisService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,6 +22,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -30,12 +34,16 @@ class CouponIssueHistoryServiceTest {
     private CouponIssueRepository couponIssueRepository;
     @Mock
     private CouponRepository couponRepository;
+    @Mock
+    private UserRepository userRepository;
+    @Mock
+    private CouponStockRedisService couponStockRedisService;
 
     @InjectMocks
     private CouponIssueServiceImpl couponIssueService;
 
     @Test
-    @DisplayName("시나리오7: 쿠폰별 발급 이력을 최근순으로 반환한다")
+    @DisplayName("시나리오7: 쿠폰별 발급 이력을 최근순으로 반환하고 개인정보를 마스킹한다")
     void getIssuesByCouponId_success() {
         given(couponRepository.existsById(10L)).willReturn(true);
 
@@ -47,13 +55,25 @@ class CouponIssueHistoryServiceTest {
         given(couponIssueRepository.findByCouponIdOrderByIssuedAtDesc(10L))
                 .willReturn(List.of(issue2, issue1));
 
+        User user1 = User.builder().email("hong@example.com").name("홍길동").phone("010-1234-5678").build();
+        ReflectionTestUtils.setField(user1, "id", 1L);
+        User user2 = User.builder().email("kim@example.com").name("김철수").phone("010-9999-8888").build();
+        ReflectionTestUtils.setField(user2, "id", 2L);
+        given(userRepository.findAllById(anyList())).willReturn(List.of(user1, user2));
+
         List<CouponIssueHistoryResponse> result = couponIssueService.getIssuesByCouponId(10L);
 
         assertThat(result).hasSize(2);
         assertThat(result.get(0).issueId()).isEqualTo(101L);
         assertThat(result.get(0).userId()).isEqualTo(2L);
         assertThat(result.get(0).status()).isEqualTo(CouponIssueStatus.ISSUED);
+        assertThat(result.get(0).userName()).isEqualTo("김**");
+        assertThat(result.get(0).userEmail()).isEqualTo("k***@example.com");
+        assertThat(result.get(0).userEmail()).doesNotContain("kim@");
         assertThat(result.get(1).userId()).isEqualTo(1L);
+        assertThat(result.get(1).userName()).isEqualTo("홍**");
+        assertThat(result.get(1).userEmail()).isEqualTo("h***@example.com");
+        assertThat(result.get(1).userEmail()).doesNotContain("hong@");
     }
 
     @Test
@@ -67,6 +87,7 @@ class CouponIssueHistoryServiceTest {
                 .isEqualTo(CouponErrorCode.COUPON_NOT_FOUND);
 
         verify(couponIssueRepository, never()).findByCouponIdOrderByIssuedAtDesc(99L);
+        verify(userRepository, never()).findAllById(anyList());
     }
 
     @Test
@@ -76,5 +97,6 @@ class CouponIssueHistoryServiceTest {
         given(couponIssueRepository.findByCouponIdOrderByIssuedAtDesc(10L)).willReturn(List.of());
 
         assertThat(couponIssueService.getIssuesByCouponId(10L)).isEmpty();
+        verify(userRepository, never()).findAllById(anyList());
     }
 }

@@ -20,7 +20,10 @@ import com.mycom.myapp.team5.domain.couponissue.dto.CouponIssueHistoryResponse;
 import com.mycom.myapp.team5.domain.couponissue.dto.MyCouponResponse;
 import com.mycom.myapp.team5.domain.couponissue.entity.CouponIssue;
 import com.mycom.myapp.team5.domain.couponissue.repository.CouponIssueRepository;
+import com.mycom.myapp.team5.domain.user.entity.User;
+import com.mycom.myapp.team5.domain.user.repository.UserRepository;
 import com.mycom.myapp.team5.global.common.enums.CouponIssueStatus;
+import com.mycom.myapp.team5.global.common.util.MaskingUtils;
 import com.mycom.myapp.team5.global.redis.CouponStockRedisService;
 
 import lombok.RequiredArgsConstructor;
@@ -31,6 +34,7 @@ public class CouponIssueServiceImpl implements CouponIssueService {
 
 	private final CouponIssueRepository couponIssueRepository;
 	private final CouponRepository couponRepository;
+	private final UserRepository userRepository;
 	private final CouponStockRedisService couponStockRedisService;
 
 	@Override
@@ -90,7 +94,14 @@ public class CouponIssueServiceImpl implements CouponIssueService {
 		if (!couponRepository.existsById(couponId)) {
 			throw new CouponException(CouponErrorCode.COUPON_NOT_FOUND);
 		}
-		return couponIssueRepository.findByCouponIdOrderByIssuedAtDesc(couponId).stream().map(CouponIssueHistoryResponse::from).toList();
+		List<CouponIssue> issues = couponIssueRepository.findByCouponIdOrderByIssuedAtDesc(couponId);
+		if (issues.isEmpty()) {
+			return List.of();
+		}
+		// N+1 방지: 이력의 userId를 모아 users를 한 번에 조회한 뒤 마스킹 필드만 응답에 담는다
+		Map<Long, User> userMap = userRepository.findAllById(issues.stream().map(CouponIssue::getUserId).distinct().toList()).stream()
+				.collect(Collectors.toMap(User::getId, Function.identity()));
+		return issues.stream().map(issue -> CouponIssueHistoryResponse.from(issue, userMap.get(issue.getUserId()))).toList();
 	}
 
 	@Override
@@ -114,13 +125,18 @@ public class CouponIssueServiceImpl implements CouponIssueService {
 		List<Long> successUserIds = logEntries.stream().filter(e -> "SUCCESS".equals(e.outcome())).map(CouponStockRedisService.FairnessLogEntry::userId).toList();
 		Map<Long, CouponIssue> issueByUserId = successUserIds.isEmpty() ? Map.of() : couponIssueRepository.findByCouponIdAndUserIdIn(couponId, successUserIds).stream().collect(Collectors.toMap(CouponIssue::getUserId, Function.identity()));
 
+		// 타임라인 표시용 마스킹 이름/이메일 — 페이지의 모든 userId를 한 번에 조회
+		Map<Long, User> userMap = userRepository.findAllById(logEntries.stream().map(CouponStockRedisService.FairnessLogEntry::userId).distinct().toList()).stream()
+				.collect(Collectors.toMap(User::getId, Function.identity()));
+
 		List<CouponFairnessTimelineEntry> result = new ArrayList<>(logEntries.size());
 		for (CouponStockRedisService.FairnessLogEntry entry : logEntries) {
 			CouponIssue issue = issueByUserId.get(entry.userId());
+			User user = userMap.get(entry.userId());
 			boolean hasTimings = entry.controllerEnteredAtMs() != null && entry.gateEnteredAtMs() != null && entry.redisTimeMicros() != null;
 			result.add(new CouponFairnessTimelineEntry(entry.rank(), entry.userId(), entry.outcome(), issue != null ? issue.getStatus() : null, issue != null ? issue.getIssuedAt() : null, hasTimings ? entry.controllerEnteredAtMs() : null, hasTimings ? entry.gateEnteredAtMs() : null, hasTimings ? entry.redisTimeMicros() : null, // 변경 - redisTimeMs() → redisTimeMicros()
-					hasTimings ? entry.gateEnteredAtMs() - entry.controllerEnteredAtMs() : null, hasTimings ? (entry.redisTimeMicros() / 1000) - entry.gateEnteredAtMs() : null // 변경 - µs→ms 환산 후 차감
-			));
+					hasTimings ? entry.gateEnteredAtMs() - entry.controllerEnteredAtMs() : null, hasTimings ? (entry.redisTimeMicros() / 1000) - entry.gateEnteredAtMs() : null, // 변경 - µs→ms 환산 후 차감
+					user == null ? null : MaskingUtils.maskName(user.getName()), user == null ? null : MaskingUtils.maskEmail(user.getEmail())));
 		}
 
 		return new CouponFairnessTimelinePage(result, safePage, size, totalElements, totalPages);
