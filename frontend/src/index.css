@@ -1570,8 +1570,9 @@ body {
   flex: 1 1 auto;
 }
 
-/* 발급 로그 - rank(순번), Redis처리 시각처럼 신뢰 가능한(증명된) 값임을 강조 */
-.history-cell-highlight {
+/* 발급 로그 - rank(순번), Redis처리 시각처럼 신뢰 가능한(증명된) 값임을 강조.
+   .history-table td보다 선택자를 구체적으로 만들어야 color가 실제로 적용된다. */
+.history-table td.history-cell-highlight {
   color: #2563eb;
   font-weight: 700;
 }
