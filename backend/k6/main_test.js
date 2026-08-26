@@ -9,8 +9,9 @@
 //   동시접속     MAX_VUS        (기본 50)   본 규모는 요청 수와 같게(예: 20000)
 //   요청 배수    REQUEST_RATIO  (기본 2)    요청 유저 수 = 재고 × 이 값
 //                                             1 → 재고와 딱 맞음(전원 성공이 정상) / 10 → 극한 경쟁
-//   유입 방식    ARRIVAL        (기본 burst) burst = 한꺼번에(오픈 직후) / even = DURATION초에 걸쳐
-//   유입 시간    DURATION       (기본 10)   ARRIVAL=even 일 때만
+//   유입 방식    ARRIVAL        (기본 burst) burst = 한꺼번에(오픈 직후) / even = DURATION초에 걸쳐 균등
+//                                             ramp = DURATION초에 걸쳐 0부터 선형 증가 (평가 조건)
+//   유입 시간    DURATION       (burst 외)  even이면 유입 시간, ramp면 램프업 시간. ramp 기본값은 60
 //   연타 비율    SPAM_RATIO     (기본 0)    0.3 = 유저의 30%가 연타
 //   연타 횟수    SPAM_CLICKS    (기본 3)    SPAM_RATIO > 0 일 때만
 //
@@ -34,7 +35,8 @@ const STOCK = Number(__ENV.STOCK || 20);
 const REQUEST_RATIO = Number(__ENV.REQUEST_RATIO || 2);
 const MAX_VUS = Number(__ENV.MAX_VUS || 50);
 const ARRIVAL = __ENV.ARRIVAL || 'burst';
-const DURATION = Number(__ENV.DURATION || 10);
+// ramp는 평가 조건(ramp-up 60s)에 맞춰 기본값이 다르다.
+const DURATION = Number(__ENV.DURATION || (__ENV.ARRIVAL === 'ramp' ? 60 : 10));
 const SPAM_RATIO = Number(__ENV.SPAM_RATIO || 0);
 const SPAM_CLICKS = Number(__ENV.SPAM_CLICKS || 3);
 const USER_COUNT = Number(__ENV.USER_COUNT || 1_000_000);
@@ -49,8 +51,25 @@ const notOpen    = new Counter('issue_not_open');     // 400 CP002
 const duplicate  = new Counter('issue_duplicate');    // 409 CI001 (1인 1매 거부)
 const unexpected = new Counter('issue_unexpected');
 
-export const options = {
-  scenarios: ARRIVAL === 'even'
+// 0에서 peak까지 DURATION초 동안 선형으로 올리면 그 아래 면적(=총 도착 건수)이 peak*DURATION/2다.
+// 그래서 peak를 이렇게 잡으면 램프업이 끝나는 순간 정확히 ITERATIONS명이 들어와 있다 -
+// "테스트 유저 20,000명 / ramp-up 60s"를 두 조건 다 만족시키는 유일한 방법이다.
+const RAMP_PEAK_RATE = Math.max(1, Math.ceil((2 * ITERATIONS) / DURATION));
+
+function scenario() {
+  if (ARRIVAL === 'ramp') {
+    return {
+      ramp_arrival: {
+        executor: 'ramping-arrival-rate',
+        startRate: 0,
+        timeUnit: '1s',
+        stages: [{ duration: `${DURATION}s`, target: RAMP_PEAK_RATE }],
+        preAllocatedVUs: Math.min(ITERATIONS, MAX_VUS),
+        maxVUs: MAX_VUS,
+      },
+    };
+  }
+  return ARRIVAL === 'even'
     ? {
         // rate를 올림하므로 총 요청이 ITERATIONS보다 약간 많을 수 있다 - 넘치는 건 전부 품절로
         // 잡히므로 "성공 == 재고" 판정에는 영향이 없다.
@@ -71,7 +90,11 @@ export const options = {
           iterations: ITERATIONS,
           maxDuration: __ENV.MAX_DURATION || '2m',
         },
-      },
+      };
+}
+
+export const options = {
+  scenarios: scenario(),
 };
 
 function classify(res) {
@@ -114,7 +137,9 @@ export function teardown() {
   console.log('');
   console.log('== 실행 조건 ==');
   console.log(`  재고 ${STOCK} · 요청배수 ×${REQUEST_RATIO} (유저 ${ITERATIONS}명) · 동시접속 최대 ${MAX_VUS}`);
-  console.log(`  유입 방식 ${ARRIVAL}${ARRIVAL === 'even' ? ` (${DURATION}초에 걸쳐)` : ' (최대한 빨리)'}`);
+  const arrivalDesc = ARRIVAL === 'ramp' ? ` (${DURATION}초 램프업, 0 -> ${RAMP_PEAK_RATE}/s 선형 증가)`
+    : ARRIVAL === 'even' ? ` (${DURATION}초에 걸쳐 균등)` : ' (최대한 빨리)';
+  console.log(`  유입 방식 ${ARRIVAL}${arrivalDesc}`);
   console.log(`  연타 ${SPAM_RATIO > 0 ? `유저의 ${SPAM_RATIO * 100}%가 ${SPAM_CLICKS}회씩 동시 클릭` : '없음 (전원 1회)'}`);
   console.log('');
   console.log('== 판정 기준 ==');

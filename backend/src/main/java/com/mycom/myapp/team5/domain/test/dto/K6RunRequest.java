@@ -27,11 +27,11 @@ public record K6RunRequest(
         @Positive(message = "요청 배수는 1 이상")
         Integer requestRatio,
 
-        /** burst = 최대한 빨리 몰아넣기 / even = duration 초에 걸쳐 균등 유입 */
-        @Pattern(regexp = "burst|even", message = "유입 방식은 burst 또는 even")
+        /** burst = 최대한 빨리 / even = duration 초에 걸쳐 균등 / ramp = duration 초에 걸쳐 선형 증가(평가 조건) */
+        @Pattern(regexp = "burst|even|ramp", message = "유입 방식은 burst, even, ramp 중 하나")
         String arrival,
 
-        /** arrival=even 일 때 유입 시간(초) */
+        /** arrival이 even이면 유입 시간(초), ramp면 램프업 시간(초). ramp 기본값은 스크립트 쪽 60. */
         @Positive(message = "유입 시간은 1초 이상")
         Integer duration,
 
