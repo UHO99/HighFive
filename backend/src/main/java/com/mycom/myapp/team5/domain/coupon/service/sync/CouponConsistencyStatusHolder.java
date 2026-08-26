@@ -109,11 +109,13 @@ public class CouponConsistencyStatusHolder {
                 if (existing == null || existing.isResolved()) {
                     mismatchHistory.put(report.couponId(), new MismatchEvent(
                             report.couponId(), now, null,
-                            report.recordedIssuedQuantity(), report.actualIssuedCount(), report.pendingCount()
+                            report.recordedIssuedQuantity(), report.actualIssuedCount(), report.pendingCount(),
+                            report.totalQuantity()
                     ));
                 } else {
                     mismatchHistory.put(report.couponId(), existing.withLatestSnapshot(
-                            report.recordedIssuedQuantity(), report.actualIssuedCount(), report.pendingCount()
+                            report.recordedIssuedQuantity(), report.actualIssuedCount(), report.pendingCount(),
+                            report.totalQuantity()
                     ));
                 }
             }
