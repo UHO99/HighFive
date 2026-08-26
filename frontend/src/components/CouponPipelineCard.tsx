@@ -17,12 +17,6 @@ function formatDelta(before: number, after: number): string {
   return d > 0 ? `+${FMT.format(d)}` : FMT.format(d);
 }
 
-const BEFORE_AFTER_ROWS: { key: "userCount" | "couponCount" | "couponIssueCount"; label: string }[] = [
-  { key: "userCount", label: "회원" },
-  { key: "couponCount", label: "쿠폰" },
-  { key: "couponIssueCount", label: "발급 이력" },
-];
-
 function ArrowIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
@@ -47,8 +41,7 @@ function FlowArrow({ label }: FlowArrowProps) {
 
 /**
  * 재고·Redis / DB 저장 카드를 하나로 합친 "발급 파이프라인" 카드 - Lua 원자 발급 -> Stream 적재 ->
- * Flush 배치 묶기 -> DB Batch Insert 4단계를 노드+화살표로 이어 보여준다. 두 카드가 실은 같은 파이프라인의
- * 앞/뒷단이라는 인과관계가 나란히 떨어진 카드로는 안 보인다는 피드백에서 나온 통합 카드.
+ * Flush 배치 묶기 -> DB Batch Insert 4단계를 노드+화살표로 이어 보여준다.
  */
 export function CouponPipelineCard({ vals, onDrainPending, dummyDataCounts, beforeCounts }: Props) {
   return (
@@ -120,7 +113,7 @@ export function CouponPipelineCard({ vals, onDrainPending, dummyDataCounts, befo
         </div>
       </div>
 
-      <span className="section-label">더미데이터 적재 현황 · Before / After</span>
+      <span className="section-label">더미데이터 적재 결과</span>
       {dummyDataCounts === null ? (
         <span className="tile-label-md">기록 없음</span>
       ) : (
@@ -129,26 +122,59 @@ export function CouponPipelineCard({ vals, onDrainPending, dummyDataCounts, befo
             <thead>
               <tr>
                 <th>구분</th>
-                <th>BEFORE 적재 전</th>
-                <th>AFTER 적재 후</th>
-                <th>델타</th>
+                <th>적재 수량</th>
+                <th>소요 시간</th>
               </tr>
             </thead>
             <tbody>
-              {BEFORE_AFTER_ROWS.map(({ key, label }) => {
-                const after = dummyDataCounts[key];
-                const before = beforeCounts?.[key];
-                return (
-                  <tr key={key}>
-                    <td className="ba-row-label">{label}</td>
-                    <td>{before == null ? "-" : FMT.format(before)}</td>
-                    <td>{FMT.format(after)}</td>
-                    <td className={before != null && after > before ? "ba-delta-pos" : undefined}>
-                      {before == null ? "-" : formatDelta(before, after)}
-                    </td>
-                  </tr>
-                );
-              })}
+              <tr>
+                <td className="ba-row-label">회원</td>
+                <td>{FMT.format(dummyDataCounts.userCount)}</td>
+                <td>{dummyDataCounts.userLoadMs == null ? "-" : `${FMT.format(dummyDataCounts.userLoadMs)}ms`}</td>
+              </tr>
+              <tr>
+                <td className="ba-row-label">쿠폰</td>
+                <td>{FMT.format(dummyDataCounts.couponCount)}</td>
+                <td>-</td>
+              </tr>
+              <tr>
+                <td className="ba-row-label">발급 이력</td>
+                <td>{FMT.format(dummyDataCounts.couponIssueCount)}</td>
+                <td>{dummyDataCounts.couponIssueLoadMs == null ? "-" : `${FMT.format(dummyDataCounts.couponIssueLoadMs)}ms`}</td>
+              </tr>
+              <tr>
+                <td className="ba-row-label">전체</td>
+                <td>-</td>
+                <td>{dummyDataCounts.totalMs == null ? "-" : `${FMT.format(dummyDataCounts.totalMs)}ms`}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <span className="section-label">발급 수 현황 (가제)</span>
+      {dummyDataCounts === null || beforeCounts === null ? (
+        <span className="tile-label-md">적재 기록 없음</span>
+      ) : (
+        <div className="ba-table-wrap">
+          <table className="ba-table">
+            <thead>
+              <tr>
+                <th>구분</th>
+                <th>적재 직후</th>
+                <th>현재</th>
+                <th>증가분</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td className="ba-row-label">발급 이력</td>
+                <td>{FMT.format(beforeCounts.couponIssueCount)}</td>
+                <td>{FMT.format(dummyDataCounts.couponIssueCount)}</td>
+                <td className={dummyDataCounts.couponIssueCount > beforeCounts.couponIssueCount ? "ba-delta-pos" : undefined}>
+                  {formatDelta(beforeCounts.couponIssueCount, dummyDataCounts.couponIssueCount)}
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
