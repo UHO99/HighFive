@@ -172,11 +172,9 @@ public class CouponStockRedisService {
 			for (String entry : entries) {
 				String[] parts = entry.split(":", 6); // 3 → 6으로 변경
 				String outcome = parts[2];
-
+				total++; // 변경 - DUPLICATE도 "총 발급 요청" 기준에 맞춰 전체 시도에 포함
 				if ("DUPLICATE".equals(outcome))
 					continue;
-
-				total++;
 				if ("SOLDOUT".equals(outcome)) {
 					sawFailureBoundary = true;
 				}
