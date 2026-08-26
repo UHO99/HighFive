@@ -922,6 +922,11 @@ body {
   gap: 12px;
 }
 
+.scale-input-row .form-field {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
 .form-field {
   display: flex;
   flex-direction: column;
