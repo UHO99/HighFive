@@ -106,6 +106,7 @@ export interface MismatchHistoryEntry {
   recordedIssuedQuantity: number | null;
   actualIssuedCount: number;
   pendingCount: number;
+  totalQuantity: number;
 }
 
 /** S012가 실제로 issuedQuantity를 써넣은(=드레인 완료 후 동기화된) 순간의 로그 한 줄. */
@@ -361,6 +362,8 @@ export interface K6ScenarioDto {
   file: string;
   name: string;
   description: string;
+  /** 값 기준 안내 - 설명 아래에 목록으로 표시한다. */
+  guides: string[];
   rampUp: string;
   hold: string;
   targetVus: string;
@@ -375,7 +378,7 @@ export interface K6RunOptions {
   stock?: number;
   maxVus?: number;
   requestRatio?: number;
-  arrival?: "burst" | "even";
+  arrival?: "burst" | "even" | "ramp";
   duration?: number;
   spamRatio?: number;
   spamClicks?: number;

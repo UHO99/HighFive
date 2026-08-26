@@ -68,7 +68,8 @@ public class CouponStockValidationService {
         long pendingCount = pendingChecker.pendingCount(coupon.getId());
 
         CouponMismatchReport report = new CouponMismatchReport(
-                coupon.getId(), coupon.getIssuedQuantity(), actualIssuedCount, pendingCount
+                coupon.getId(), coupon.getIssuedQuantity(), actualIssuedCount, pendingCount,
+                coupon.getTotalQuantity()
         );
 
         if (report.isMismatch()) {
