@@ -7,6 +7,7 @@ import { CouponStatusCard } from "../components/CouponStatusCard";
 import { CouponPipelineCard } from "../components/CouponPipelineCard";
 import { CouponIssueHistoryCard } from "../components/CouponIssueHistoryCard";
 import { ConsistencyStatusCard } from "../components/ConsistencyStatusCard";
+import { CouponHistoryDialog } from "../components/CouponHistoryDialog";
 import { FloatingActionMenu } from "../components/FloatingActionMenu";
 import { useMonitoringDashboard } from "../hooks/useMonitoringDashboard";
 import {
@@ -27,7 +28,8 @@ type ReloadTiming = Pick<DummyDataCounts, "userLoadMs" | "couponIssueLoadMs" | "
 export function DashboardPage() {
   const [coupons, setCoupons] = useState<CouponSummary[]>([]);
   const [couponId, setCouponId] = useState(DEFAULT_COUPON_ID);
-  const { vals, startTest, stopTest, error, couponMissing } = useMonitoringDashboard(couponId);
+  const { vals, startTest, stopTest, refresh, refreshing, error, couponMissing } = useMonitoringDashboard(couponId);
+  const [couponHistoryDialogOpen, setCouponHistoryDialogOpen] = useState(false);
   const [dbCounts, setDbCounts] = useState<DbCounts | null>(null);
   // 재적재 시점의 소요시간은 폴링으로 안 지워진다 - GET counts는 이 값을 모르니(null) 마지막으로
   // 성공한 재적재 값을 그대로 들고 있는다.
@@ -216,7 +218,10 @@ export function DashboardPage() {
 
   return (
     <div className="app-shell">
-      <Sidebar />
+      <Sidebar
+        couponHistoryDisabled={!dataReady}
+        onOpenCouponHistory={() => setCouponHistoryDialogOpen(true)}
+      />
 
       <div className="main">
         <DashboardHeader
@@ -255,6 +260,8 @@ export function DashboardPage() {
         couponId={couponId}
         dataReady={dataReady}
         dataLoading={dummyStatus.loading}
+        onRefresh={refresh}
+        refreshing={refreshing}
         onStartTest={handleStartTest}
         onStopTest={handleStopTest}
         onLoadData={handleLoadData}
@@ -263,6 +270,13 @@ export function DashboardPage() {
         onCouponOpened={handleCouponOpened}
         onCouponClosed={handleCouponClosed}
       />
+
+      {couponHistoryDialogOpen && (
+        <CouponHistoryDialog
+          couponId={couponId}
+          onClose={() => setCouponHistoryDialogOpen(false)}
+        />
+      )}
     </div>
   );
 }

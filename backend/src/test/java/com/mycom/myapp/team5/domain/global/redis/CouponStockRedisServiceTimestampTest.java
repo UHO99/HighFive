@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
+import com.mycom.myapp.team5.domain.couponissue.dto.CouponFairnessOutcomeFilter;
 import com.mycom.myapp.team5.global.redis.CouponStockKeys;
 import com.mycom.myapp.team5.global.redis.CouponStockRedisService;
 
@@ -33,6 +34,10 @@ public class CouponStockRedisServiceTimestampTest {
 		stringRedisTemplate.delete(CouponStockKeys.issuedSetKey(COUPON_ID));
 		stringRedisTemplate.delete(CouponStockKeys.fairnessSeqKey(COUPON_ID));
 		stringRedisTemplate.delete(CouponStockKeys.fairnessLogKey(COUPON_ID));
+		stringRedisTemplate.delete(CouponStockKeys.fairnessLogSuccessKey(COUPON_ID));
+		stringRedisTemplate.delete(CouponStockKeys.fairnessLogSoldoutKey(COUPON_ID));
+		stringRedisTemplate.delete(CouponStockKeys.fairnessLogDuplicateKey(COUPON_ID));
+		stringRedisTemplate.delete(CouponStockKeys.fairnessLogFailureKey(COUPON_ID));
 	}
 
 	@Test
@@ -117,5 +122,37 @@ public class CouponStockRedisServiceTimestampTest {
 
 		// 마이크로초까지 내려가면, 밀리초 단위에서는 뭉쳐 보이던 것도 서로 구분될 가능성이 높다
 		assertThat(distinctMicroTimes).isGreaterThan(1);
+	}
+
+	@Test
+	void outcome_필터별_ZSET이_발급_시도_시점에_함께_채워진다() {
+		// given - 재고 1개: userId=1은 성공, userId=2는 재고 소진, userId=1 재시도는 중복
+		couponStockRedisService.initStock(COUPON_ID, 1);
+		long now = System.currentTimeMillis();
+
+		// when
+		couponStockRedisService.issue(COUPON_ID, 1L, now, now); // SUCCESS
+		try {
+			couponStockRedisService.issue(COUPON_ID, 2L, now, now); // SOLDOUT
+		} catch (Exception ignored) {
+		}
+		try {
+			couponStockRedisService.issue(COUPON_ID, 1L, now, now); // DUPLICATE
+		} catch (Exception ignored) {
+		}
+
+		// then
+		assertThat(couponStockRedisService.fairnessLogCount(COUPON_ID, CouponFairnessOutcomeFilter.ALL)).isEqualTo(3);
+		assertThat(couponStockRedisService.fairnessLogCount(COUPON_ID, CouponFairnessOutcomeFilter.SUCCESS)).isEqualTo(1);
+		assertThat(couponStockRedisService.fairnessLogCount(COUPON_ID, CouponFairnessOutcomeFilter.SOLDOUT)).isEqualTo(1);
+		assertThat(couponStockRedisService.fairnessLogCount(COUPON_ID, CouponFairnessOutcomeFilter.DUPLICATE)).isEqualTo(1);
+		assertThat(couponStockRedisService.fairnessLogCount(COUPON_ID, CouponFairnessOutcomeFilter.FAILURE)).isEqualTo(2);
+
+		assertThat(couponStockRedisService.fairnessLogPage(COUPON_ID, 0, 10, CouponFairnessOutcomeFilter.SUCCESS))
+				.extracting(CouponStockRedisService.FairnessLogEntry::outcome)
+				.containsOnly("SUCCESS");
+		assertThat(couponStockRedisService.fairnessLogPage(COUPON_ID, 0, 10, CouponFairnessOutcomeFilter.FAILURE))
+				.extracting(CouponStockRedisService.FairnessLogEntry::outcome)
+				.containsExactlyInAnyOrder("SOLDOUT", "DUPLICATE");
 	}
 }

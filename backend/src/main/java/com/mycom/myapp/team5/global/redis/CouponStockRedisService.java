@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import com.mycom.myapp.team5.domain.coupon.dto.CouponFairnessReport;
 import com.mycom.myapp.team5.domain.coupon.exception.CouponErrorCode;
 import com.mycom.myapp.team5.domain.coupon.exception.CouponException;
+import com.mycom.myapp.team5.domain.couponissue.dto.CouponFairnessOutcomeFilter;
 
 import lombok.RequiredArgsConstructor;
 
@@ -21,15 +22,22 @@ public class CouponStockRedisService {
 
 	// 반환값: 1 = 발급 성공, 0 = 품절, -1 = 이미 발급됨(중복), -2 = 재고 미적재(쿠폰 오픈 안 됨)
 	// 기록 형식: "{순번}:{userId}:{결과}:{Redis처리시각µs}:{게이트진입시각ms}:{컨트롤러진입시각ms}"
-	private static final String ISSUE_SCRIPT = "local function record(result) " + //
+	// KEYS[4]는 전체 로그(ALL), KEYS[5]/[6]/[7]은 outcome별 색인(SUCCESS/SOLDOUT/DUPLICATE),
+	// KEYS[8]은 실패 통합 색인(FAILURE = SOLDOUT ∪ DUPLICATE)
+	private static final String ISSUE_SCRIPT = "local function record(result, outcomeKey) " + //
 			"  local seq = redis.call('incr', KEYS[3]) " + //
 			"  local t = redis.call('TIME') " + //
 			"  local redisTimeMicros = tonumber(t[1]) * 1000000 + tonumber(t[2]) " + //
 			"  local redisTimeStr = string.format('%.0f', redisTimeMicros) " + //  추가 - 지수표기 방지
-			"  redis.call('zadd', KEYS[4], seq, seq .. ':' .. ARGV[1] .. ':' .. result .. ':' .. redisTimeStr .. ':' .. ARGV[2] .. ':' .. ARGV[3]) " + //  변경
+			"  local member = seq .. ':' .. ARGV[1] .. ':' .. result .. ':' .. redisTimeStr .. ':' .. ARGV[2] .. ':' .. ARGV[3] " + //
+			"  redis.call('zadd', KEYS[4], seq, member) " + //
+			"  redis.call('zadd', outcomeKey, seq, member) " + //
+			"  if result ~= 'SUCCESS' then " + //
+			"    redis.call('zadd', KEYS[8], seq, member) " + //
+			"  end " + //
 			"end " + //
 			"if redis.call('sismember', KEYS[2], ARGV[1]) == 1 then " + //
-			"  record('DUPLICATE') " + //
+			"  record('DUPLICATE', KEYS[7]) " + //
 			"  return -1 " + //
 			"end " + //
 			"local stock = tonumber(redis.call('get', KEYS[1])) " + //
@@ -37,12 +45,12 @@ public class CouponStockRedisService {
 			"  return -2 " + //
 			"end " + //
 			"if stock <= 0 then " + //
-			"  record('SOLDOUT') " + //
+			"  record('SOLDOUT', KEYS[6]) " + //
 			"  return 0 " + //
 			"end " + //
 			"redis.call('decr', KEYS[1]) " + //
 			"redis.call('sadd', KEYS[2], ARGV[1]) " + //
-			"record('SUCCESS') " + //
+			"record('SUCCESS', KEYS[5]) " + //
 			"return 1";
 
 	private static final DefaultRedisScript<Long> ISSUE = new DefaultRedisScript<>(ISSUE_SCRIPT, Long.class);
@@ -75,7 +83,11 @@ public class CouponStockRedisService {
 				CouponStockKeys.stockKey(couponId), //
 				CouponStockKeys.issuedSetKey(couponId), //
 				CouponStockKeys.fairnessSeqKey(couponId), //
-				CouponStockKeys.fairnessLogKey(couponId));
+				CouponStockKeys.fairnessLogKey(couponId), //
+				CouponStockKeys.fairnessLogSuccessKey(couponId), //
+				CouponStockKeys.fairnessLogSoldoutKey(couponId), //
+				CouponStockKeys.fairnessLogDuplicateKey(couponId), //
+				CouponStockKeys.fairnessLogFailureKey(couponId));
 
 		Long result = redisTemplate.execute(ISSUE, keys, String.valueOf(userId), String.valueOf(gateEnteredAtMs), String.valueOf(controllerEnteredAtMs));
 		long code = result == null ? -2 : result;
@@ -98,6 +110,10 @@ public class CouponStockRedisService {
 	public void resetFairnessLog(long couponId) {
 		redisTemplate.delete(CouponStockKeys.fairnessSeqKey(couponId));
 		redisTemplate.delete(CouponStockKeys.fairnessLogKey(couponId));
+		redisTemplate.delete(CouponStockKeys.fairnessLogSuccessKey(couponId));
+		redisTemplate.delete(CouponStockKeys.fairnessLogSoldoutKey(couponId));
+		redisTemplate.delete(CouponStockKeys.fairnessLogDuplicateKey(couponId));
+		redisTemplate.delete(CouponStockKeys.fairnessLogFailureKey(couponId));
 	}
 
 	/**
@@ -106,24 +122,42 @@ public class CouponStockRedisService {
 	public record FairnessLogEntry(long rank, long userId, String outcome, Long redisTimeMicros, Long gateEnteredAtMs, Long controllerEnteredAtMs) {
 	}
 
-	/** rank는 fairnessSeqKey로 매겨지는 빈틈없는 연속 정수라, ZSET 인덱스 구간(offset~offset+size-1)이 곧 페이지 번호에 대응한다. */
+	private String fairnessLogKeyFor(long couponId, CouponFairnessOutcomeFilter filter) {
+		return switch (filter) {
+			case ALL -> CouponStockKeys.fairnessLogKey(couponId);
+			case SUCCESS -> CouponStockKeys.fairnessLogSuccessKey(couponId);
+			case SOLDOUT -> CouponStockKeys.fairnessLogSoldoutKey(couponId);
+			case DUPLICATE -> CouponStockKeys.fairnessLogDuplicateKey(couponId);
+			case FAILURE -> CouponStockKeys.fairnessLogFailureKey(couponId);
+		};
+	}
+
 	public List<FairnessLogEntry> fairnessLogPage(long couponId, long offset, int size) {
+		return fairnessLogPage(couponId, offset, size, CouponFairnessOutcomeFilter.ALL);
+	}
+
+	/** rank는 fairnessSeqKey로 매겨지는 빈틈없는 연속 정수라, ZSET 인덱스 구간(offset~offset+size-1)이 곧 페이지 번호에 대응한다. */
+	public List<FairnessLogEntry> fairnessLogPage(long couponId, long offset, int size, CouponFairnessOutcomeFilter filter) {
 		if (size <= 0) {
 			return List.of();
 		}
-		Set<String> raw = redisTemplate.opsForZSet().range(CouponStockKeys.fairnessLogKey(couponId), offset, offset + size - 1);
+		Set<String> raw = redisTemplate.opsForZSet().range(fairnessLogKeyFor(couponId, filter), offset, offset + size - 1);
 		if (raw == null) {
 			return List.of();
 		}
 		return raw.stream().map(entry -> {
 			String[] parts = entry.split(":", 6);
-			boolean hasTimings = parts.length >= 6; // 시각 기록 추가 전에 쌓인 레거시 항목은 3필드뿐이다
+			boolean hasTimings = parts.length >= 6;
 			return new FairnessLogEntry(Long.parseLong(parts[0]), Long.parseLong(parts[1]), parts[2], hasTimings ? Long.parseLong(parts[3]) : null, hasTimings ? Long.parseLong(parts[4]) : null, hasTimings ? Long.parseLong(parts[5]) : null);
 		}).toList();
 	}
 
 	public long fairnessLogCount(long couponId) {
-		Long size = redisTemplate.opsForZSet().zCard(CouponStockKeys.fairnessLogKey(couponId));
+		return fairnessLogCount(couponId, CouponFairnessOutcomeFilter.ALL);
+	}
+
+	public long fairnessLogCount(long couponId, CouponFairnessOutcomeFilter filter) {
+		Long size = redisTemplate.opsForZSet().zCard(fairnessLogKeyFor(couponId, filter));
 		return size == null ? 0 : size;
 	}
 
