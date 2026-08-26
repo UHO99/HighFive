@@ -917,9 +917,18 @@ body {
 
 /* ---------- scenario dialog ---------- */
 
+/* 칸이 2개일 땐 반반, 3개가 되면 셋째가 다음 줄로 내려간다 - flex 한 줄로 두면 폭을 넘겨 삐져나온다.
+   minmax(0,1fr)이라야 긴 라벨이 칸을 밀어내지 않는다. */
 .scale-input-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+  align-items: start;
+}
+
+/* 조건부로 나타나는 하위 값(연타 횟수 등)을 부모 칸과 같은 오른쪽 열에 붙인다. */
+.form-field-under-right {
+  grid-column: 2;
 }
 
 .scale-input-row .form-field {
@@ -1123,6 +1132,17 @@ body {
 .scenario-description {
   font: 400 12px/1.5 "Inter", sans-serif;
   color: #5b5f72;
+}
+
+/* 설명(줄글) 아래 붙는 값 기준 목록 - 실행 전에 무엇을 얼마로 둘지 한눈에 훑는 용도. */
+.scenario-guides {
+  margin: 0;
+  padding-left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font: 400 11.5px/1.5 "Inter", sans-serif;
+  color: #6b7085;
 }
 
 .scenario-meta {

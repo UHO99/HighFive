@@ -20,12 +20,15 @@ export function ScenarioDialog({ coupons, defaultCouponId, onCancel, onConfirm }
   const [maxVusInput, setMaxVusInput] = useState(50);
   // advanced 시나리오(main_test.js) 전용 - 기본값은 스크립트 기본값과 맞춰둔다.
   const [requestRatioInput, setRequestRatioInput] = useState(2);
-  const [arrivalInput, setArrivalInput] = useState<"burst" | "even">("burst");
-  const [durationInput, setDurationInput] = useState(10);
+  // 기본값은 평가 조건(유저 20,000명 / 램프업 60초)에 맞춰둔다 - 별도로 안 건드려도 그 조건으로 돌아간다.
+  const [arrivalInput, setArrivalInput] = useState<"burst" | "even" | "ramp">("ramp");
+  const [durationInput, setDurationInput] = useState(60);
   const [spamRatioInput, setSpamRatioInput] = useState(0);
   const [spamClicksInput, setSpamClicksInput] = useState(3);
 
   const selectedScenario = scenarios.find((s) => s.id === selectedId);
+  // burst만 VU 수가 곧 부하다. even/ramp는 도착량으로 부하를 정하므로 이 값은 상한 역할만 한다.
+  const vusIsCap = selectedScenario?.advanced === true && arrivalInput !== "burst";
   // 재고는 사용자가 또 입력할 값이 아니다 - 이미 선택한 쿠폰의 실제 재고를 그대로 쓴다.
   // k6 스크립트에서 STOCK은 "쿠폰 재고를 설정"하는 게 아니라 "요청을 몇 번 보낼지"(STOCK×2) 계산용이라,
   // 실제 재고와 다른 값을 넣으면 결과가 왜곡된다(둘이 따로 놀면 안 됨).
@@ -99,6 +102,13 @@ export function ScenarioDialog({ coupons, defaultCouponId, onCancel, onConfirm }
                   <span className="scenario-file">{scenario.file}</span>
                 </div>
                 <span className="scenario-description">{scenario.description}</span>
+                {scenario.guides?.length > 0 && (
+                  <ul className="scenario-guides">
+                    {scenario.guides.map((g) => (
+                      <li key={g}>{g}</li>
+                    ))}
+                  </ul>
+                )}
                 <div className="scenario-meta">
                   <span>램프업 {scenario.rampUp}</span>
                   <span>유지 {scenario.hold}</span>
@@ -118,7 +128,7 @@ export function ScenarioDialog({ coupons, defaultCouponId, onCancel, onConfirm }
               </span>
             </div>
             <label className="form-field">
-              <span className="form-label">동시접속</span>
+              <span className="form-label">{vusIsCap ? "동시접속 상한" : "동시접속"}</span>
               <input
                 type="number"
                 min={1}
@@ -132,6 +142,8 @@ export function ScenarioDialog({ coupons, defaultCouponId, onCancel, onConfirm }
 
         {selectedScenario?.advanced && (
           <>
+            {/* 위 줄은 규모(몇 명이 몇 번 누르나), 아래 줄은 유입(언제 도착하나).
+                조건부로 나타나는 칸은 항상 오른쪽 열에 놓아 켜고 꺼도 왼쪽 칸이 안 흔들린다. */}
             <div className="scale-input-row">
               <label className="form-field">
                 <span className="form-label">요청 배수 (재고 × N명이 몰림)</span>
@@ -144,32 +156,6 @@ export function ScenarioDialog({ coupons, defaultCouponId, onCancel, onConfirm }
                 />
               </label>
               <label className="form-field">
-                <span className="form-label">유입 방식</span>
-                <select
-                  className="form-input"
-                  value={arrivalInput}
-                  onChange={(e) => setArrivalInput(e.target.value as "burst" | "even")}
-                >
-                  <option value="burst">한꺼번에 (오픈 직후)</option>
-                  <option value="even">시간에 걸쳐</option>
-                </select>
-              </label>
-              {arrivalInput === "even" && (
-                <label className="form-field">
-                  <span className="form-label">유입 시간(초)</span>
-                  <input
-                    type="number"
-                    min={1}
-                    className="form-input"
-                    value={durationInput}
-                    onChange={(e) => setDurationInput(Number(e.target.value))}
-                  />
-                </label>
-              )}
-            </div>
-
-            <div className="scale-input-row">
-              <label className="form-field">
                 <span className="form-label">연타 유저 비율 (0~1)</span>
                 <input
                   type="number"
@@ -181,8 +167,11 @@ export function ScenarioDialog({ coupons, defaultCouponId, onCancel, onConfirm }
                   onChange={(e) => setSpamRatioInput(Number(e.target.value))}
                 />
               </label>
-              {spamRatioInput > 0 && (
-                <label className="form-field">
+            </div>
+
+            {spamRatioInput > 0 && (
+              <div className="scale-input-row">
+                <label className="form-field form-field-under-right">
                   <span className="form-label">연타 횟수</span>
                   <input
                     type="number"
@@ -192,12 +181,41 @@ export function ScenarioDialog({ coupons, defaultCouponId, onCancel, onConfirm }
                     onChange={(e) => setSpamClicksInput(Number(e.target.value))}
                   />
                 </label>
+              </div>
+            )}
+
+            <div className="scale-input-row">
+              <label className="form-field">
+                <span className="form-label">유입 방식</span>
+                <select
+                  className="form-input"
+                  value={arrivalInput}
+                  onChange={(e) => {
+                    const next = e.target.value as "burst" | "even" | "ramp";
+                    setArrivalInput(next);
+                    // 평가 조건이 램프업 60초라, 모드를 바꾸면 그쪽 기본값으로 같이 옮겨준다.
+                    setDurationInput(next === "ramp" ? 60 : 10);
+                  }}
+                >
+                  {/* 평가 조건인 램프업이 기본이자 첫 번째 - 아래로 갈수록 같은 인원을 더 압축해서 던진다. */}
+                  <option value="ramp">램프업 (평가 조건)</option>
+                  <option value="even">시간에 걸쳐 (균등)</option>
+                  <option value="burst">한꺼번에 (오픈 직후)</option>
+                </select>
+              </label>
+              {arrivalInput !== "burst" && (
+                <label className="form-field">
+                  <span className="form-label">{arrivalInput === "ramp" ? "램프업 시간(초)" : "유입 시간(초)"}</span>
+                  <input
+                    type="number"
+                    min={1}
+                    className="form-input"
+                    value={durationInput}
+                    onChange={(e) => setDurationInput(Number(e.target.value))}
+                  />
+                </label>
               )}
             </div>
-            <span className="dialog-subtitle">
-              연타를 켜면 같은 유저가 동시에 여러 번 눌러 "1인 최대 1매"가 지켜지는지 검증한다 -
-              중복 거부가 나오는 게 정상이고, 그래도 성공 건수는 재고를 넘지 않아야 한다.
-            </span>
           </>
         )}
 
@@ -221,7 +239,7 @@ export function ScenarioDialog({ coupons, defaultCouponId, onCancel, onConfirm }
               if (scenario.advanced) {
                 options.requestRatio = requestRatioInput;
                 options.arrival = arrivalInput;
-                if (arrivalInput === "even") options.duration = durationInput;
+                if (arrivalInput !== "burst") options.duration = durationInput;
                 options.spamRatio = spamRatioInput;
                 if (spamRatioInput > 0) options.spamClicks = spamClicksInput;
               }

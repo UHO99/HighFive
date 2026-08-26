@@ -179,6 +179,7 @@ function VerifyLogList({ entries }: { entries: VerifyLogEntry[] }) {
 /** 미해소(진행 중)는 빨간 강조, 해소된 건은 회색으로 흐리게 - 해소돼도 목록에서 지워지지 않는다. */
 function MismatchHistoryItem({ entry }: { entry: MismatchHistoryEntry }) {
   const resolved = entry.resolvedAt !== null;
+  const overIssued = entry.actualIssuedCount > entry.totalQuantity;
   const className = resolved
     ? "consistency-mismatch-item consistency-mismatch-item-resolved"
     : "consistency-mismatch-item consistency-mismatch-item-open";
@@ -186,8 +187,10 @@ function MismatchHistoryItem({ entry }: { entry: MismatchHistoryEntry }) {
   return (
     <div className={className}>
       <span className="consistency-mismatch-status">{resolved ? "해소됨" : "미해소"}</span>
+      {overIssued && <span className="consistency-mismatch-status">초과 발급</span>}
       쿠폰 #{entry.couponId} · 기록값 {entry.recordedIssuedQuantity ?? "미동기화"} / 실측값{" "}
       {entry.actualIssuedCount}
+      {overIssued && ` · 재고 ${entry.totalQuantity} 초과 ${entry.actualIssuedCount - entry.totalQuantity}건`}
       {entry.pendingCount > 0 && ` · PEL 대기 ${entry.pendingCount}건`}
       <span className="consistency-mismatch-time">
         {" "}
