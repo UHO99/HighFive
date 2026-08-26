@@ -7,8 +7,14 @@ interface Props {
   vals: DashboardVals;
   onDrainPending: () => void;
   dummyDataCounts: DummyDataCounts | null;
-  /** 마지막 적재를 "시작하기 직전" 스냅샷 - Before 열에 쓴다. 한 번도 적재 안 했으면 null. */
+  /** 마지막 적재를 "시작하기 직전" 스냅샷 - "발급 수 현황" 표의 적재 직후 열에 쓴다. 한 번도 적재 안 했으면 null. */
   beforeCounts: DummyDataCounts | null;
+  /** 마지막 적재가 "끝난 직후" 고정된 스냅샷 - "더미데이터 적재 결과" 표 전용. dummyDataCounts(실시간 값)와
+   * 절대 섞어 쓰면 안 된다 - 쿠폰을 새로 만들거나 발급 테스트를 해도 이 표는 그대로 고정돼 있어야 한다. */
+  lastLoadResult: DummyDataCounts | null;
+  /** 실제 DB에 회원이 1명 이상 있는지 - "발급 수 현황"은 beforeCounts 기록 유무보다
+   * 이 값을 기준으로 삼는다. 서버 재시작 등으로 실제 데이터는 없는데 예전 before 기록만
+   * 남아있는 경우를 걸러내기 위함이다. */
 }
 
 function formatDelta(before: number, after: number): string {
@@ -50,7 +56,7 @@ function FlowArrow({ label }: FlowArrowProps) {
  * 재고·Redis / DB 저장 카드를 하나로 합친 "발급 파이프라인" 카드 - Lua 원자 발급 -> Stream 적재 ->
  * Flush 배치 묶기 -> DB Batch Insert 4단계를 노드+화살표로 이어 보여준다.
  */
-export function CouponPipelineCard({ vals, onDrainPending, dummyDataCounts, beforeCounts }: Props) {
+export function CouponPipelineCard({ vals, onDrainPending, dummyDataCounts, beforeCounts, lastLoadResult }: Props) {
   return (
     <div className="card">
       <span className="card-title">발급 파이프라인 · Redis → DB</span>
@@ -121,7 +127,7 @@ export function CouponPipelineCard({ vals, onDrainPending, dummyDataCounts, befo
       </div>
 
       <span className="section-label">더미데이터 적재 결과</span>
-      {dummyDataCounts === null ? (
+      {lastLoadResult === null ? (
         <span className="tile-label-md">기록 없음</span>
       ) : (
         <div className="ba-table-wrap">
@@ -136,23 +142,23 @@ export function CouponPipelineCard({ vals, onDrainPending, dummyDataCounts, befo
             <tbody>
               <tr>
                 <td className="ba-row-label">회원</td>
-                <td>{FMT.format(dummyDataCounts.userCount)}</td>
-                <td>{dummyDataCounts.userLoadMs == null ? "-" : formatSeconds(dummyDataCounts.userLoadMs)}</td>
+                <td>{FMT.format(lastLoadResult.userCount)}</td>
+                <td>{lastLoadResult.userLoadMs == null ? "-" : formatSeconds(lastLoadResult.userLoadMs)}</td>
               </tr>
               <tr>
                 <td className="ba-row-label">쿠폰</td>
-                <td>{FMT.format(dummyDataCounts.couponCount)}</td>
+                <td>{FMT.format(lastLoadResult.couponCount)}</td>
                 <td>-</td>
               </tr>
               <tr>
                 <td className="ba-row-label">발급 이력</td>
-                <td>{FMT.format(dummyDataCounts.couponIssueCount)}</td>
-                <td>{dummyDataCounts.couponIssueLoadMs == null ? "-" : formatSeconds(dummyDataCounts.couponIssueLoadMs)}</td>
+                <td>{FMT.format(lastLoadResult.couponIssueCount)}</td>
+                <td>{lastLoadResult.couponIssueLoadMs == null ? "-" : formatSeconds(lastLoadResult.couponIssueLoadMs)}</td>
               </tr>
               <tr>
                 <td className="ba-row-label">전체</td>
                 <td>-</td>
-                <td>{dummyDataCounts.totalMs == null ? "-" : formatSeconds(dummyDataCounts.totalMs)}</td>
+                <td>{lastLoadResult.totalMs == null ? "-" : formatSeconds(lastLoadResult.totalMs)}</td>
               </tr>
             </tbody>
           </table>
@@ -160,7 +166,7 @@ export function CouponPipelineCard({ vals, onDrainPending, dummyDataCounts, befo
       )}
 
       <span className="section-label">발급 수 현황</span>
-      {dummyDataCounts === null || beforeCounts === null ? (
+      {lastLoadResult === null || dummyDataCounts === null || beforeCounts === null ? (
         <span className="tile-label-md">적재 기록 없음</span>
       ) : (
         <div className="ba-table-wrap">

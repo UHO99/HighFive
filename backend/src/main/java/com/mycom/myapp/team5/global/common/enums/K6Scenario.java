@@ -1,5 +1,7 @@
 package com.mycom.myapp.team5.global.common.enums;
 
+import java.util.List;
+
 import com.mycom.myapp.team5.domain.test.exception.K6ErrorCode;
 import com.mycom.myapp.team5.domain.test.exception.K6TestException;
 import lombok.Getter;
@@ -20,19 +22,27 @@ public enum K6Scenario {
         REDIS("redis", "redis_test.js", "Redis Stream 파이프라인", "Redis Stream 기반 배치 insert 경로 대상. 램프업을 완만하게(30s) 잡아 초반 튐을 줄인다.", "30s", "30s", "20,000 VU", false, false),
         KAFKA("kafka", "kafka_test.js", "Kafka 비교 시나리오", "초기에 Kafka 기반 구현과 비교하려고 만든 시나리오 (현재 운영 경로는 Redis Stream).", "10s", "30s", "20,000 VU", false, false),
     */
-    SMALL_SCALE("small-scale", "concurrency_test.js", "동시성 정합성 검증 (소규모)",
-            "재고의 2배를 요청해 초과 발급이 없는지 확인하는 정합성 검증 시나리오. 재고/동시접속 규모를 직접 입력해서 실행. "
-                    + "대상 쿠폰을 입력한 재고 수량과 같게 미리 OPEN해두고, 그 쿠폰에 기존 발급 이력이 없어야 한다.",
-            "-", "~수 초 (shared-iterations)", "재고×2 요청", true, false),
+    SMALL_SCALE("small-scale", "concurrency_test.js", "간단 정합성 확인",
+            "재고의 2배를 한꺼번에 던져 초과 발급이 없는지만 빠르게 본다. 유입 방식이나 연타 같은 조건은 바꿀 수 없어서, "
+                    + "조건을 바꿔가며 검증할 땐 메인 부하테스트를 쓴다.",
+            List.of("대상 쿠폰에 기존 발급 이력이 없어야 판정이 맞는다"),
+            "없음", "수 초", "재고×2 요청", true, false),
     MAIN("main", "main_test.js", "메인 부하테스트",
-            "초과 발급 0건 + 1인 최대 1매를 여러 조건으로 검증한다. 요청 배수·유입 방식·연타 비율까지 직접 조절해서, "
-                    + "소규모 기능검증부터 본 규모(재고10,000/동접20,000)까지 한 스크립트로 커버한다.",
-            "-", "조건에 따라 다름", "재고×배수 요청", true, true);
+            "초과 발급 0건과 1인 최대 1매를, 유입 방식·요청 배수·연타 비율을 바꿔가며 검증한다. "
+                    + "기본값이 평가 조건이라 그대로 실행하면 된다.",
+            List.of(
+                    "유입 방식 — 램프업 60초가 평가 조건. 한꺼번에는 같은 인원을 3초로 압축하는 가혹 조건",
+                    "요청 배수 — 2가 기본. 1이면 전원 성공이 정상, 10이면 극한 경쟁",
+                    "연타 비율 — 0.3이면 중복 거부가 충분히 나옴. 평가 조건은 0 (중복 유저 없음)"
+            ),
+            "기본 60초", "조건에 따라 다름", "유저 = 재고×배수", true, true);
 
     private final String id;
     private final String file;
     private final String scenarioName;
     private final String description;
+    /** 실행 전에 알면 좋은 값 기준 - 화면에서 설명 아래 목록으로 뿌린다. */
+    private final List<String> guides;
     private final String rampUp;
     private final String hold;
     private final String targetVus;
@@ -41,12 +51,13 @@ public enum K6Scenario {
     /** true면 요청배수·유입방식·연타 같은 추가 파라미터까지 입력받는다(main_test.js처럼 그 env var를 읽는 스크립트). */
     private final boolean advanced;
 
-    K6Scenario(String id, String file, String scenarioName, String description,
+    K6Scenario(String id, String file, String scenarioName, String description, List<String> guides,
                String rampUp, String hold, String targetVus, boolean configurable, boolean advanced) {
         this.id = id;
         this.file = file;
         this.scenarioName = scenarioName;
         this.description = description;
+        this.guides = guides;
         this.rampUp = rampUp;
         this.hold = hold;
         this.targetVus = targetVus;
