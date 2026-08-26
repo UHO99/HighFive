@@ -17,6 +17,13 @@ function formatDelta(before: number, after: number): string {
   return d > 0 ? `+${FMT.format(d)}` : FMT.format(d);
 }
 
+/** ms를 초 단위 문자열로 - 1초 미만은 소수점 둘째 자리까지, 그 이상은 첫째 자리까지 표시한다. */
+function formatSeconds(ms: number): string {
+  const seconds = ms / 1000;
+  const digits = seconds < 1 ? 2 : 1;
+  return `${seconds.toFixed(digits)}초`;
+}
+
 function ArrowIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
@@ -130,7 +137,7 @@ export function CouponPipelineCard({ vals, onDrainPending, dummyDataCounts, befo
               <tr>
                 <td className="ba-row-label">회원</td>
                 <td>{FMT.format(dummyDataCounts.userCount)}</td>
-                <td>{dummyDataCounts.userLoadMs == null ? "-" : `${FMT.format(dummyDataCounts.userLoadMs)}ms`}</td>
+                <td>{dummyDataCounts.userLoadMs == null ? "-" : formatSeconds(dummyDataCounts.userLoadMs)}</td>
               </tr>
               <tr>
                 <td className="ba-row-label">쿠폰</td>
@@ -140,19 +147,19 @@ export function CouponPipelineCard({ vals, onDrainPending, dummyDataCounts, befo
               <tr>
                 <td className="ba-row-label">발급 이력</td>
                 <td>{FMT.format(dummyDataCounts.couponIssueCount)}</td>
-                <td>{dummyDataCounts.couponIssueLoadMs == null ? "-" : `${FMT.format(dummyDataCounts.couponIssueLoadMs)}ms`}</td>
+                <td>{dummyDataCounts.couponIssueLoadMs == null ? "-" : formatSeconds(dummyDataCounts.couponIssueLoadMs)}</td>
               </tr>
               <tr>
                 <td className="ba-row-label">전체</td>
                 <td>-</td>
-                <td>{dummyDataCounts.totalMs == null ? "-" : `${FMT.format(dummyDataCounts.totalMs)}ms`}</td>
+                <td>{dummyDataCounts.totalMs == null ? "-" : formatSeconds(dummyDataCounts.totalMs)}</td>
               </tr>
             </tbody>
           </table>
         </div>
       )}
 
-      <span className="section-label">발급 수 현황 (가제)</span>
+      <span className="section-label">발급 수 현황</span>
       {dummyDataCounts === null || beforeCounts === null ? (
         <span className="tile-label-md">적재 기록 없음</span>
       ) : (
@@ -162,18 +169,26 @@ export function CouponPipelineCard({ vals, onDrainPending, dummyDataCounts, befo
               <tr>
                 <th>구분</th>
                 <th>적재 직후</th>
-                <th>현재</th>
                 <th>증가분</th>
+                <th>현재</th>
               </tr>
             </thead>
             <tbody>
               <tr>
+                <td className="ba-row-label">쿠폰</td>
+                <td>{FMT.format(beforeCounts.couponCount)}</td>
+                <td className={dummyDataCounts.couponCount > beforeCounts.couponCount ? "ba-delta-pos" : undefined}>
+                  {formatDelta(beforeCounts.couponCount, dummyDataCounts.couponCount)}
+                </td>
+                <td>{FMT.format(dummyDataCounts.couponCount)}</td>
+              </tr>
+              <tr>
                 <td className="ba-row-label">발급 이력</td>
                 <td>{FMT.format(beforeCounts.couponIssueCount)}</td>
-                <td>{FMT.format(dummyDataCounts.couponIssueCount)}</td>
                 <td className={dummyDataCounts.couponIssueCount > beforeCounts.couponIssueCount ? "ba-delta-pos" : undefined}>
                   {formatDelta(beforeCounts.couponIssueCount, dummyDataCounts.couponIssueCount)}
                 </td>
+                <td>{FMT.format(dummyDataCounts.couponIssueCount)}</td>
               </tr>
             </tbody>
           </table>
