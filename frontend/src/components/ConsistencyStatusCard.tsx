@@ -7,7 +7,6 @@ import {
 const FMT = new Intl.NumberFormat("ko-KR");
 
 const POLL_INTERVAL_MS = 3000;
-const CLOCK_TICK_MS = 1000;
 /** 배치 주기의 이 배수만큼 lastRunAt이 안 갱신되면 "응답 없음"(스케줄러 멈춤)으로 본다. */
 const STALE_MULTIPLIER = 2.5;
 
@@ -15,6 +14,12 @@ const RING_SIZE = 40;
 const RING_STROKE = 4;
 const RING_RADIUS = (RING_SIZE - RING_STROKE) / 2;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+
+interface Props {
+  /** 1초마다 갱신되는 현재 시각 - DashboardPage가 useClock()으로 한 번만 만들어 내려준다.
+   * 이 카드가 자체 시계 타이머를 두지 않기 위함(F1 폴링 통합). */
+  now: number;
+}
 
 /**
  * 시스템 전체 관점 카드 - couponId와 무관하게 동기화(CouponStockSyncService)/검증
@@ -24,10 +29,9 @@ const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
  * "N초 전" 텍스트 대신, 다음 실행까지 남은 시간을 링이 줄어드는 걸로 보여준다(카운트다운) - 링이
  * 다 돌아 원래 배치 주기(예: 동기화 5초, 검증 60초)를 넘도록 안 채워지면 빨간 "!"로 바뀐다.
  */
-export function ConsistencyStatusCard() {
+export function ConsistencyStatusCard({ now }: Props) {
   const [status, setStatus] = useState<CouponConsistencyStatusResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
     let cancelled = false;
@@ -49,11 +53,6 @@ export function ConsistencyStatusCard() {
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, []);
-
-  useEffect(() => {
-    const clock = window.setInterval(() => setNow(Date.now()), CLOCK_TICK_MS);
-    return () => window.clearInterval(clock);
   }, []);
 
   return (

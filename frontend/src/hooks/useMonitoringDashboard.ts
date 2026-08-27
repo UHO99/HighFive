@@ -19,8 +19,9 @@ import {
  * 실행 여부(testRunning)는 GET /api/admin/k6/status 폴링 결과를 그대로 반영한다 - 로컬 UI 상태가 아니다.
  */
 
-const DATA_POLL_INTERVAL_MS = 2000;
-const CLOCK_TICK_INTERVAL_MS = 1000;
+// 변경 후
+const DASHBOARD_POLL_INTERVAL_MS = 1000;
+const K6_STATUS_POLL_INTERVAL_MS = 2000;
 
 const ZERO_DASHBOARD: MonitoringDashboardResponse = {
   couponId: 0,
@@ -182,16 +183,14 @@ export interface UseMonitoringDashboardResult {
   couponMissing: boolean;
 }
 
-export function useMonitoringDashboard(couponId: number): UseMonitoringDashboardResult {
+export function useMonitoringDashboard(couponId: number, now: number): UseMonitoringDashboardResult {
   const [data, setData] = useState<MonitoringDashboardResponse>(ZERO_DASHBOARD);
-  const [now, setNow] = useState(Date.now());
   const [k6Status, setK6Status] = useState<K6StatusResponse>(ZERO_K6_STATUS);
   const [error, setError] = useState<string | null>(null);
   const [couponMissing, setCouponMissing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const dataPollRef = useRef<number | null>(null);
-  const clockTickRef = useRef<number | null>(null);
 
   // 쿠폰을 바꾸면 이전 쿠폰의 화면 값이 잠깐이라도 남아있지 않도록 0으로 되돌리고 새로 폴링을 시작한다.
   useEffect(() => {
@@ -222,7 +221,8 @@ export function useMonitoringDashboard(couponId: number): UseMonitoringDashboard
     };
 
     poll();
-    dataPollRef.current = window.setInterval(poll, DATA_POLL_INTERVAL_MS);
+    // 변경 후
+    dataPollRef.current = window.setInterval(poll, DASHBOARD_POLL_INTERVAL_MS);
 
     return () => {
       cancelled = true;
@@ -246,17 +246,11 @@ export function useMonitoringDashboard(couponId: number): UseMonitoringDashboard
     };
 
     poll();
-    const timer = window.setInterval(poll, DATA_POLL_INTERVAL_MS);
+    // 변경 후
+    const timer = window.setInterval(poll, K6_STATUS_POLL_INTERVAL_MS);
     return () => {
       cancelled = true;
       window.clearInterval(timer);
-    };
-  }, []);
-
-  useEffect(() => {
-    clockTickRef.current = window.setInterval(() => setNow(Date.now()), CLOCK_TICK_INTERVAL_MS);
-    return () => {
-      if (clockTickRef.current !== null) window.clearInterval(clockTickRef.current);
     };
   }, []);
 
