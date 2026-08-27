@@ -3,8 +3,99 @@
 [![Notion](https://img.shields.io/badge/Notion-000000?style=for-the-badge&logo=notion&logoColor=white)](https://app.notion.com/p/5-3c0f18873f92803d9c1bc93c920ea6fe?source=copy_link)
 
 ## 목차
-1. [실행 방법](#1-실행-방법)
-2. [멘토링 질문 리스트](#멘토링-질문-리스트)
+1. [프로젝트 개요](#프로젝트-개요)
+2. [실행 방법](#1-실행-방법)
+3. [멘토링 질문 리스트](#멘토링-질문-리스트)
+
+## 프로젝트 개요
+
+Redis Stream 기반으로 대량 트래픽의 선착순 쿠폰 발급을 처리하고, 그 결과를 비동기로 DB에 적재·동기화·검증까지 하는 백엔드 시스템과, 이 파이프라인을 실시간으로 관찰/부하테스트할 수 있는 관리자 대시보드로 구성되어 있습니다.
+
+### 프로젝트 구조
+
+<details>
+<summary><strong>디렉터리 구조 보기</strong></summary>
+
+<br>
+
+```
+HighFive/
+├─ backend/                              # Spring Boot 백엔드
+│  ├─ src/main/java/.../team5/
+│  │  ├─ domain/
+│  │  │  ├─ coupon/                      # 쿠폰 도메인 - CRUD, 발급 파이프라인, 동기화/검증 배치
+│  │  │  │  ├─ controller/
+│  │  │  │  ├─ entity/
+│  │  │  │  ├─ repository/
+│  │  │  │  ├─ scheduler/                # 정합성 동기화 / 검증 스케줄러
+│  │  │  │  └─ service/
+│  │  │  │     └─ sync/                  # CouponStockSyncService · CouponStockValidationService
+│  │  │  ├─ couponissue/                 # 발급 이력 조회
+│  │  │  ├─ monitoring/                  # 대시보드용 실시간 지표 API
+│  │  │  ├─ test/                        # k6 실행 / 더미데이터 적재 관리용 API
+│  │  │  └─ user/                        # 사용자 도메인
+│  │  └─ global/
+│  │     ├─ redis/                       # Redis Stream 설정/원자 발급(Lua)
+│  │     ├─ kafka/                       # Kafka 프로듀서/컨슈머 (기본 비활성 · 벤치마크 비교용)
+│  │     ├─ config/ · aspect/ · common/ · exception/
+│  │  └─ resources/db/{migration,seed}   # Flyway 마이그레이션 · 시드 데이터
+│  ├─ k6/                                # 부하 테스트 시나리오 스크립트
+│  └─ docker-compose.yml                 # backend + MySQL + Redis
+│
+├─ frontend/                             # 관리자 대시보드 (React + TypeScript)
+│  └─ src/
+│     ├─ pages/                          # DashboardPage, UserPage
+│     ├─ components/                     # 카드/다이얼로그 UI (파이프라인, 발급 로그, 정합성 등)
+│     ├─ hooks/                          # useMonitoringDashboard 등 폴링/상태 훅
+│     └─ lib/                            # 백엔드 API 클라이언트, k6 시나리오 정의
+│
+└─ docs/                                 # 설계 문서, ERD
+```
+
+</details>
+
+### 프로젝트 기술 스택
+
+<details>
+<summary><strong>기술 스택 보기</strong></summary>
+
+<br>
+
+**백엔드**
+
+| 분류 | 기술 |
+|---|---|
+| 언어 / 프레임워크 | Java 21, Spring Boot 4.1 |
+| 데이터 접근 | Spring Data JPA, MySQL, Flyway (스키마 마이그레이션) |
+| 캐시 / 메시징 | Redis (Stream 기반 원자적 재고 차감 + 비동기 발급 이력 적재) |
+| 기타 | springdoc-openapi(Swagger), Lombok, Spring AOP |
+
+**프론트엔드**
+
+| 분류 | 기술 |
+|---|---|
+| 언어 / 프레임워크 | React 19, TypeScript, Vite |
+
+**인프라 / 테스트**
+
+| 분류 | 기술 |
+|---|---|
+| 컨테이너 | Docker Compose (backend + MySQL + Redis) |
+| 부하 테스트 | k6 (시나리오 기반) |
+
+> Kafka 관련 코드(`global/kafka`)는 존재하지만 기본 배포 구성(docker-compose)에는 포함되어 있지 않고, Redis Stream 대비 처리량 벤치마크 비교 목적의 테스트에서만 사용됩니다.
+
+</details>
+
+### 쿠폰 발급 파이프라인
+
+<details>
+<summary><strong>영상</strong></summary>
+
+[<video controls src="docs/img/쿠폰 발급 파이프라인.mp4" title="Title"></video>](https://github.com/user-attachments/assets/16dad6b4-9342-4946-a582-271ee14293f9
+)
+
+</details>
 
 ## 1. 실행 방법
 
