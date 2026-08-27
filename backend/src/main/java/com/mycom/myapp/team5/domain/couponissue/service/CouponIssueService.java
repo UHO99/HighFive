@@ -4,7 +4,7 @@ import java.util.List;
 
 import com.mycom.myapp.team5.domain.couponissue.dto.CouponFairnessOutcomeFilter;
 import com.mycom.myapp.team5.domain.couponissue.dto.CouponFairnessTimelinePage;
-import com.mycom.myapp.team5.domain.couponissue.dto.CouponIssueHistoryResponse;
+import com.mycom.myapp.team5.domain.couponissue.dto.CouponIssueHistoryPage;
 import com.mycom.myapp.team5.domain.couponissue.dto.MyCouponResponse;
 import com.mycom.myapp.team5.global.aspect.LogDescription;
 
@@ -18,11 +18,10 @@ public interface CouponIssueService {
 	MyCouponResponse getMyCoupon(long userId, long issueId);
 
 	/**
-	 * 시나리오 7: 관리자 — 특정 쿠폰의 전체 발급 이력.
-	 * 쿠폰이 없으면 CP001.
+	 * 시나리오 7: 관리자 — 특정 쿠폰의 전체 발급 이력. 쿠폰이 없으면 CP001.
 	 */
 	@LogDescription("관리자 쿠폰 발급 내역 조회")
-	List<CouponIssueHistoryResponse> getIssuesByCouponId(long couponId);
+	CouponIssueHistoryPage getIssuesByCouponId(long couponId, int page, int size);
 
 	@LogDescription("쿠폰 선착순 타임라인 조회 (관리자)")
 	CouponFairnessTimelinePage getFairnessTimeline(long couponId, int page, int size, CouponFairnessOutcomeFilter filter);

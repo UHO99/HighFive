@@ -6,6 +6,9 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,10 +19,13 @@ import com.mycom.myapp.team5.domain.coupon.repository.CouponRepository;
 import com.mycom.myapp.team5.domain.couponissue.dto.CouponFairnessOutcomeFilter;
 import com.mycom.myapp.team5.domain.couponissue.dto.CouponFairnessTimelineEntry;
 import com.mycom.myapp.team5.domain.couponissue.dto.CouponFairnessTimelinePage;
+import com.mycom.myapp.team5.domain.couponissue.dto.CouponIssueHistoryPage;
 import com.mycom.myapp.team5.domain.couponissue.dto.CouponIssueHistoryResponse;
 import com.mycom.myapp.team5.domain.couponissue.dto.MyCouponResponse;
 import com.mycom.myapp.team5.domain.couponissue.entity.CouponIssue;
 import com.mycom.myapp.team5.domain.couponissue.repository.CouponIssueRepository;
+import com.mycom.myapp.team5.domain.user.entity.User;
+import com.mycom.myapp.team5.domain.user.repository.UserRepository;
 import com.mycom.myapp.team5.global.common.enums.CouponIssueStatus;
 import com.mycom.myapp.team5.global.redis.CouponStockRedisService;
 
@@ -32,6 +38,7 @@ public class CouponIssueServiceImpl implements CouponIssueService {
 	private final CouponIssueRepository couponIssueRepository;
 	private final CouponRepository couponRepository;
 	private final CouponStockRedisService couponStockRedisService;
+	private final UserRepository userRepository;
 
 	@Override
 	@Transactional(readOnly = true)
@@ -86,11 +93,22 @@ public class CouponIssueServiceImpl implements CouponIssueService {
 
 	@Override
 	@Transactional(readOnly = true)
-	public List<CouponIssueHistoryResponse> getIssuesByCouponId(long couponId) {
+	public CouponIssueHistoryPage getIssuesByCouponId(long couponId, int page, int size) {
 		if (!couponRepository.existsById(couponId)) {
 			throw new CouponException(CouponErrorCode.COUPON_NOT_FOUND);
 		}
-		return couponIssueRepository.findByCouponIdOrderByIssuedAtDesc(couponId).stream().map(CouponIssueHistoryResponse::from).toList();
+
+		int zeroBasedPage = Math.max(0, page - 1);
+		Pageable pageable = PageRequest.of(zeroBasedPage, size);
+
+		Page<CouponIssue> issuePage = couponIssueRepository.findByCouponIdOrderByIssuedAtDesc(couponId, pageable);
+
+		List<Long> userIds = issuePage.getContent().stream().map(CouponIssue::getUserId).distinct().toList();
+		Map<Long, User> userMap = userIds.isEmpty() ? Map.of() : userRepository.findAllById(userIds).stream().collect(Collectors.toMap(User::getId, Function.identity()));
+
+		List<CouponIssueHistoryResponse> items = issuePage.getContent().stream().map(issue -> CouponIssueHistoryResponse.from(issue, userMap.get(issue.getUserId()))).toList();
+
+		return new CouponIssueHistoryPage(items, issuePage.getNumber() + 1, issuePage.getTotalPages(), issuePage.getTotalElements());
 	}
 
 	@Override
