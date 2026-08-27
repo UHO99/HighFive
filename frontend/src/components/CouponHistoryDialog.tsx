@@ -137,7 +137,6 @@ export function CouponHistoryDialog({ onClose }: Props) {
         </div>
 
         {selectedCouponId !== null && (
-
           <>
             <div className="history-table-wrap">
               {issuesError && <div className="dialog-error">{issuesError}</div>}
@@ -156,7 +155,6 @@ export function CouponHistoryDialog({ onClose }: Props) {
                       <th>쿠폰 ID</th>
                       <th>상태</th>
                       <th>발급 시각</th>
-
                     </tr>
                   </thead>
                   <tbody>
