@@ -664,8 +664,91 @@ body {
   overflow-y: auto;
 }
 
-.pipeline-col>.card {
+.pipeline-col .card {
   flex: none;
+}
+
+/* ---------- 카드 확대/축소 (Zoom) ---------- */
+
+/* 평소엔 레이아웃에 관여하지 않는 투명한 래퍼 - .row/.pipeline-col 입장에서는 안의 .card가
+   바로 자신의 flex item인 것처럼 동작해야 기존 배치가 안 깨진다. */
+.card-expand-slot {
+  display: contents;
+  cursor: zoom-in;
+}
+
+.card-expand-slot--dimmed>.card {
+  opacity: 0.35;
+  filter: grayscale(0.3);
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.card-expand-slot--expanded {
+  display: flex;
+  position: fixed;
+  inset: 5vh 6vw;
+  z-index: 1000;
+  cursor: default;
+}
+
+.card-expand-slot--expanded>.card {
+  flex: 1;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(15, 18, 34, 0.35);
+  animation: card-expand-in 0.18s ease;
+}
+
+.card-expand-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 18, 34, 0.55);
+  z-index: 999;
+  animation: card-expand-fade 0.15s ease;
+}
+
+.card-expand-close {
+  position: absolute;
+  top: -14px;
+  right: -14px;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: none;
+  background: #171b2e;
+  color: #fff;
+  font: 400 14px/1 "Inter", sans-serif;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1001;
+}
+
+.card-expand-close:hover {
+  background: #2a2f45;
+}
+
+@keyframes card-expand-fade {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes card-expand-in {
+  from {
+    transform: scale(0.96);
+    opacity: 0.4;
+  }
+
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 /* ---------- 발급 파이프라인(통합) 카드 ---------- */
