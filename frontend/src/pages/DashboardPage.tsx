@@ -35,6 +35,10 @@ export function DashboardPage() {
   // 성공한 재적재 값을 그대로 들고 있는다.
   const [reloadTiming, setReloadTiming] = useState<ReloadTiming | null>(null);
   const [dummyStatus, setDummyStatus] = useState<DummyDataStatus>(IDLE_DUMMY_STATUS);
+  // "더미데이터 적재 결과" 표 전용 - 마지막 적재가 끝난 순간에 딱 한 번 고정되는 스냅샷.
+  // dbCounts/dummyDataCounts는 그 이후로도 계속 실시간 폴링되어 바뀌므로(쿠폰 신규 생성, 발급 테스트 등),
+  // "적재 결과"에 그 값을 그대로 쓰면 적재와 무관한 변화까지 같이 늘어나 보이는 버그가 생긴다.
+  const [lastLoadResult, setLastLoadResult] = useState<DummyDataCounts | null>(null);
   // 이미 알림/카운트 반영을 한 완료 시각을 기억해서, 폴링마다 같은 완료를 중복 처리하지 않는다.
   const lastHandledFinishRef = useRef<string | null>(null);
 
@@ -73,6 +77,7 @@ export function DashboardPage() {
               const counts = status.lastResult;
               setDbCounts({ userCount: counts.userCount, couponCount: counts.couponCount, couponIssueCount: counts.couponIssueCount });
               setReloadTiming({ userLoadMs: counts.userLoadMs, couponIssueLoadMs: counts.couponIssueLoadMs, totalMs: counts.totalMs });
+              setLastLoadResult(counts);
             }
             return;
           }
@@ -85,6 +90,7 @@ export function DashboardPage() {
               const counts = status.lastResult;
               setDbCounts({ userCount: counts.userCount, couponCount: counts.couponCount, couponIssueCount: counts.couponIssueCount });
               setReloadTiming({ userLoadMs: counts.userLoadMs, couponIssueLoadMs: counts.couponIssueLoadMs, totalMs: counts.totalMs });
+              setLastLoadResult(counts);
               window.alert(
                 `더미데이터 재적재 완료\n` +
                 `회원 ${counts.userCount.toLocaleString()} · ` +
@@ -247,6 +253,7 @@ export function DashboardPage() {
               onDrainPending={handleDrainPending}
               dummyDataCounts={dummyDataCounts}
               beforeCounts={dummyStatus.before}
+              lastLoadResult={lastLoadResult}
             />
             <ConsistencyStatusCard />
           </div>
