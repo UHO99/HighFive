@@ -70,6 +70,10 @@ public class MonitoringServiceImpl implements MonitoringService {
         Coupon coupon = couponRepository.findById(couponId)
                 .orElseThrow(() -> new CouponException(CouponErrorCode.COUPON_NOT_FOUND));
 
+        // overIssueMonitor/stockStatus가 둘 다 필요로 하는 값이라 한 번만 조회해서 나눠 쓴다 -
+        // 아니면 폴링 주기마다 같은 Redis SCARD가 중복으로 나간다.
+        long issuedCount = redisIssuedCount(coupon.getId());
+
         return new MonitoringDashboardResponse(
                 couponId,
                 // DB에 안 들어가고 바로 JSON으로 나가는 값이라 JDBC connectionTimeZone 보정을 못 받는다 -
@@ -78,8 +82,8 @@ public class MonitoringServiceImpl implements MonitoringService {
                 serverResources(),
                 apiResponseStats(),
                 couponIssueStatus(couponId),
-                overIssueMonitor(coupon),
-                stockStatus(coupon),
+                overIssueMonitor(coupon, issuedCount),
+                stockStatus(coupon, issuedCount),
                 streamStatus(couponId),
                 dbStorage()
         );
@@ -155,8 +159,7 @@ public class MonitoringServiceImpl implements MonitoringService {
     // "초과 발급 감시" - Redis에서 실제로 차감/기록된 발급 건수(재고 소진 기준)와 DB 이력 건수를 나란히
     // 비교한다. 배치 flush가 비동기라 짧은 순간의 불일치는 정상이고, DB쪽이 Redis쪽을 넘어서면(=초과
     // 발급) 그때가 진짜 이상 신호다.
-    private OverIssueMonitor overIssueMonitor(Coupon coupon) {
-        long issuedCount = redisIssuedCount(coupon.getId());
+    private OverIssueMonitor overIssueMonitor(Coupon coupon, long issuedCount) {
         long dbHistoryCount = couponIssueRepository.countByCouponId(coupon.getId());
 
         return new OverIssueMonitor(
@@ -169,10 +172,9 @@ public class MonitoringServiceImpl implements MonitoringService {
         );
     }
 
-    private StockStatus stockStatus(Coupon coupon) {
+    private StockStatus stockStatus(Coupon coupon, long issuedCount) {
         long remaining = redisStockRemaining(coupon.getId());
         long total = coupon.getTotalQuantity();
-        long issuedCount = redisIssuedCount(coupon.getId());
         double consumedPercent = total == 0 ? 0 : issuedCount * 100.0 / total;
 
         return new StockStatus(issuedCount, remaining, total, consumedPercent);

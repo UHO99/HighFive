@@ -49,8 +49,8 @@ dependencies {
 	testCompileOnly 'org.projectlombok:lombok'
 	testAnnotationProcessor 'org.projectlombok:lombok'
 
-	// Kafka
-	implementation 'org.springframework.boot:spring-boot-starter-kafka'
+	// Kafka - 운영 파이프라인에서는 안 씀
+	testImplementation 'org.springframework.boot:spring-boot-starter-kafka'
 
 	// Redis
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'

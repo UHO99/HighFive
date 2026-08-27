@@ -40,7 +40,6 @@ public class CouponIssueServiceImpl implements CouponIssueService {
 	private final CouponRepository couponRepository;
 	private final UserRepository userRepository;
 	private final CouponStockRedisService couponStockRedisService;
-	private final UserRepository userRepository;
 
 	@Override
 	@Transactional(readOnly = true)

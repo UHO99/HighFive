@@ -1,4 +1,4 @@
-package com.mycom.myapp.team5.global.config;
+package com.mycom.myapp.team5.benchmark.kafka;
 
 import lombok.RequiredArgsConstructor;
 import org.apache.kafka.clients.consumer.ConsumerConfig;

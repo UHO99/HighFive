@@ -1,8 +1,6 @@
 package com.mycom.myapp.team5.benchmark.kafka;
 
 import com.mycom.myapp.team5.domain.coupon.entity.Coupon;
-import com.mycom.myapp.team5.global.kafka.CouponIssueConsumer;
-import com.mycom.myapp.team5.global.kafka.CouponRequestProducer;
 import com.mycom.myapp.team5.domain.coupon.repository.CouponRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

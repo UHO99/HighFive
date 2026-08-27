@@ -166,24 +166,14 @@ export async function fetchMonitoringDashboard(couponId: number): Promise<Monito
   if (res.status === 404) {
     throw new MonitoringCouponNotFoundError(`쿠폰 #${couponId}을(를) 찾을 수 없습니다`);
   }
-  if (!res.ok) {
-    throw new Error(`모니터링 조회 실패 (HTTP ${res.status})`);
-  }
 
-  const body: ApiResponse<MonitoringDashboardResponse> = await res.json();
-  if (!body.success || !body.data) {
-    throw new Error(body.message ?? "모니터링 조회 실패");
-  }
-
-  return body.data;
+  return parseApiResponse<MonitoringDashboardResponse>(res, "모니터링 조회 실패");
 }
 
 /** 대시보드 지표(HTTP/발급/DB insert 집계)만 0으로 되돌린다 - Redis/DB 실 데이터는 그대로 유지. */
 export async function resetMonitoringMetrics(): Promise<void> {
   const res = await fetch(`${API_BASE}/api/admin/monitoring/reset`, { method: "POST" });
-  if (!res.ok) {
-    throw new Error(`지표 초기화 실패 (HTTP ${res.status})`);
-  }
+  await assertOk(res, "지표 초기화 실패");
 }
 
 /**
@@ -202,16 +192,7 @@ export interface DummyDataCounts {
 /** 지금 DB에 실제로 있는 건수 - 새로고침 직후에도 마지막 적재 결과를 알 수 있다. */
 export async function fetchDummyDataCounts(): Promise<DummyDataCounts> {
   const res = await fetch(`${API_BASE}/api/admin/dummy-data/counts`);
-  if (!res.ok) {
-    throw new Error(`더미데이터 현황 조회 실패 (HTTP ${res.status})`);
-  }
-
-  const body: ApiResponse<DummyDataCounts> = await res.json();
-  if (!body.success || !body.data) {
-    throw new Error(body.message ?? "더미데이터 현황 조회 실패");
-  }
-
-  return body.data;
+  return parseApiResponse<DummyDataCounts>(res, "더미데이터 현황 조회 실패");
 }
 
 /**
@@ -248,16 +229,7 @@ export async function loadDummyData(): Promise<DummyDataStatus> {
  */
 export async function drainPendingStream(couponId: number): Promise<number> {
   const res = await fetch(`${API_BASE}/api/admin/monitoring/coupons/${couponId}/stream/drain`, { method: "POST" });
-  if (!res.ok) {
-    throw new Error(`PEL 드레인 실패 (HTTP ${res.status})`);
-  }
-
-  const body: ApiResponse<number> = await res.json();
-  if (!body.success || body.data === null) {
-    throw new Error(body.message ?? "PEL 드레인 실패");
-  }
-
-  return body.data;
+  return parseApiResponse<number>(res, "PEL 드레인 실패");
 }
 
 export type CouponStatus = "READY" | "OPEN" | "CLOSE";
@@ -280,16 +252,7 @@ export interface CouponSummary {
 export async function fetchCoupons(status?: CouponStatus): Promise<CouponSummary[]> {
   const qs = status ? `?status=${status}` : "";
   const res = await fetch(`${API_BASE}/api/admin/coupons${qs}`);
-  if (!res.ok) {
-    throw new Error(`쿠폰 목록 조회 실패 (HTTP ${res.status})`);
-  }
-
-  const body: ApiResponse<CouponSummary[]> = await res.json();
-  if (!body.success || !body.data) {
-    throw new Error(body.message ?? "쿠폰 목록 조회 실패");
-  }
-
-  return body.data;
+  return parseApiResponse<CouponSummary[]>(res, "쿠폰 목록 조회 실패");
 }
 
 /** backend CouponResponse(domain/coupon/dto)와 1:1로 대응한다. */
@@ -324,19 +287,13 @@ export async function createCoupon(
 /** 관리자 쿠폰 수동 오픈 - CouponController.openCoupon(). READY→OPEN 전환 + Redis 재고 초기화까지 여기서 됨. */
 export async function openCoupon(couponId: number): Promise<void> {
   const res = await fetch(`${API_BASE}/api/admin/coupons/${couponId}/open`, { method: "POST" });
-  if (!res.ok) {
-    const body = await res.json().catch(() => null);
-    throw new Error(body?.message ?? `쿠폰 오픈 실패 (HTTP ${res.status})`);
-  }
+  await assertOk(res, "쿠폰 오픈 실패");
 }
 
 /** 관리자 쿠폰 수동 클로즈 - CouponController.closeCoupon(). OPEN→CLOSE 전환 + Redis 재고/발급 SET 정리. */
 export async function closeCoupon(couponId: number): Promise<void> {
   const res = await fetch(`${API_BASE}/api/admin/coupons/${couponId}/close`, { method: "POST" });
-  if (!res.ok) {
-    const body = await res.json().catch(() => null);
-    throw new Error(body?.message ?? `쿠폰 클로즈 실패 (HTTP ${res.status})`);
-  }
+  await assertOk(res, "쿠폰 클로즈 실패");
 }
 
 /**
@@ -406,6 +363,14 @@ async function parseApiResponse<T>(res: Response, fallbackMessage: string): Prom
   return body.data as T;
 }
 
+/** 응답 데이터가 필요 없는(Void) 엔드포인트용 - 실패 시에만 본문을 열어 message를 읽는다. */
+async function assertOk(res: Response, fallbackMessage: string): Promise<void> {
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.message ?? `${fallbackMessage} (HTTP ${res.status})`);
+  }
+}
+
 export async function fetchK6Scenarios(): Promise<K6ScenarioDto[]> {
   const res = await fetch(`${API_BASE}/api/admin/k6/scenarios`);
   return parseApiResponse<K6ScenarioDto[]>(res, "k6 시나리오 목록 조회 실패");
@@ -460,10 +425,7 @@ export async function fetchMyCoupons(userId: number): Promise<MyCouponResponse[]
  */
 export async function useMyCoupon(issueId: number, userId: number): Promise<void> {
   const res = await fetch(`${API_BASE}/api/my/coupons/${issueId}/use?userId=${userId}`, { method: "POST" });
-  if (!res.ok) {
-    const body = await res.json().catch(() => null);
-    throw new Error(body?.message ?? `쿠폰 사용 실패 (HTTP ${res.status})`);
-  }
+  await assertOk(res, "쿠폰 사용 실패");
 }
 
 /**
@@ -472,10 +434,7 @@ export async function useMyCoupon(issueId: number, userId: number): Promise<void
  */
 export async function cancelMyCoupon(issueId: number, userId: number): Promise<void> {
   const res = await fetch(`${API_BASE}/api/my/coupons/${issueId}/cancel?userId=${userId}`, { method: "POST" });
-  if (!res.ok) {
-    const body = await res.json().catch(() => null);
-    throw new Error(body?.message ?? `쿠폰 취소 실패 (HTTP ${res.status})`);
-  }
+  await assertOk(res, "쿠폰 취소 실패");
 }
 
 /**
@@ -483,10 +442,7 @@ export async function cancelMyCoupon(issueId: number, userId: number): Promise<v
  */
 export async function requestCouponIssue(couponId: number, userId: number): Promise<void> {
   const res = await fetch(`${API_BASE}/coupons/${couponId}/issue?userId=${userId}`, { method: "POST" });
-  if (!res.ok) {
-    const body = await res.json().catch(() => null);
-    throw new Error(body?.message ?? `발급 신청 실패 (HTTP ${res.status})`);
-  }
+  await assertOk(res, "발급 신청 실패");
 }
 
 /** 시나리오 7: 관리자 — 특정 쿠폰의 전체 발급 이력. */
