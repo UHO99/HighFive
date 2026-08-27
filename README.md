@@ -92,7 +92,7 @@ HighFive/
 <details>
 <summary><strong>영상</strong></summary>
 
-<video controls src="쿠폰 발급 파이프라인.mp4" title="Title"></video>
+<video controls src="docs/img/쿠폰 발급 파이프라인.mp4" title="Title"></video>
 
 </details>
 
