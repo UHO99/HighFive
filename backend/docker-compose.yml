@@ -52,6 +52,12 @@ services:
       SPRING_PROFILES_ACTIVE: docker
       SPRING_DATASOURCE_USERNAME: ${DB_USER:-ureca}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-ureca}
+    # 고강도 부하 테스트(20,000건 초과)에서 max-connections를 늘려도, 컨테이너 기본 ulimit(보통 1024)에
+    # 먼저 막히므로 소켓/파일 디스크립터 한도를 넉넉하게 올려둔다.
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
     volumes:
       # 부하테스트 "테스트 시작" 버튼 -> K6TestService 가 호스트 도커 데몬에 형제 컨테이너(highfive-k6)를
       # 띄우기 위한 소켓. 백엔드 컨테이너에 호스트 수준 도커 권한을 주는 것이므로(Docker-outside-of-Docker),
