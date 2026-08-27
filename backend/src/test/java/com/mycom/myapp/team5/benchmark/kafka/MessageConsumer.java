@@ -1,4 +1,4 @@
-package com.mycom.myapp.team5.global.kafka;
+package com.mycom.myapp.team5.benchmark.kafka;
 
 import lombok.Getter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;

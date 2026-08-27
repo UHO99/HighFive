@@ -3,8 +3,6 @@ package com.mycom.myapp.team5.benchmark.kafka;
 import com.mycom.myapp.team5.domain.coupon.entity.Coupon;
 import com.mycom.myapp.team5.domain.coupon.repository.CouponRepository;
 import com.mycom.myapp.team5.domain.coupon.service.CouponService;
-import com.mycom.myapp.team5.global.kafka.CouponIssueConsumer;
-import com.mycom.myapp.team5.global.kafka.CouponRequestProducer;
 import com.zaxxer.hikari.HikariDataSource;
 import com.zaxxer.hikari.HikariPoolMXBean;
 import org.junit.jupiter.api.AfterEach;
