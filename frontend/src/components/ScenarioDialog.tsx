@@ -19,7 +19,9 @@ export function ScenarioDialog({ coupons, defaultCouponId, onCancel, onConfirm }
   const [error, setError] = useState<string | null>(null);
   const [maxVusInput, setMaxVusInput] = useState(50);
   // advanced 시나리오(main_test.js) 전용 - 기본값은 스크립트 기본값과 맞춰둔다.
+  const [requestSizeMode, setRequestSizeMode] = useState<"ratio" | "count">("ratio");
   const [requestRatioInput, setRequestRatioInput] = useState(2);
+  const [requestCountInput, setRequestCountInput] = useState(20000);
   // 기본값은 평가 조건(유저 20,000명 / 램프업 60초)에 맞춰둔다 - 별도로 안 건드려도 그 조건으로 돌아간다.
   const [arrivalInput, setArrivalInput] = useState<"burst" | "even" | "ramp">("ramp");
   const [durationInput, setDurationInput] = useState(60);
@@ -33,6 +35,11 @@ export function ScenarioDialog({ coupons, defaultCouponId, onCancel, onConfirm }
   // k6 스크립트에서 STOCK은 "쿠폰 재고를 설정"하는 게 아니라 "요청을 몇 번 보낼지"(STOCK×2) 계산용이라,
   // 실제 재고와 다른 값을 넣으면 결과가 왜곡된다(둘이 따로 놀면 안 됨).
   const selectedCoupon = coupons.find((c) => c.id === selectedCouponId);
+
+  // 지정 방식에 따라 실제 전체 요청 수를 미리 계산해서 보여준다.
+  const estimatedIterations = requestSizeMode === "count"
+    ? requestCountInput
+    : (selectedCoupon ? selectedCoupon.totalQuantity * requestRatioInput : null);
 
   useEffect(() => {
     let cancelled = false;
@@ -146,15 +153,46 @@ export function ScenarioDialog({ coupons, defaultCouponId, onCancel, onConfirm }
                 조건부로 나타나는 칸은 항상 오른쪽 열에 놓아 켜고 꺼도 왼쪽 칸이 안 흔들린다. */}
             <div className="scale-input-row">
               <label className="form-field">
-                <span className="form-label">요청 배수 (재고 × N명이 몰림)</span>
-                <input
-                  type="number"
-                  min={1}
+                <span className="form-label">요청 수 지정 방식</span>
+                <select
                   className="form-input"
-                  value={requestRatioInput}
-                  onChange={(e) => setRequestRatioInput(Number(e.target.value))}
-                />
+                  value={requestSizeMode}
+                  onChange={(e) => setRequestSizeMode(e.target.value as "ratio" | "count")}
+                >
+                  <option value="ratio">배수로 지정 (재고 × N)</option>
+                  <option value="count">전체 요청 수 직접 입력</option>
+                </select>
               </label>
+
+              {requestSizeMode === "ratio" ? (
+                <label className="form-field">
+                  <span className="form-label">요청 배수 (재고 × N명이 몰림)</span>
+                  <input
+                    type="number"
+                    min={1}
+                    className="form-input"
+                    value={requestRatioInput}
+                    onChange={(e) => setRequestRatioInput(Number(e.target.value))}
+                  />
+                </label>
+              ) : (
+                <label className="form-field">
+                  <span className="form-label">전체 요청 수 (직접 입력)</span>
+                  <input
+                    type="number"
+                    min={1}
+                    className="form-input"
+                    value={requestCountInput}
+                    onChange={(e) => setRequestCountInput(Number(e.target.value))}
+                  />
+                </label>
+              )}
+
+              {estimatedIterations !== null && (
+                <span style={{ fontSize: "12px", color: "#8b8fa3" }}>
+                  전체 요청 수 예상: <b>{estimatedIterations.toLocaleString("ko-KR")}</b>건
+                </span>
+              )}
               <label className="form-field">
                 <span className="form-label">연타 유저 비율 (0~1)</span>
                 <input
@@ -237,7 +275,12 @@ export function ScenarioDialog({ coupons, defaultCouponId, onCancel, onConfirm }
                 options.maxVus = maxVusInput;
               }
               if (scenario.advanced) {
-                options.requestRatio = requestRatioInput;
+                // 변경 후
+                if (requestSizeMode === "count") {
+                  options.requestCount = requestCountInput;
+                } else {
+                  options.requestRatio = requestRatioInput;
+                }
                 options.arrival = arrivalInput;
                 if (arrivalInput !== "burst") options.duration = durationInput;
                 options.spamRatio = spamRatioInput;
