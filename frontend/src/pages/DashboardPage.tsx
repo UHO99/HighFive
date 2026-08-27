@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Sidebar } from "../components/Sidebar";
 import { DashboardHeader } from "../components/DashboardHeader";
+import { ExpandableCard } from "../components/ExpandableCard";
 import { ServerResourceCard } from "../components/ServerResourceCard";
 import { ApiResponseCard } from "../components/ApiResponseCard";
 import { CouponStatusCard } from "../components/CouponStatusCard";
@@ -30,6 +31,7 @@ export function DashboardPage() {
   const [couponId, setCouponId] = useState(DEFAULT_COUPON_ID);
   const { vals, startTest, stopTest, refresh, refreshing, error, couponMissing } = useMonitoringDashboard(couponId);
   const [couponHistoryDialogOpen, setCouponHistoryDialogOpen] = useState(false);
+  const [expandedCard, setExpandedCard] = useState<string | null>(null);
   const [dbCounts, setDbCounts] = useState<DbCounts | null>(null);
   // 재적재 시점의 소요시간은 폴링으로 안 지워진다 - GET counts는 이 값을 모르니(null) 마지막으로
   // 성공한 재적재 값을 그대로 들고 있는다.
@@ -108,6 +110,20 @@ export function DashboardPage() {
     const timer = window.setInterval(load, DUMMY_STATUS_POLL_INTERVAL_MS);
     return () => window.clearInterval(timer);
   }, []);
+
+  const toggleExpandCard = useCallback((id: string) => {
+    setExpandedCard((current) => (current === id ? null : id));
+  }, []);
+
+  // 확대된 카드가 있을 때 Esc로도 닫을 수 있게 한다.
+  useEffect(() => {
+    if (!expandedCard) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setExpandedCard(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [expandedCard]);
 
   const dummyDataCounts: DummyDataCounts | null = dbCounts && {
     ...dbCounts,
@@ -241,23 +257,35 @@ export function DashboardPage() {
         />
 
         <div className="row">
-          <ServerResourceCard vals={vals} />
-          <ApiResponseCard vals={vals} />
-          <CouponStatusCard vals={vals} />
+          <ExpandableCard id="server-resource" expandedId={expandedCard} onToggle={toggleExpandCard}>
+            <ServerResourceCard vals={vals} />
+          </ExpandableCard>
+          <ExpandableCard id="api-response" expandedId={expandedCard} onToggle={toggleExpandCard}>
+            <ApiResponseCard vals={vals} />
+          </ExpandableCard>
+          <ExpandableCard id="coupon-status" expandedId={expandedCard} onToggle={toggleExpandCard}>
+            <CouponStatusCard vals={vals} />
+          </ExpandableCard>
         </div>
 
         <div className="row">
           <div className="pipeline-col">
-            <CouponPipelineCard
-              vals={vals}
-              onDrainPending={handleDrainPending}
-              dummyDataCounts={dummyDataCounts}
-              beforeCounts={dummyStatus.before}
-              lastLoadResult={lastLoadResult}
-            />
-            <ConsistencyStatusCard />
+            <ExpandableCard id="coupon-pipeline" expandedId={expandedCard} onToggle={toggleExpandCard}>
+              <CouponPipelineCard
+                vals={vals}
+                onDrainPending={handleDrainPending}
+                dummyDataCounts={dummyDataCounts}
+                beforeCounts={dummyStatus.before}
+                lastLoadResult={lastLoadResult}
+              />
+            </ExpandableCard>
+            <ExpandableCard id="consistency-status" expandedId={expandedCard} onToggle={toggleExpandCard}>
+              <ConsistencyStatusCard />
+            </ExpandableCard>
           </div>
-          <CouponIssueHistoryCard couponId={couponId} testRunning={vals.testRunning} />
+          <ExpandableCard id="coupon-issue-history" expandedId={expandedCard} onToggle={toggleExpandCard}>
+            <CouponIssueHistoryCard couponId={couponId} testRunning={vals.testRunning} />
+          </ExpandableCard>
         </div>
       </div>
 
