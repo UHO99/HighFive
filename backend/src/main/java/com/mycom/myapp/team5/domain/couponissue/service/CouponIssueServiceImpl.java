@@ -20,6 +20,8 @@ import com.mycom.myapp.team5.domain.couponissue.dto.CouponIssueHistoryResponse;
 import com.mycom.myapp.team5.domain.couponissue.dto.MyCouponResponse;
 import com.mycom.myapp.team5.domain.couponissue.entity.CouponIssue;
 import com.mycom.myapp.team5.domain.couponissue.repository.CouponIssueRepository;
+import com.mycom.myapp.team5.domain.user.entity.User;
+import com.mycom.myapp.team5.domain.user.repository.UserRepository;
 import com.mycom.myapp.team5.global.common.enums.CouponIssueStatus;
 import com.mycom.myapp.team5.global.redis.CouponStockRedisService;
 
@@ -32,6 +34,7 @@ public class CouponIssueServiceImpl implements CouponIssueService {
 	private final CouponIssueRepository couponIssueRepository;
 	private final CouponRepository couponRepository;
 	private final CouponStockRedisService couponStockRedisService;
+	private final UserRepository userRepository;
 
 	@Override
 	@Transactional(readOnly = true)
@@ -90,7 +93,15 @@ public class CouponIssueServiceImpl implements CouponIssueService {
 		if (!couponRepository.existsById(couponId)) {
 			throw new CouponException(CouponErrorCode.COUPON_NOT_FOUND);
 		}
-		return couponIssueRepository.findByCouponIdOrderByIssuedAtDesc(couponId).stream().map(CouponIssueHistoryResponse::from).toList();
+
+		List<CouponIssue> issues = couponIssueRepository.findByCouponIdOrderByIssuedAtDesc(couponId);
+
+		// 이 쿠폰의 발급 이력에 등장하는 userId를 모아 한 번의 IN 조회로 유저 정보를 가져온다 -
+		// 이력 건수만큼 SELECT를 반복하지 않는다(N+1 방지).
+		List<Long> userIds = issues.stream().map(CouponIssue::getUserId).distinct().toList();
+		Map<Long, User> userMap = userIds.isEmpty() ? Map.of() : userRepository.findAllById(userIds).stream().collect(Collectors.toMap(User::getId, Function.identity()));
+
+		return issues.stream().map(issue -> CouponIssueHistoryResponse.from(issue, userMap.get(issue.getUserId()))).toList();
 	}
 
 	@Override

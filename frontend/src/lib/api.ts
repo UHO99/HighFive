@@ -584,3 +584,16 @@ export async function fetchCouponFairness(couponId: number): Promise<CouponFairn
   return parseApiResponse<CouponFairnessReport>(res, "선착순 공정성 검증 조회 실패");
 }
 
+export interface CouponIssueHistoryResponse {
+  issueId: number;
+  userId: number;
+  userEmail: string | null;
+  userName: string | null;
+  couponId: number;
+  status: "ISSUED" | "USED" | "CANCELED" | "EXPIRED";
+  issuedAt: string;
+  usedAt: string | null;
+  canceledAt: string | null;
+  expiredAt: string | null;
+}
+
