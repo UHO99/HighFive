@@ -3,6 +3,8 @@ package com.mycom.myapp.team5.domain.couponissue.repository;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -16,41 +18,42 @@ import jakarta.persistence.LockModeType;
 
 public interface CouponIssueRepository extends JpaRepository<CouponIssue, Long> {
 
-    long countByCouponId(Long couponId);
+	long countByCouponId(Long couponId);
 
-    @Transactional
-    void deleteByCouponId(Long couponId);
+	@Transactional
+	void deleteByCouponId(Long couponId);
 
-    // S012/S013가 쿠폰마다 countByCouponId를 따로 호출하던 N+1을 없애기 위한 배치 집계 쿼리.
-    @Query("SELECT ci.couponId AS couponId, COUNT(ci) AS issuedCount " +
-            "FROM CouponIssue ci WHERE ci.couponId IN :couponIds GROUP BY ci.couponId")
-    List<CouponIssueCount> countGroupedByCouponIds(@Param("couponIds") List<Long> couponIds);
+	// S012/S013가 쿠폰마다 countByCouponId를 따로 호출하던 N+1을 없애기 위한 배치 집계 쿼리.
+	@Query("SELECT ci.couponId AS couponId, COUNT(ci) AS issuedCount " + "FROM CouponIssue ci WHERE ci.couponId IN :couponIds GROUP BY ci.couponId")
+	List<CouponIssueCount> countGroupedByCouponIds(@Param("couponIds") List<Long> couponIds);
 
-    interface CouponIssueCount {
-        Long getCouponId();
-        Long getIssuedCount();
-    }
+	interface CouponIssueCount {
+		Long getCouponId();
+		Long getIssuedCount();
+	}
 
-    // (유스케이스 U003) 내 쿠폰 목록 - 최근 발급 순 정렬
-    List<CouponIssue> findByUserIdOrderByIssuedAtDesc(Long userId);
+	// (유스케이스 U003) 내 쿠폰 목록 - 최근 발급 순 정렬
+	List<CouponIssue> findByUserIdOrderByIssuedAtDesc(Long userId);
 
-    // (유스케이스 U003) 본인 소유 쿠폰 단건 - userId로 소유권까지 검증
-    Optional<CouponIssue> findByIdAndUserId(Long id, Long userId);
+	// (유스케이스 U003) 본인 소유 쿠폰 단건 - userId로 소유권까지 검증
+	Optional<CouponIssue> findByIdAndUserId(Long id, Long userId);
 
-    // 시나리오 7: 관리자 — 특정 쿠폰의 전체 발급 이력 (최근 발급 순)
-    List<CouponIssue> findByCouponIdOrderByIssuedAtDesc(Long couponId);
+	// 시나리오 7: 관리자 — 특정 쿠폰의 전체 발급 이력 (최근 발급 순)
+	List<CouponIssue> findByCouponIdOrderByIssuedAtDesc(Long couponId);
 
-    // (관리자) 선착순 타임라인 - Redis fairness-log에서 뽑은 userId들의 DB 행을 한 번에 조회 (N+1 방지)
-    List<CouponIssue> findByCouponIdAndUserIdIn(Long couponId, List<Long> userIds);
+	// (관리자) 선착순 타임라인 - Redis fairness-log에서 뽑은 userId들의 DB 행을 한 번에 조회 (N+1 방지)
+	List<CouponIssue> findByCouponIdAndUserIdIn(Long couponId, List<Long> userIds);
 
-    // "몇 번째로 발급받았는지" - 발급 id는 auto-increment라 오름차순 = 발급 순서.
-    long countByCouponIdAndIdLessThanEqual(Long couponId, Long id);
+	// "몇 번째로 발급받았는지" - 발급 id는 auto-increment라 오름차순 = 발급 순서.
+	long countByCouponIdAndIdLessThanEqual(Long couponId, Long id);
 
-    // (유스케이스 U004) 비관적 락으로 소유권 검증 + 조회
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT ci FROM CouponIssue ci WHERE ci.id = :id AND ci.userId = :userId")
-    Optional<CouponIssue> findByIdAndUserIdForUpdate(@Param("id") Long id, @Param("userId") Long userId);
-    
-    // (유스케이스 U004/S010 특정 상태의 발급 건수 카운트 (replenishMissingStock 등에서 사용)
-    long countByCouponIdAndStatus(Long couponId, CouponIssueStatus status);
+	// (유스케이스 U004) 비관적 락으로 소유권 검증 + 조회
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	@Query("SELECT ci FROM CouponIssue ci WHERE ci.id = :id AND ci.userId = :userId")
+	Optional<CouponIssue> findByIdAndUserIdForUpdate(@Param("id") Long id, @Param("userId") Long userId);
+
+	// (유스케이스 U004/S010 특정 상태의 발급 건수 카운트 (replenishMissingStock 등에서 사용)
+	long countByCouponIdAndStatus(Long couponId, CouponIssueStatus status);
+
+	Page<CouponIssue> findByCouponIdOrderByIssuedAtDesc(long couponId, Pageable pageable);
 }

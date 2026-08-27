@@ -501,11 +501,6 @@ export interface CouponIssueHistoryResponse {
   expiredAt: string | null;
 }
 
-export async function fetchCouponIssues(couponId: number): Promise<CouponIssueHistoryResponse[]> {
-  const res = await fetch(`${API_BASE}/api/admin/coupons/${couponId}/issues`);
-  return parseApiResponse<CouponIssueHistoryResponse[]>(res, "쿠폰 발급 이력 조회 실패");
-}
-
 /**
  * backend CouponFairnessTimelineEntry(domain/couponissue/dto)와 1:1로 대응한다.
  * rank는 Redis fairness-log의 원자적 처리 순번 - DB issued_at(비동기 배치 반영)보다 실제 처리
@@ -595,5 +590,21 @@ export interface CouponIssueHistoryResponse {
   usedAt: string | null;
   canceledAt: string | null;
   expiredAt: string | null;
+}
+
+export interface CouponIssueHistoryPage {
+  items: CouponIssueHistoryResponse[];
+  page: number;
+  totalPages: number;
+  totalElements: number;
+}
+
+export async function fetchCouponIssues(
+  couponId: number,
+  page: number,
+  size: number
+): Promise<CouponIssueHistoryPage> {
+  const res = await fetch(`${API_BASE}/api/admin/coupons/${couponId}/issues?page=${page}&size=${size}`);
+  return parseApiResponse<CouponIssueHistoryPage>(res, "발급 이력 조회 실패");
 }
 
