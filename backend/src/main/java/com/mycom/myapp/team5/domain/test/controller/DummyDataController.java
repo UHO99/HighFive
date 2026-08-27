@@ -20,6 +20,8 @@ import com.mycom.myapp.team5.domain.user.repository.UserRepository;
 import com.mycom.myapp.team5.global.common.dto.ApiResponse;
 import com.mycom.myapp.team5.global.common.enums.CouponStatus;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -29,6 +31,7 @@ import lombok.RequiredArgsConstructor;
  * 같은 테이블을 동시에 건드릴 수 있는 유일한 상황이 "진행 중인 캠페인이 있을 때"이기
  * 때문. OPEN 쿠폰이 없으면 스케줄러가 그 테이블을 건드릴 일이 없어 안전하다.
  */
+@Tag(name = "더미데이터", description = "부하 테스트용 더미데이터 현황 조회 및 재적재 API")
 @RestController
 @RequiredArgsConstructor
 public class DummyDataController {
@@ -38,6 +41,7 @@ public class DummyDataController {
     private final UserRepository userRepository;
     private final DummyDataLoadService dummyDataLoadService;
 
+    @Operation(summary = "더미데이터 건수 조회", description = "현재 DB에 적재된 회원/쿠폰/발급 이력 건수를 조회합니다.")
     @GetMapping("/api/admin/dummy-data/counts")
     public ResponseEntity<ApiResponse<DummyDataAll.Counts>> counts() {
         DummyDataAll.Counts counts = DummyDataAll.Counts.snapshot(
@@ -47,6 +51,7 @@ public class DummyDataController {
 
     // 적재 진행 상태 - 새로고침해도 "적재 중"인지 알 수 있도록 폴링용으로 둔다(로컬 UI 상태가 아님).
     // before는 항상 DummyDataAll.SEED_BASELINE(고정 시드값)이라 여기서 따로 채울 게 없다.
+    @Operation(summary = "더미데이터 적재 상태 조회", description = "더미데이터 재적재의 진행/완료 여부를 조회합니다. 새로고침해도 진행 상태를 이어서 확인할 수 있도록 서버 상태를 그대로 노출하는 폴링용 API입니다.")
     @GetMapping("/api/admin/dummy-data/status")
     public ResponseEntity<ApiResponse<DummyDataStatus>> status() {
         return ResponseEntity.ok(ApiResponse.success(dummyDataLoadService.status()));
@@ -54,6 +59,8 @@ public class DummyDataController {
 
     // 적재는 수십 초 걸리므로 백그라운드로 시작만 시키고 바로 202를 반환한다 - 진행/완료 여부는
     // /status를 폴링해서 확인한다.
+    @Operation(summary = "더미데이터 재적재", description = "회원/쿠폰/발급 이력 더미데이터를 재적재합니다. OPEN 상태인 쿠폰이 하나라도 있으면 거부됩니다(진행 중인 캠페인과 배치 스케줄러가 같은 테이블을 동시에 건드릴 수 있어서). "
+            + "적재는 수십 초가 걸려 즉시 202로 응답하고 백그라운드로 진행되며, 진행/완료 여부는 상태 조회 API를 폴링해 확인해야 합니다.")
     @PostMapping("/api/admin/dummy-data/reload")
     public ResponseEntity<ApiResponse<DummyDataStatus>> reload() {
         List<Coupon> open = couponRepository.findByStatus(CouponStatus.OPEN);

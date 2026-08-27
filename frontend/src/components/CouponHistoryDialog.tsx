@@ -14,15 +14,17 @@ const COUPON_STATUS_LABEL: Record<CouponSummary["status"], string> = {
   CLOSE: "마감",
 };
 
+const PAGE_SIZE = 50;
+
 interface Props {
   onClose: () => void;
 }
 
 /**
  * 전체 쿠폰 발급 이력 — 쿠폰 목록(GET /api/admin/coupons)을 먼저 보여주고, 하나를 선택하면
- * 그 쿠폰의 전체 발급 이력(GET /api/admin/coupons/{couponId}/issues)을 이어서 보여준다.
- * 이전에는 대시보드 상단에서 이미 골라둔 쿠폰 하나만 고정으로 봤는데, 그 쿠폰과 무관하게
- * 임의의 쿠폰을 골라 확인할 수 있어야 한다는 요구로 두 단계 구조로 바꿨다.
+ * 그 쿠폰의 전체 발급 이력(GET /api/admin/coupons/{couponId}/issues)을 페이지 단위로 이어서 보여준다.
+ * 이력이 많은 쿠폰(부하 테스트로 수만 건)에서 한 번에 다 불러오면 느려서, 발급 로그(CouponIssueHistoryCard)와
+ * 동일한 오프셋(page/size) 페이지네이션을 적용했다.
  */
 export function CouponHistoryDialog({ onClose }: Props) {
   const [coupons, setCoupons] = useState<CouponSummary[]>([]);
@@ -31,6 +33,9 @@ export function CouponHistoryDialog({ onClose }: Props) {
 
   const [selectedCouponId, setSelectedCouponId] = useState<number | null>(null);
   const [rows, setRows] = useState<CouponIssueHistoryResponse[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
   const [issuesLoading, setIssuesLoading] = useState(false);
   const [issuesError, setIssuesError] = useState<string | null>(null);
 
@@ -56,7 +61,7 @@ export function CouponHistoryDialog({ onClose }: Props) {
     };
   }, []);
 
-  // 쿠폰을 선택하면 그 쿠폰의 발급 이력을 불러온다.
+  // 쿠폰이나 페이지가 바뀌면 그 쿠폰의 해당 페이지 발급 이력을 불러온다.
   useEffect(() => {
     if (selectedCouponId === null) return;
 
@@ -64,9 +69,12 @@ export function CouponHistoryDialog({ onClose }: Props) {
     setIssuesLoading(true);
     setIssuesError(null);
 
-    fetchCouponIssues(selectedCouponId)
-      .then((data) => {
-        if (!cancelled) setRows(data);
+    fetchCouponIssues(selectedCouponId, page, PAGE_SIZE)
+      .then((result) => {
+        if (cancelled) return;
+        setRows(result.items);
+        setTotalPages(result.totalPages);
+        setTotalElements(result.totalElements);
       })
       .catch((e) => {
         if (!cancelled) setIssuesError(e instanceof Error ? e.message : "이력 조회 실패");
@@ -78,9 +86,17 @@ export function CouponHistoryDialog({ onClose }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [selectedCouponId]);
+  }, [selectedCouponId, page]);
+
+  // 쿠폰을 새로 선택하면 이전 쿠폰에서 보고 있던 페이지 번호가 그대로 남지 않도록 1로 되돌린다.
+  const handleSelectCoupon = (id: number) => {
+    setSelectedCouponId(id);
+    setPage(1);
+  };
 
   const selectedCoupon = coupons.find((c) => c.id === selectedCouponId) ?? null;
+  const hasPrev = page > 1;
+  const hasNext = totalPages > 0 && page < totalPages;
 
   return (
     <div className="dialog-overlay" onClick={onClose}>
@@ -108,7 +124,7 @@ export function CouponHistoryDialog({ onClose }: Props) {
                 <li
                   key={c.id}
                   className={`coupon-select-item${c.id === selectedCouponId ? " coupon-select-item-active" : ""}`}
-                  onClick={() => setSelectedCouponId(c.id)}
+                  onClick={() => handleSelectCoupon(c.id)}
                 >
                   <span className="coupon-select-id">#{c.id}</span>
                   <span className="coupon-select-name">{c.name}</span>
@@ -121,41 +137,63 @@ export function CouponHistoryDialog({ onClose }: Props) {
         </div>
 
         {selectedCouponId !== null && (
-          <div className="history-table-wrap">
-            {issuesError && <div className="dialog-error">{issuesError}</div>}
-            {issuesLoading ? (
-              <p className="dialog-subtitle">불러오는 중…</p>
-            ) : rows.length === 0 ? (
-              <p className="dialog-subtitle">발급 이력이 없습니다.</p>
-            ) : (
-              <table className="history-table">
-                <thead>
-                  <tr>
-                    <th>이력 ID</th>
-                    <th>User ID</th>
-                    <th>이름</th>
-                    <th>이메일</th>
-                    <th>쿠폰 ID</th>
-                    <th>상태</th>
-                    <th>발급 시각</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((r) => (
-                    <tr key={r.issueId}>
-                      <td>{r.issueId}</td>
-                      <td>{r.userId}</td>
-                      <td>{r.userName ?? "-"}</td>
-                      <td>{r.userEmail ?? "-"}</td>
-                      <td>{r.couponId}</td>
-                      <td>{STATUS_LABEL[r.status]}</td>
-                      <td>{new Date(r.issuedAt).toLocaleString("ko-KR")}</td>
+
+          <>
+            <div className="history-table-wrap">
+              {issuesError && <div className="dialog-error">{issuesError}</div>}
+              {issuesLoading ? (
+                <p className="dialog-subtitle">불러오는 중…</p>
+              ) : rows.length === 0 ? (
+                <p className="dialog-subtitle">발급 이력이 없습니다.</p>
+              ) : (
+                <table className="history-table">
+                  <thead>
+                    <tr>
+                      <th>이력 ID</th>
+                      <th>User ID</th>
+                      <th>이름</th>
+                      <th>이메일</th>
+                      <th>쿠폰 ID</th>
+                      <th>상태</th>
+                      <th>발급 시각</th>
+
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {rows.map((r) => (
+                      <tr key={r.issueId}>
+                        <td>{r.issueId}</td>
+                        <td>{r.userId}</td>
+                        <td>{r.userName ?? "-"}</td>
+                        <td>{r.userEmail ?? "-"}</td>
+                        <td>{r.couponId}</td>
+                        <td>{STATUS_LABEL[r.status]}</td>
+                        <td>{new Date(r.issuedAt).toLocaleString("ko-KR")}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {!issuesLoading && rows.length > 0 && (
+              <div className="pagination-bar">
+                <button type="button" className="pagination-btn" onClick={() => setPage(1)} disabled={!hasPrev}>
+                  처음
+                </button>
+                <button type="button" className="pagination-btn" onClick={() => setPage(page - 1)} disabled={!hasPrev}>
+                  이전
+                </button>
+                <span className="pagination-label">
+                  {totalPages === 0 ? "0 / 0" : `${page} / ${totalPages}`} 페이지 · 전체{" "}
+                  {totalElements.toLocaleString("ko-KR")}건
+                </span>
+                <button type="button" className="pagination-btn" onClick={() => setPage(page + 1)} disabled={!hasNext}>
+                  다음
+                </button>
+              </div>
             )}
-          </div>
+          </>
         )}
 
         <div className="dialog-actions">
