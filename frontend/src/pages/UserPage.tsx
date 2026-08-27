@@ -92,32 +92,26 @@ function UserPanel({ userId, onLogout }: { userId: number; onLogout: () => void 
     };
   }, []);
 
-  // 지금 고른 쿠폰의 재고만 2초마다 갱신한다.
-  useEffect(() => {
+  // 변경 후 - 폴링 제거, 쿠폰을 선택할 때(또는 바뀔 때)만 1회 조회
+  const refreshMonitoring = useCallback(() => {
     if (selectedCouponId === null) {
       setMonitoring(null);
       return;
     }
-    let cancelled = false;
-    const load = () => {
-      fetchMonitoringDashboard(selectedCouponId)
-        .then((data) => {
-          if (!cancelled) setMonitoring(data);
-        })
-        .catch(() => {
-          // 조회 실패는 마지막으로 알던 값을 유지한다.
-        });
-    };
-    load();
-    const timer = window.setInterval(load, POLL_INTERVAL_MS);
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-    };
+    fetchMonitoringDashboard(selectedCouponId)
+      .then(setMonitoring)
+      .catch(() => {
+        // 조회 실패는 마지막으로 알던 값을 유지한다.
+      });
   }, [selectedCouponId]);
+
+  useEffect(() => {
+    refreshMonitoring();
+  }, [refreshMonitoring]);
 
   const selectedCoupon = openCoupons.find((c) => c.id === selectedCouponId) ?? null;
 
+  // 변경 후
   const handleRequestIssue = () => {
     if (!selectedCoupon) return;
     setRequesting(true);
@@ -128,7 +122,10 @@ function UserPanel({ userId, onLogout }: { userId: number; onLogout: () => void 
         window.setTimeout(refreshMyCoupons, 1500);
       })
       .catch((e) => setMessage(`발급 실패: ${e.message}`))
-      .finally(() => setRequesting(false));
+      .finally(() => {
+        setRequesting(false);
+        refreshMonitoring();   // 추가 - 성공/실패 무관하게, 방금 내 시도로 재고가 바뀌었을 수 있으니 재조회
+      });
   };
 
   return (
