@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import { fetchCouponIssues, fetchCoupons, type CouponIssueHistoryResponse, type CouponSummary } from "../lib/api";
+import { HistorySkeletonRows } from "./HistorySkeletonRows";
+
+const HISTORY_COLUMN_COUNT = 7;
 
 const STATUS_LABEL: Record<CouponIssueHistoryResponse["status"], string> = {
   ISSUED: "발급됨",
@@ -148,25 +151,29 @@ export function CouponHistoryDialog({ onClose, variant = "dialog" }: Props) {
           <>
             <div className="history-table-wrap history-table-wrap-fill">
               {issuesError && <div className="dialog-error">{issuesError}</div>}
-              {issuesLoading ? (
-                <span className="tile-label-md">불러오는 중…</span>
-              ) : rows.length === 0 ? (
-                <span className="tile-label-md">발급 이력이 없습니다.</span>
-              ) : (
-                <table className="history-table history-table-compact">
-                  <thead>
+              <table className="history-table history-table-compact">
+                <thead>
+                  <tr>
+                    <th>이력 ID</th>
+                    <th>User ID</th>
+                    <th>이름</th>
+                    <th>이메일</th>
+                    <th>쿠폰 ID</th>
+                    <th>상태</th>
+                    <th>발급 시각</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {issuesLoading && rows.length === 0 ? (
+                    <HistorySkeletonRows columns={HISTORY_COLUMN_COUNT} />
+                  ) : rows.length === 0 ? (
                     <tr>
-                      <th>이력 ID</th>
-                      <th>User ID</th>
-                      <th>이름</th>
-                      <th>이메일</th>
-                      <th>쿠폰 ID</th>
-                      <th>상태</th>
-                      <th>발급 시각</th>
+                      <td colSpan={HISTORY_COLUMN_COUNT} className="history-empty-cell">
+                        발급 이력이 없습니다.
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map((r) => (
+                  ) : (
+                    rows.map((r) => (
                       <tr key={r.issueId}>
                         <td className="history-cell-mono history-cell-highlight">{r.issueId}</td>
                         <td className="history-cell-mono">{r.userId}</td>
@@ -178,29 +185,27 @@ export function CouponHistoryDialog({ onClose, variant = "dialog" }: Props) {
                         </td>
                         <td className="history-cell-mono">{new Date(r.issuedAt).toLocaleString("ko-KR")}</td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
 
-            {!issuesLoading && rows.length > 0 && (
-              <div className="pagination-bar">
-                <button type="button" className="pagination-btn" onClick={() => setPage(1)} disabled={!hasPrev}>
-                  처음
-                </button>
-                <button type="button" className="pagination-btn" onClick={() => setPage(page - 1)} disabled={!hasPrev}>
-                  이전
-                </button>
-                <span className="pagination-label">
-                  {totalPages === 0 ? "0 / 0" : `${page} / ${totalPages}`} 페이지 · 전체{" "}
-                  {totalElements.toLocaleString("ko-KR")}건
-                </span>
-                <button type="button" className="pagination-btn" onClick={() => setPage(page + 1)} disabled={!hasNext}>
-                  다음
-                </button>
-              </div>
-            )}
+            <div className="pagination-bar">
+              <button type="button" className="pagination-btn" onClick={() => setPage(1)} disabled={!hasPrev || issuesLoading}>
+                처음
+              </button>
+              <button type="button" className="pagination-btn" onClick={() => setPage(page - 1)} disabled={!hasPrev || issuesLoading}>
+                이전
+              </button>
+              <span className="pagination-label">
+                {totalPages === 0 ? "0 / 0" : `${page} / ${totalPages}`} 페이지 · 전체{" "}
+                {totalElements.toLocaleString("ko-KR")}건
+              </span>
+              <button type="button" className="pagination-btn" onClick={() => setPage(page + 1)} disabled={!hasNext || issuesLoading}>
+                다음
+              </button>
+            </div>
           </>
         )}
 
@@ -215,7 +220,7 @@ export function CouponHistoryDialog({ onClose, variant = "dialog" }: Props) {
   );
 
   if (variant === "page") {
-    return <div className="card">{content}</div>;
+    return <div className="card coupon-history-page">{content}</div>;
   }
 
   return (

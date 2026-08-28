@@ -1396,6 +1396,29 @@ body {
   font-family: "JetBrains Mono", monospace;
 }
 
+/* 데이터가 없을 때도 표 틀(헤더)은 유지하고, 본문 한 칸에만 안내문을 띄운다. */
+.history-empty-cell {
+  text-align: center !important;
+  color: #9aa0b4;
+  padding: 28px 16px !important;
+  font-weight: 500;
+}
+
+/* 로딩 중에는 "불러오는 중…" 문구 대신 표 모양 그대로 반짝이는 자리표시자를 채운다. */
+.history-skeleton-bar {
+  display: inline-block;
+  height: 12px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #eef0f4 25%, #f7f8fb 37%, #eef0f4 63%);
+  background-size: 400px 100%;
+  animation: history-shimmer 1.3s ease-in-out infinite;
+}
+
+@keyframes history-shimmer {
+  0% { background-position: -200px 0; }
+  100% { background-position: 200px 0; }
+}
+
 .filter-bar {
   display: flex;
   align-items: center;
@@ -1526,18 +1549,22 @@ body {
 }
 
 /* 전체 쿠폰 발급 이력 - 쿠폰 선택을 발급 로그(CouponIssueHistoryCard)의 filter-btn과 같은
-   pill 톤으로 맞춘 칩 목록. */
+   pill 톤으로 맞춘 칩 목록. 쿠폰이 많아져도 세로로 안 늘어나게 한 줄로 고정하고 가로 스와이프로
+   훑어보게 한다 - nowrap + overflow-x:auto, 각 칩은 flex:none으로 줄어들지 않는다. */
 .coupon-history-chip-row {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 8px;
-  max-height: 180px;
-  overflow-y: auto;
-  padding-bottom: 4px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 8px;
   margin-bottom: 8px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
 }
 
 .coupon-history-chip {
+  flex: none;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -1550,6 +1577,7 @@ body {
   padding: 7px 12px;
   cursor: pointer;
   text-align: left;
+  white-space: nowrap;
 }
 
 .coupon-history-chip:hover {
@@ -1653,10 +1681,24 @@ body {
 .present-page .filter-bar { gap: 10px; padding-bottom: 12px; }
 .present-page .filter-btn { font: 700 14px "Inter", sans-serif; padding: 8px 16px; }
 
+/* .history-table-compact th/td가 font-size를 직접 지정해두기 때문에(11.5px), 표 엘리먼트에만
+   font-size를 올려봐야 상속으로는 안 이긴다 - th/td 자체를 다시 지정해야 한다. */
 .present-page .history-table,
 .present-page .history-table-compact { font-size: 15px; }
 .present-page .history-table th,
-.present-page .history-table td { padding: 12px 16px; }
+.present-page .history-table td,
+.present-page .history-table-compact th,
+.present-page .history-table-compact td { padding: 12px 16px; font-size: 15px; }
+
+/* 전체 쿠폰 발급 이력 표만 한 단계 더 키운다 - 쿠폰 로그 탭의 발급 로그 표는 그대로 둔다. */
+.present-page .coupon-history-page .history-table,
+.present-page .coupon-history-page .history-table-compact { font-size: 22px; }
+.present-page .coupon-history-page .history-table th,
+.present-page .coupon-history-page .history-table td,
+.present-page .coupon-history-page .history-table-compact th,
+.present-page .coupon-history-page .history-table-compact td { padding: 18px 20px; font-size: 22px; }
+.present-page .coupon-history-page .history-table-compact th { font-size: 15px; }
+.present-page .coupon-history-page .history-table th { font-size: 15px; }
 .present-page .history-table-wrap { border-radius: 12px; }
 
 .present-page .pagination-bar { gap: 12px; padding-top: 14px; }
