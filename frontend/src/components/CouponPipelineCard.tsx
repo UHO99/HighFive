@@ -127,79 +127,90 @@ export function CouponPipelineCard({ vals, onDrainPending, dummyDataCounts, befo
       </div>
 
       <span className="section-label">더미데이터 적재 결과</span>
-      {lastLoadResult === null ? (
-        <span className="tile-label-md">기록 없음</span>
-      ) : (
-        <div className="ba-table-wrap">
-          <table className="ba-table">
-            <thead>
-              <tr>
-                <th>구분</th>
-                <th>적재 수량</th>
-                <th>소요 시간</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td className="ba-row-label">회원</td>
-                <td>{FMT.format(lastLoadResult.userCount)}</td>
-                <td>{lastLoadResult.userLoadMs == null ? "-" : formatSeconds(lastLoadResult.userLoadMs)}</td>
-              </tr>
-              <tr>
-                <td className="ba-row-label">쿠폰</td>
-                <td>{FMT.format(lastLoadResult.couponCount)}</td>
-                <td>-</td>
-              </tr>
-              <tr>
-                <td className="ba-row-label">발급 이력</td>
-                <td>{FMT.format(lastLoadResult.couponIssueCount)}</td>
-                <td>{lastLoadResult.couponIssueLoadMs == null ? "-" : formatSeconds(lastLoadResult.couponIssueLoadMs)}</td>
-              </tr>
-              <tr>
-                <td className="ba-row-label">전체</td>
-                <td>-</td>
-                <td>{lastLoadResult.totalMs == null ? "-" : formatSeconds(lastLoadResult.totalMs)}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      )}
+      <div className="ba-table-wrap">
+        <table className="ba-table">
+          <thead>
+            <tr>
+              <th>구분</th>
+              <th>적재 수량</th>
+              <th>소요 시간</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td className="ba-row-label">회원</td>
+              <td>{lastLoadResult === null ? "-" : FMT.format(lastLoadResult.userCount)}</td>
+              <td>{lastLoadResult?.userLoadMs == null ? "-" : formatSeconds(lastLoadResult.userLoadMs)}</td>
+            </tr>
+            <tr>
+              <td className="ba-row-label">쿠폰</td>
+              <td>{lastLoadResult === null ? "-" : FMT.format(lastLoadResult.couponCount)}</td>
+              <td>-</td>
+            </tr>
+            <tr>
+              <td className="ba-row-label">발급 이력</td>
+              <td>{lastLoadResult === null ? "-" : FMT.format(lastLoadResult.couponIssueCount)}</td>
+              <td>{lastLoadResult?.couponIssueLoadMs == null ? "-" : formatSeconds(lastLoadResult.couponIssueLoadMs)}</td>
+            </tr>
+            <tr>
+              <td className="ba-row-label">전체</td>
+              <td>-</td>
+              <td>{lastLoadResult?.totalMs == null ? "-" : formatSeconds(lastLoadResult.totalMs)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
       <span className="section-label">발급 수 현황</span>
-      {lastLoadResult === null || dummyDataCounts === null || beforeCounts === null ? (
-        <span className="tile-label-md">적재 기록 없음</span>
-      ) : (
-        <div className="ba-table-wrap">
-          <table className="ba-table">
-            <thead>
-              <tr>
-                <th>구분</th>
-                <th>적재 직후</th>
-                <th>증가분</th>
-                <th>현재</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td className="ba-row-label">쿠폰</td>
-                <td>{FMT.format(beforeCounts.couponCount)}</td>
-                <td className={dummyDataCounts.couponCount > beforeCounts.couponCount ? "ba-delta-pos" : undefined}>
-                  {formatDelta(beforeCounts.couponCount, dummyDataCounts.couponCount)}
-                </td>
-                <td>{FMT.format(dummyDataCounts.couponCount)}</td>
-              </tr>
-              <tr>
-                <td className="ba-row-label">발급 이력</td>
-                <td>{FMT.format(beforeCounts.couponIssueCount)}</td>
-                <td className={dummyDataCounts.couponIssueCount > beforeCounts.couponIssueCount ? "ba-delta-pos" : undefined}>
-                  {formatDelta(beforeCounts.couponIssueCount, dummyDataCounts.couponIssueCount)}
-                </td>
-                <td>{FMT.format(dummyDataCounts.couponIssueCount)}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      )}
+      <div className="ba-table-wrap">
+        <table className="ba-table">
+          <thead>
+            <tr>
+              <th>구분</th>
+              <th>적재 직후</th>
+              <th>증가분</th>
+              <th>현재</th>
+            </tr>
+          </thead>
+          <tbody>
+            {lastLoadResult === null || dummyDataCounts === null || beforeCounts === null ? (
+              <>
+                <tr>
+                  <td className="ba-row-label">쿠폰</td>
+                  <td>-</td>
+                  <td>-</td>
+                  <td>-</td>
+                </tr>
+                <tr>
+                  <td className="ba-row-label">발급 이력</td>
+                  <td>-</td>
+                  <td>-</td>
+                  <td>-</td>
+                </tr>
+              </>
+            ) : (
+              <>
+                <tr>
+                  <td className="ba-row-label">쿠폰</td>
+                  <td>{FMT.format(beforeCounts.couponCount)}</td>
+                  <td className={dummyDataCounts.couponCount > beforeCounts.couponCount ? "ba-delta-pos" : undefined}>
+                    {formatDelta(beforeCounts.couponCount, dummyDataCounts.couponCount)}
+                  </td>
+                  <td>{FMT.format(dummyDataCounts.couponCount)}</td>
+                </tr>
+                <tr>
+                  <td className="ba-row-label">발급 이력</td>
+                  <td>{FMT.format(beforeCounts.couponIssueCount)}</td>
+                  <td className={dummyDataCounts.couponIssueCount > beforeCounts.couponIssueCount ? "ba-delta-pos" : undefined}>
+                    {formatDelta(beforeCounts.couponIssueCount, dummyDataCounts.couponIssueCount)}
+                  </td>
+                  <td>{FMT.format(dummyDataCounts.couponIssueCount)}</td>
+                </tr>
+              </>
+            )}
+          </tbody>
+        </table>
+      </div>
 
       <div className="pf-footer">
         Stream PEL이 남아있는 동안엔 정합성 동기화 대상에서 제외됩니다 — 드레인 완료 후 아래{" "}
