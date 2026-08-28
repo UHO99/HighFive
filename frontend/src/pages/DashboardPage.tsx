@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Sidebar } from "../components/Sidebar";
 import { DashboardHeader } from "../components/DashboardHeader";
-import { ExpandableCard } from "../components/ExpandableCard";
+import type { AdminTab } from "../components/AdminTabs";
 import { ServerResourceCard } from "../components/ServerResourceCard";
 import { ApiResponseCard } from "../components/ApiResponseCard";
 import { CouponStatusCard } from "../components/CouponStatusCard";
@@ -29,13 +28,15 @@ const IDLE_DUMMY_STATUS: DummyDataStatus = { loading: false, startedAt: null, fi
 type DbCounts = Pick<DummyDataCounts, "userCount" | "couponCount" | "couponIssueCount">;
 type ReloadTiming = Pick<DummyDataCounts, "userLoadMs" | "couponIssueLoadMs" | "totalMs">;
 
-export function DashboardPage() {
+interface Props {
+  activeTab: AdminTab;
+}
+
+export function DashboardPage({ activeTab }: Props) {
   const [coupons, setCoupons] = useState<CouponSummary[]>([]);
   const [couponId, setCouponId] = useState(DEFAULT_COUPON_ID);
   const now = useClock();
   const { vals, startTest, stopTest, refresh, refreshing, error, couponMissing } = useMonitoringDashboard(couponId, now);
-  const [couponHistoryDialogOpen, setCouponHistoryDialogOpen] = useState(false);
-  const [expandedCard, setExpandedCard] = useState<string | null>(null);
   const [dbCounts, setDbCounts] = useState<DbCounts | null>(null);
   // 재적재 시점의 소요시간은 폴링으로 안 지워진다 - GET counts는 이 값을 모르니(null) 마지막으로
   // 성공한 재적재 값을 그대로 들고 있는다.
@@ -131,20 +132,6 @@ export function DashboardPage() {
       if (dummyPollRef.current !== null) window.clearInterval(dummyPollRef.current);
     };
   }, [handleDummyStatus, startDummyPolling]);
-
-  const toggleExpandCard = useCallback((id: string) => {
-    setExpandedCard((current) => (current === id ? null : id));
-  }, []);
-
-  // 확대된 카드가 있을 때 Esc로도 닫을 수 있게 한다.
-  useEffect(() => {
-    if (!expandedCard) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setExpandedCard(null);
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [expandedCard]);
 
   const dummyDataCounts: DummyDataCounts | null = dbCounts && {
     ...dbCounts,
@@ -273,11 +260,6 @@ export function DashboardPage() {
 
   return (
     <div className="app-shell">
-      <Sidebar
-        couponHistoryDisabled={!dataReady}
-        onOpenCouponHistory={() => setCouponHistoryDialogOpen(true)}
-      />
-
       <div className="main">
         <DashboardHeader
           vals={vals}
@@ -289,21 +271,23 @@ export function DashboardPage() {
           loadingData={dummyStatus.loading}
         />
 
-        <div className="row">
-          <ExpandableCard id="server-resource" expandedId={expandedCard} onToggle={toggleExpandCard}>
-            <ServerResourceCard vals={vals} />
-          </ExpandableCard>
-          <ExpandableCard id="api-response" expandedId={expandedCard} onToggle={toggleExpandCard}>
-            <ApiResponseCard vals={vals} />
-          </ExpandableCard>
-          <ExpandableCard id="coupon-status" expandedId={expandedCard} onToggle={toggleExpandCard}>
-            <CouponStatusCard vals={vals} />
-          </ExpandableCard>
-        </div>
+        <div className="present-page">
+          {activeTab === "server" && (
+            <div className="row">
+              <ServerResourceCard vals={vals} />
+              <ApiResponseCard vals={vals} />
+            </div>
+          )}
 
-        <div className="row">
-          <div className="pipeline-col">
-            <ExpandableCard id="coupon-pipeline" expandedId={expandedCard} onToggle={toggleExpandCard}>
+          {activeTab === "coupon" && (
+            <div className="pipeline-col">
+              <CouponStatusCard vals={vals} />
+              <CouponIssueHistoryCard couponId={couponId} testRunning={vals.testRunning} />
+            </div>
+          )}
+
+          {activeTab === "pipeline" && (
+            <div className="pipeline-col">
               <CouponPipelineCard
                 vals={vals}
                 onDrainPending={handleDrainPending}
@@ -311,14 +295,11 @@ export function DashboardPage() {
                 beforeCounts={dummyStatus.before}
                 lastLoadResult={lastLoadResult}
               />
-            </ExpandableCard>
-            <ExpandableCard id="consistency-status" expandedId={expandedCard} onToggle={toggleExpandCard}>
               <ConsistencyStatusCard now={now} />
-            </ExpandableCard>
-          </div>
-          <ExpandableCard id="coupon-issue-history" expandedId={expandedCard} onToggle={toggleExpandCard}>
-            <CouponIssueHistoryCard couponId={couponId} testRunning={vals.testRunning} />
-          </ExpandableCard>
+            </div>
+          )}
+
+          {activeTab === "history" && <CouponHistoryDialog variant="page" />}
         </div>
       </div>
 
@@ -338,12 +319,6 @@ export function DashboardPage() {
         onCouponOpened={handleCouponOpened}
         onCouponClosed={handleCouponClosed}
       />
-
-      {couponHistoryDialogOpen && (
-        <CouponHistoryDialog
-          onClose={() => setCouponHistoryDialogOpen(false)}
-        />
-      )}
     </div>
   );
 }
