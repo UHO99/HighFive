@@ -17,7 +17,7 @@ export function ScenarioDialog({ coupons, defaultCouponId, onCancel, onConfirm }
     coupons.some((c) => c.id === defaultCouponId) ? defaultCouponId : (coupons[0]?.id ?? null)
   );
   const [error, setError] = useState<string | null>(null);
-  const [maxVusInput, setMaxVusInput] = useState(50);
+  const [maxVusInput, setMaxVusInput] = useState(20000);
   // advanced 시나리오(main_test.js) 전용 - 기본값은 스크립트 기본값과 맞춰둔다.
   const [requestSizeMode, setRequestSizeMode] = useState<"ratio" | "count">("ratio");
   const [requestRatioInput, setRequestRatioInput] = useState(2);
@@ -117,9 +117,9 @@ export function ScenarioDialog({ coupons, defaultCouponId, onCancel, onConfirm }
                   </ul>
                 )}
                 <div className="scenario-meta">
-                  <span>램프업 {scenario.rampUp}</span>
-                  <span>유지 {scenario.hold}</span>
-                  <span>{scenario.targetVus}</span>
+                  {scenario.rampUp && <span>램프업 {scenario.rampUp}</span>}
+                  {scenario.hold && <span>유지 {scenario.hold}</span>}
+                  {scenario.targetVus && <span>{scenario.targetVus}</span>}
                 </div>
               </div>
             </label>
