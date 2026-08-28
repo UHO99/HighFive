@@ -4,9 +4,6 @@ import {
   type CouponFairnessOutcomeFilter, type CouponFairnessReport, type CouponFairnessTimelineEntry,
 } from "../lib/api";
 import { formatTimestampMicros, formatTimestampMs } from "../lib/format";
-import { HistorySkeletonRows } from "./HistorySkeletonRows";
-
-const COLUMN_COUNT = 6;
 
 /** 한 페이지에 받아오는 건수 - 로그가 아무리 쌓여도 요청/렌더 비용이 이 값에만 비례하도록 고정한다. */
 const PAGE_SIZE = 50;
@@ -90,11 +87,11 @@ export function CouponIssueHistoryCard({ couponId, testRunning }: Props) {
     setLoading(true);
     fetchFairnessTimeline(couponId, target, PAGE_SIZE, filter)
       .then((result) => {
-        setRows(result.items);
-        setPage(result.page);
-        setTotalPages(result.totalPages);
-        setTotalElements(result.totalElements);
-        pageRef.current = result.page;
+        setRows(result.items ?? []);
+        setPage(result.page ?? target);
+        setTotalPages(result.totalPages ?? 0);
+        setTotalElements(result.totalElements ?? 0);
+        pageRef.current = result.page ?? target;
         setError(null);
       })
       .catch((e) => {
@@ -171,29 +168,25 @@ export function CouponIssueHistoryCard({ couponId, testRunning }: Props) {
             ))}
           </div>
 
-          <div className="history-table-wrap history-table-wrap-fill">
-            <table className="history-table history-table-compact">
-              <thead>
-                <tr>
-                  <th>순번</th>
-                  <th>유저 / 사유</th>
-                  <th>Redis처리</th>
-                  <th>컨트롤러진입</th>
-                  <th>게이트진입</th>
-                  <th>발급시각(DB 저장 시각)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading && rows.length === 0 ? (
-                  <HistorySkeletonRows columns={COLUMN_COUNT} />
-                ) : rows.length === 0 ? (
+          {rows.length === 0 && !loading ? (
+            <span className="tile-label-md">
+              {filter === "ALL" ? "발급 이력이 없습니다" : "조건에 맞는 발급 내역이 없습니다"}
+            </span>
+          ) : (
+            <div className="history-table-wrap history-table-wrap-fill">
+              <table className="history-table history-table-compact">
+                <thead>
                   <tr>
-                    <td colSpan={COLUMN_COUNT} className="history-empty-cell">
-                      {filter === "ALL" ? "발급 이력이 없습니다" : "조건에 맞는 발급 내역이 없습니다"}
-                    </td>
+                    <th>순번</th>
+                    <th>유저 / 사유</th>
+                    <th>Redis처리</th>
+                    <th>컨트롤러진입</th>
+                    <th>게이트진입</th>
+                    <th>발급시각(DB 저장 시각)</th>
                   </tr>
-                ) : (
-                  rows.map((r) => {
+                </thead>
+                <tbody>
+                  {rows.map((r) => {
                     const reason = reasonLabel(r);
                     return (
                       <tr key={`${r.rank}-${r.userId}`}>
@@ -215,11 +208,11 @@ export function CouponIssueHistoryCard({ couponId, testRunning }: Props) {
                         </td>
                       </tr>
                     );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           <div className="pagination-bar">
             <button type="button" className="pagination-btn" onClick={() => goToPage(1)} disabled={!hasPrev || loading}>
@@ -229,7 +222,7 @@ export function CouponIssueHistoryCard({ couponId, testRunning }: Props) {
               이전
             </button>
             <span className="pagination-label">
-              {totalPages === 0 ? "0 / 0" : `${page} / ${totalPages}`} 페이지 · 전체 {totalElements.toLocaleString("ko-KR")}건
+              {(totalPages ?? 0) === 0 ? "0 / 0" : `${page ?? 0} / ${totalPages ?? 0}`} 페이지 · 전체 {(totalElements ?? 0).toLocaleString("ko-KR")}건
             </span>
             <button type="button" className="pagination-btn" onClick={() => goToPage(page + 1)} disabled={!hasNext || loading}>
               다음
