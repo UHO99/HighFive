@@ -378,6 +378,8 @@ export interface K6RunOptions {
   stock?: number;
   maxVus?: number;
   requestRatio?: number;
+  /** 배수 대신 총 요청 수를 직접 지정한다. requestRatio와 함께 오면 이 값이 우선한다(백엔드/스크립트와 동일 규칙). */
+  requestCount?: number;
   arrival?: "burst" | "even" | "ramp";
   duration?: number;
   spamRatio?: number;

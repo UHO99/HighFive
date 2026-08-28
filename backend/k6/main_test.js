@@ -41,8 +41,12 @@ const SPAM_RATIO = Number(__ENV.SPAM_RATIO || 0);
 const SPAM_CLICKS = Number(__ENV.SPAM_CLICKS || 3);
 const USER_COUNT = Number(__ENV.USER_COUNT || 1_000_000);
 
-// 유저 수. 연타를 켜면 한 유저가 여러 번 누르므로 실제 HTTP 요청 수는 이보다 많다.
-const ITERATIONS = STOCK * REQUEST_RATIO;
+// 배수(STOCK × REQUEST_RATIO) 대신 총 요청 수를 직접 지정할 수 있다 - 지정되면 이게 우선한다.
+const REQUEST_COUNT_OVERRIDE = __ENV.REQUEST_COUNT !== undefined && __ENV.REQUEST_COUNT !== ''
+  ? Number(__ENV.REQUEST_COUNT)
+  : null;
+
+const ITERATIONS = REQUEST_COUNT_OVERRIDE !== null ? REQUEST_COUNT_OVERRIDE : STOCK * REQUEST_RATIO;
 
 const issued     = new Counter('issue_success');      // 202
 const soldOut    = new Counter('issue_sold_out');     // 409 RD002
@@ -140,18 +144,24 @@ export default function () {
 export function teardown() {
   console.log('');
   console.log('== 실행 조건 ==');
-  console.log(`  재고 ${STOCK} · 요청배수 ×${REQUEST_RATIO} (유저 ${ITERATIONS}명) · 동시접속 최대 ${MAX_VUS}`);
+  const sizeDesc = REQUEST_COUNT_OVERRIDE !== null
+    ? `요청 수 직접 지정 ${ITERATIONS}건`
+    : `요청배수 ×${REQUEST_RATIO} (유저 ${ITERATIONS}명)`;
+  console.log(`  재고 ${STOCK} · ${sizeDesc} · 동시접속 최대 ${MAX_VUS}`);
   const arrivalDesc = ARRIVAL === 'ramp' ? ` (${DURATION}초 램프업, 0 -> ${RAMP_PEAK_RATE}/s 선형 증가)`
     : ARRIVAL === 'even' ? ` (${DURATION}초에 걸쳐 균등)` : ' (최대한 빨리)';
   console.log(`  유입 방식 ${ARRIVAL}${arrivalDesc}`);
   console.log(`  연타 ${SPAM_RATIO > 0 ? `유저의 ${SPAM_RATIO * 100}%가 ${SPAM_CLICKS}회씩 동시 클릭` : '없음 (전원 1회)'}`);
   console.log('');
   console.log('== 판정 기준 ==');
+  console.log(`  전체 요청 수(ITERATIONS) = ${ITERATIONS} — k6의 http_reqs/iterations 값과 반드시 일치해야 정상.`);
 
-  if (REQUEST_RATIO <= 1) {
-    console.log(`  issue_success = ${ITERATIONS} (요청한 유저 전원 성공), issue_sold_out = 0 이어야 정상.`);
+  // 배수 모드/직접 지정 모드 어느 쪽이든 "재고와 요청 수의 대소 관계"로 일반화해서 판정한다.
+  const expectedSuccess = Math.min(STOCK, ITERATIONS);
+  if (ITERATIONS <= STOCK) {
+    console.log(`  issue_success = ${expectedSuccess} (요청한 유저 전원 성공), issue_sold_out = 0 이어야 정상.`);
   } else {
-    console.log(`  issue_success = ${STOCK} (정확히 재고만큼만), 나머지 요청은 issue_sold_out 이어야 정상.`);
+    console.log(`  issue_success = ${expectedSuccess} (정확히 재고만큼만), 나머지 요청은 issue_sold_out 이어야 정상.`);
   }
 
   if (SPAM_RATIO > 0) {
@@ -161,6 +171,8 @@ export function teardown() {
     console.log('  issue_duplicate = 0 이어야 정상 (모든 유저가 서로 다르므로 중복이 나올 이유가 없다).');
   }
   console.log('  issue_unexpected 는 어떤 조건에서도 0 이어야 한다.');
+  console.log(`  주의: issue_unexpected가 0보다 크면, 그만큼 서버에 도달조차 못한 요청이 있다는 뜻이다 -`);
+  console.log(`        대시보드의 "총 발급 요청"은 이 건수를 빼고 표시되므로 ${ITERATIONS}보다 작게 보일 수 있다.`);
 
   console.log('');
   console.log('실행 후 아래도 함께 확인:');
