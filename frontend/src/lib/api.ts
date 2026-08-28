@@ -29,11 +29,14 @@ function resolveApiBase(): string {
     return normalized;
   }
 
+  const hostname = window.location.hostname;
+  const isDeployed = hostname.endsWith("github.io");
+  // 로컬 dev(192.168.* 포함)는 vite proxy("")로 CORS 회피 — GitHub Pages가 아니면 stored 무시
+  if (!isDeployed) return "";
+
   const stored = window.localStorage.getItem(API_BASE_STORAGE_KEY);
   if (stored) return stored;
-
-  const isLocalDev = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-  return isLocalDev ? "" : DEFAULT_LOCAL_BACKEND;
+  return DEFAULT_LOCAL_BACKEND;
 }
 
 export const API_BASE = resolveApiBase();

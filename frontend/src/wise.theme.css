@@ -1,0 +1,32 @@
+@theme {
+  --color-charcoal: #454745;
+  --color-fog: #e8ebe6;
+  --color-forest-ink: #163300;
+  --color-obsidian: #0e0f0c;
+  --color-paper: #ffffff;
+  --color-pebble: #868685;
+  --color-primary: #9fe870;
+  --font-display: Wise Sans;
+  --font-ui: Inter;
+  --leading-body: 26;
+  --text-body: 18px;
+  --tracking-body: -0.108;
+  --font-weight-body: 400;
+  --leading-button: 24;
+  --text-button: 16px;
+  --tracking-button: -0.176;
+  --font-weight-button: 600;
+  --leading-display: 89.6142;
+  --text-display: 105.428px;
+  --font-weight-display: 900;
+  --spacing-lg: 16px;
+  --spacing-md: 12px;
+  --spacing-sm: 8px;
+  --spacing-xl: 24px;
+  --spacing-xs: 4px;
+  --spacing-xxl: 32px;
+  --radius-chip: 16px;
+  --radius-input: 10px;
+  --radius-nav: 18.7693px;
+  --radius-pill: 9999px;
+}

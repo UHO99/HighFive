@@ -3,8 +3,8 @@ interface Props {
   total: number;
 }
 
-const SIZE = 180;
-const STROKE = 16;
+const SIZE = 240;
+const STROKE = 20;
 const RADIUS = (SIZE - STROKE) / 2;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 

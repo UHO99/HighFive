@@ -8,7 +8,7 @@ export function ServerResourceCard({ vals }: { vals: DashboardVals }) {
       <div className="tile-grid-2">
         <div className="tile">
           <div className="tile-label">RPS / Throughput</div>
-          <div className="tile-value" style={{ color: "#171b2e" }}>
+          <div className="tile-value" style={{ color: "var(--color-forest-ink)" }}>
             {vals.rpsFmt}
           </div>
         </div>

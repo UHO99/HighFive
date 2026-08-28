@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Sidebar } from "../components/Sidebar";
 import { DashboardHeader } from "../components/DashboardHeader";
-import type { AdminTab } from "../components/AdminTabs";
-import { ServerResourceCard } from "../components/ServerResourceCard";
-import { ApiResponseCard } from "../components/ApiResponseCard";
+import { ExpandableCard } from "../components/ExpandableCard";
 import { CouponStatusCard } from "../components/CouponStatusCard";
 import { CouponPipelineCard } from "../components/CouponPipelineCard";
 import { CouponIssueHistoryCard } from "../components/CouponIssueHistoryCard";
 import { ConsistencyStatusCard } from "../components/ConsistencyStatusCard";
 import { CouponHistoryDialog } from "../components/CouponHistoryDialog";
 import { FloatingActionMenu } from "../components/FloatingActionMenu";
+import { CouponManageDialog } from "../components/CouponManageDialog";
+import { ScenarioDialog } from "../components/ScenarioDialog";
 import { useMonitoringDashboard } from "../hooks/useMonitoringDashboard";
 import { useClock } from "../hooks/useClock";   // 추가
 import {
@@ -28,15 +29,16 @@ const IDLE_DUMMY_STATUS: DummyDataStatus = { loading: false, startedAt: null, fi
 type DbCounts = Pick<DummyDataCounts, "userCount" | "couponCount" | "couponIssueCount">;
 type ReloadTiming = Pick<DummyDataCounts, "userLoadMs" | "couponIssueLoadMs" | "totalMs">;
 
-interface Props {
-  activeTab: AdminTab;
-}
-
-export function DashboardPage({ activeTab }: Props) {
+export function DashboardPage() {
   const [coupons, setCoupons] = useState<CouponSummary[]>([]);
   const [couponId, setCouponId] = useState(DEFAULT_COUPON_ID);
   const now = useClock();
   const { vals, startTest, stopTest, refresh, refreshing, error, couponMissing } = useMonitoringDashboard(couponId, now);
+  const [couponHistoryDialogOpen, setCouponHistoryDialogOpen] = useState(false);
+  const [expandedCard, setExpandedCard] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"overview" | "pipeline" | "history">("overview");
+  const [showCouponManage, setShowCouponManage] = useState(false);
+  const [showScenario, setShowScenario] = useState(false);
   const [dbCounts, setDbCounts] = useState<DbCounts | null>(null);
   // 재적재 시점의 소요시간은 폴링으로 안 지워진다 - GET counts는 이 값을 모르니(null) 마지막으로
   // 성공한 재적재 값을 그대로 들고 있는다.
@@ -117,14 +119,18 @@ export function DashboardPage({ activeTab }: Props) {
     }, DUMMY_LOADING_POLL_INTERVAL_MS);
   }, [handleDummyStatus]);
 
-  // 마운트 시 1회만 확인한다 - 혹시 새로고침 직전에 다른 탭/사람이 적재를 시작해둔 상태라면
-  // (사용자가 1명이라도, 같은 브라우저에서 이 페이지를 새로고침하는 경우는 있을 수 있다),
-  // 그 진행 상황을 이어서 보여줘야 하므로 loading이면 폴링을 이어서 시작한다.
   useEffect(() => {
-    fetchDummyDataStatus()
-      .then((status) => {
+    Promise.all([fetchDummyDataStatus(), fetchDummyDataCounts()])
+      .then(([status, counts]) => {
         handleDummyStatus(status, true);
         if (status.loading) startDummyPolling();
+
+        // "적재 결과" 표는 실제로 DB에 더미데이터가 있을 때만 보여야 한다. 서버 메모리(lastResult)는
+        // 재시작 시 사라지므로, 그 경우엔 SEED_BASELINE(before, 코드에 고정된 상수)으로 복원하되,
+        // DB 자체가 비어있으면(재시작 전 데이터를 다 지운 경우) 절대 채우지 않는다.
+        if (!status.lastResult && counts.userCount > 0 && status.before) {
+          setLastLoadResult(status.before);
+        }
       })
       .catch(() => { });
 
@@ -132,6 +138,20 @@ export function DashboardPage({ activeTab }: Props) {
       if (dummyPollRef.current !== null) window.clearInterval(dummyPollRef.current);
     };
   }, [handleDummyStatus, startDummyPolling]);
+
+  const toggleExpandCard = useCallback((id: string) => {
+    setExpandedCard((current) => (current === id ? null : id));
+  }, []);
+
+  // 확대된 카드가 있을 때 Esc로도 닫을 수 있게 한다.
+  useEffect(() => {
+    if (!expandedCard) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setExpandedCard(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [expandedCard]);
 
   const dummyDataCounts: DummyDataCounts | null = dbCounts && {
     ...dbCounts,
@@ -260,6 +280,12 @@ export function DashboardPage({ activeTab }: Props) {
 
   return (
     <div className="app-shell">
+      <Sidebar
+        couponHistoryDisabled={!dataReady}
+        onOpenCouponHistory={() => setCouponHistoryDialogOpen(true)}
+        vals={vals}
+      />
+
       <div className="main">
         <DashboardHeader
           vals={vals}
@@ -271,23 +297,87 @@ export function DashboardPage({ activeTab }: Props) {
           loadingData={dummyStatus.loading}
         />
 
-        <div className="present-page">
-          {activeTab === "server" && (
-            <div className="row">
-              <ServerResourceCard vals={vals} />
-              <ApiResponseCard vals={vals} />
-            </div>
-          )}
+        {/* 관리자 핵심 요약 — 메인에 항상 노출 (회원/쿠폰/이력/OPEN) — Wise 토큰, 크게 */}
+        <div className="admin-summary-bar">
+          <div className="admin-summary-item">
+            <span className="admin-summary-label">회원</span>
+            <span className="admin-summary-value">{dbCounts ? dbCounts.userCount.toLocaleString("ko-KR") : "-"}</span>
+          </div>
+          <div className="admin-summary-divider" />
+          <div className="admin-summary-item">
+            <span className="admin-summary-label">쿠폰</span>
+            <span className="admin-summary-value">{dbCounts ? dbCounts.couponCount.toLocaleString("ko-KR") : "-"}</span>
+          </div>
+          <div className="admin-summary-divider" />
+          <div className="admin-summary-item">
+            <span className="admin-summary-label">발급 이력</span>
+            <span className="admin-summary-value">{dbCounts ? dbCounts.couponIssueCount.toLocaleString("ko-KR") : "-"}</span>
+          </div>
+          <div className="admin-summary-divider" />
+          <div className="admin-summary-item">
+            <span className="admin-summary-label">OPEN 쿠폰</span>
+            <span className="admin-summary-value" style={{ color: "var(--color-primary)" }}>{coupons.length.toLocaleString("ko-KR")}</span>
+          </div>
+          <div className="admin-summary-actions">
+            <button type="button" className="admin-action-btn" onClick={handleLoadData} disabled={dummyStatus.loading}>
+              {dummyStatus.loading ? "적재 중..." : "데이터 적재"}
+            </button>
+            <button type="button" className="admin-action-btn primary" onClick={() => setShowCouponManage(true)}>
+              쿠폰 관리
+            </button>
+            <button
+              type="button"
+              className="admin-action-btn"
+              onClick={() => setShowScenario(true)}
+              disabled={!dataReady}
+              title={!dataReady ? "먼저 데이터 적재를 완료하세요" : undefined}
+            >
+              {vals.testRunning ? `테스트 중 · ${vals.elapsedText}` : "부하 테스트"}
+            </button>
+          </div>
+        </div>
 
-          {activeTab === "coupon" && (
-            <div className="pipeline-col">
-              <CouponStatusCard vals={vals} />
-              <CouponIssueHistoryCard couponId={couponId} testRunning={vals.testRunning} />
-            </div>
-          )}
+        {/* 사용자 친화적 탭 네비게이션: 메인에 6개 카드를 한 번에 쌓지 않고 3개 탭으로 분리 — Wise pill + Lime active */}
+        <div className="dash-tabs" role="tablist" aria-label="대시보드 섹션">
+          <button
+            role="tab"
+            aria-selected={activeTab === "overview"}
+            className={`dash-tab ${activeTab === "overview" ? "active" : ""}`}
+            onClick={() => setActiveTab("overview")}
+          >
+            Overview
+          </button>
+          <button
+            role="tab"
+            aria-selected={activeTab === "pipeline"}
+            className={`dash-tab ${activeTab === "pipeline" ? "active" : ""}`}
+            onClick={() => setActiveTab("pipeline")}
+          >
+            Pipeline
+          </button>
+          <button
+            role="tab"
+            aria-selected={activeTab === "history"}
+            className={`dash-tab ${activeTab === "history" ? "active" : ""}`}
+            onClick={() => setActiveTab("history")}
+          >
+            History
+          </button>
+        </div>
 
-          {activeTab === "pipeline" && (
-            <div className="pipeline-col">
+        {activeTab === "overview" && (
+          <div className="overview-main">
+            <div className="coupon-main-wrap coupon-main-full">
+              <ExpandableCard id="coupon-status" expandedId={expandedCard} onToggle={toggleExpandCard}>
+                <CouponStatusCard vals={vals} />
+              </ExpandableCard>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "pipeline" && (
+          <div className="chart-grid-2">
+            <ExpandableCard id="coupon-pipeline" expandedId={expandedCard} onToggle={toggleExpandCard}>
               <CouponPipelineCard
                 vals={vals}
                 onDrainPending={handleDrainPending}
@@ -295,12 +385,20 @@ export function DashboardPage({ activeTab }: Props) {
                 beforeCounts={dummyStatus.before}
                 lastLoadResult={lastLoadResult}
               />
+            </ExpandableCard>
+            <ExpandableCard id="consistency-status" expandedId={expandedCard} onToggle={toggleExpandCard}>
               <ConsistencyStatusCard now={now} />
-            </div>
-          )}
+            </ExpandableCard>
+          </div>
+        )}
 
-          {activeTab === "history" && <CouponHistoryDialog variant="page" />}
-        </div>
+        {activeTab === "history" && (
+          <div className="history-full">
+            <ExpandableCard id="coupon-issue-history" expandedId={expandedCard} onToggle={toggleExpandCard}>
+              <CouponIssueHistoryCard couponId={couponId} testRunning={vals.testRunning} />
+            </ExpandableCard>
+          </div>
+        )}
       </div>
 
       <FloatingActionMenu
@@ -319,6 +417,33 @@ export function DashboardPage({ activeTab }: Props) {
         onCouponOpened={handleCouponOpened}
         onCouponClosed={handleCouponClosed}
       />
+
+      {couponHistoryDialogOpen && (
+        <CouponHistoryDialog
+          onClose={() => setCouponHistoryDialogOpen(false)}
+        />
+      )}
+
+      {showCouponManage && (
+        <CouponManageDialog
+          onCancel={() => setShowCouponManage(false)}
+          onCouponCreated={(c) => { setShowCouponManage(false); handleCouponCreated(c); }}
+          onCouponOpened={(id) => { setShowCouponManage(false); handleCouponOpened(id); }}
+          onCouponClosed={() => { setShowCouponManage(false); handleCouponClosed(); }}
+        />
+      )}
+
+      {showScenario && (
+        <ScenarioDialog
+          coupons={coupons}
+          defaultCouponId={couponId}
+          onCancel={() => setShowScenario(false)}
+          onConfirm={(scenario, targetCouponId, options) => {
+            setShowScenario(false);
+            handleStartTest(scenario, targetCouponId, options);
+          }}
+        />
+      )}
     </div>
   );
 }

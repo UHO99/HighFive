@@ -24,7 +24,7 @@ export function CouponManageDialog({ onCancel, onCouponCreated, onCouponOpened, 
 
   return (
     <div className="dialog-overlay" onClick={onCancel}>
-      <div className="dialog-panel" onClick={(e) => e.stopPropagation()}>
+      <div className="dialog-panel dialog-panel-xl" onClick={(e) => e.stopPropagation()}>
         <div className="dialog-header">
           <h2 className="dialog-title">쿠폰 관리</h2>
           <span className="dialog-subtitle">쿠폰 생성 / 오픈 / 클로즈를 한 곳에서 처리합니다.</span>
