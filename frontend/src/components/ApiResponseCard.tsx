@@ -8,7 +8,7 @@ export function ApiResponseCard({ vals }: { vals: DashboardVals }) {
       <div className="tile-grid-3">
         <div className="tile">
           <div className="tile-label-md">평균 응답시간</div>
-          <div className="tile-value-sm" style={{ color: "#171b2e" }}>
+          <div className="tile-value-sm" style={{ color: "var(--color-forest-ink)" }}>
             {vals.apiAvgFmt}ms
           </div>
         </div>

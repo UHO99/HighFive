@@ -1,0 +1,39 @@
+:root {
+  --qhd-scale: 1;
+  --color-charcoal: #454745;
+  --color-fog: #e8ebe6;
+  --color-forest-ink: #163300;
+  --color-obsidian: #0e0f0c;
+  --color-paper: #ffffff;
+  --color-pebble: #868685;
+  --color-primary: #9fe870;
+  --font-display: Wise Sans;
+  --font-ui: Inter;
+  --type-body-line-height: 26;
+  --type-body-size: calc(18px * var(--qhd-scale));
+  --type-body-tracking: -0.108;
+  --type-body-use: Observed public pricing list copy;
+  --type-body-weight: 400;
+  --type-button-line-height: 24;
+  --type-button-size: calc(16px * var(--qhd-scale));
+  --type-button-tracking: -0.176;
+  --type-button-use: Observed public primary CTA;
+  --type-button-weight: 600;
+  --type-display-line-height: 89.6142;
+  --type-display-size: calc(105.4px * var(--qhd-scale));
+  --type-display-use: Observed home display headline;
+  --type-display-weight: 900;
+  --space-lg: 16px;
+  --space-md: 12px;
+  --space-sm: 8px;
+  --space-xl: 24px;
+  --space-xs: 4px;
+  --space-xxl: 32px;
+  --radius-chip: 16px;
+  --radius-input: 10px;
+  --radius-nav: 18.7693px;
+  --radius-pill: 9999px;
+}
+
+@media (min-width: 2560px) { :root { --qhd-scale: 1.28; } }
+@media (min-width: 3440px) { :root { --qhd-scale: 1.35; } }

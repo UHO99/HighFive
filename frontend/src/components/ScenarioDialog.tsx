@@ -59,7 +59,7 @@ export function ScenarioDialog({ coupons, defaultCouponId, onCancel, onConfirm }
 
   return (
     <div className="dialog-overlay" onClick={onCancel}>
-      <div className="dialog-panel" onClick={(e) => e.stopPropagation()}>
+      <div className="dialog-panel dialog-panel-xl" onClick={(e) => e.stopPropagation()}>
         <div className="dialog-header">
           <h2 className="dialog-title">K6 부하테스트 시나리오 선택</h2>
           <span className="dialog-subtitle">backend/k6 에 있는 스크립트와 대상 쿠폰을 골라 실행합니다.</span>

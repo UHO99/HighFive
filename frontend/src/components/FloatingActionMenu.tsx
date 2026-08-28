@@ -66,6 +66,7 @@ export function FloatingActionMenu({
         >
           <span className="fab-icon">+</span>
           {vals.testRunning && <span className="fab-badge" />}
+          {!menuOpen && <span className="fab-tooltip">빠른 작업</span>}
         </button>
 
         {menuOpen && (

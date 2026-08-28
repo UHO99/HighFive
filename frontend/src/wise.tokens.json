@@ -1,0 +1,178 @@
+{
+  "color": {
+    "charcoal": {
+      "$type": "color",
+      "$value": "#454745"
+    },
+    "fog": {
+      "$type": "color",
+      "$value": "#e8ebe6"
+    },
+    "forest-ink": {
+      "$type": "color",
+      "$value": "#163300"
+    },
+    "obsidian": {
+      "$type": "color",
+      "$value": "#0e0f0c"
+    },
+    "paper": {
+      "$type": "color",
+      "$value": "#ffffff"
+    },
+    "pebble": {
+      "$type": "color",
+      "$value": "#868685"
+    },
+    "primary": {
+      "$type": "color",
+      "$value": "#9fe870"
+    }
+  },
+  "typography": {
+    "family": {
+      "display": {
+        "$type": "fontFamily",
+        "$value": "Wise Sans"
+      },
+      "ui": {
+        "$type": "fontFamily",
+        "$value": "Inter"
+      }
+    },
+    "tiers": {
+      "body": {
+        "lineHeight": {
+          "$type": "number",
+          "$value": 26
+        },
+        "size": {
+          "$type": "dimension",
+          "$value": "18px"
+        },
+        "tracking": {
+          "$type": "dimension",
+          "$value": "-0.108px"
+        },
+        "use": {
+          "$type": "string",
+          "$value": "Observed public pricing list copy"
+        },
+        "weight": {
+          "$type": "fontWeight",
+          "$value": 400
+        }
+      },
+      "button": {
+        "lineHeight": {
+          "$type": "number",
+          "$value": 24
+        },
+        "size": {
+          "$type": "dimension",
+          "$value": "16px"
+        },
+        "tracking": {
+          "$type": "dimension",
+          "$value": "-0.176px"
+        },
+        "use": {
+          "$type": "string",
+          "$value": "Observed public primary CTA"
+        },
+        "weight": {
+          "$type": "fontWeight",
+          "$value": 600
+        }
+      },
+      "display": {
+        "lineHeight": {
+          "$type": "number",
+          "$value": 89.6142
+        },
+        "size": {
+          "$type": "dimension",
+          "$value": "105.428px"
+        },
+        "use": {
+          "$type": "string",
+          "$value": "Observed home display headline"
+        },
+        "weight": {
+          "$type": "fontWeight",
+          "$value": 900
+        }
+      }
+    }
+  },
+  "spacing": {
+    "lg": {
+      "$type": "dimension",
+      "$value": "16px"
+    },
+    "md": {
+      "$type": "dimension",
+      "$value": "12px"
+    },
+    "sm": {
+      "$type": "dimension",
+      "$value": "8px"
+    },
+    "xl": {
+      "$type": "dimension",
+      "$value": "24px"
+    },
+    "xs": {
+      "$type": "dimension",
+      "$value": "4px"
+    },
+    "xxl": {
+      "$type": "dimension",
+      "$value": "32px"
+    }
+  },
+  "radius": {
+    "chip": {
+      "$type": "dimension",
+      "$value": "16px"
+    },
+    "input": {
+      "$type": "dimension",
+      "$value": "10px"
+    },
+    "nav": {
+      "$type": "dimension",
+      "$value": "18.7693px"
+    },
+    "pill": {
+      "$type": "dimension",
+      "$value": "9999px"
+    }
+  },
+  "shadow": {},
+  "$extensions": {
+    "oh-my-design": {
+      "components": {
+        "dialog-field": {
+          "fg": "#0e0f0c",
+          "height": 48,
+          "padding": "0px 16px 0px 48px",
+          "radius": 10,
+          "states": "dialog-open",
+          "type": "input",
+          "use": "Field in captured home dialog"
+        },
+        "selection-chip": {
+          "bg": "#9fe870",
+          "fg": "#163300",
+          "height": 32,
+          "padding": "0px 16px",
+          "radius": 16,
+          "states": "checked, unchecked",
+          "type": "toggle",
+          "use": "Home selection chip; both states observed"
+        }
+      }
+    }
+  }
+}
