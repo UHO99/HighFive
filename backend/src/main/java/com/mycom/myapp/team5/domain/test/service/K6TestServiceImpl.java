@@ -9,6 +9,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -16,6 +18,7 @@ import org.springframework.stereotype.Service;
 import com.mycom.myapp.team5.domain.test.dto.K6RunRequest;
 import com.mycom.myapp.team5.domain.test.dto.K6ScenarioResponse;
 import com.mycom.myapp.team5.domain.test.dto.K6StatusResponse;
+import com.mycom.myapp.team5.domain.test.dto.K6SummaryResponse;
 import com.mycom.myapp.team5.domain.test.exception.K6ErrorCode;
 import com.mycom.myapp.team5.domain.test.exception.K6TestException;
 import com.mycom.myapp.team5.global.common.enums.K6Scenario;
@@ -47,7 +50,7 @@ public class K6TestServiceImpl implements K6TestService {
 	private final Object lock = new Object();
 	private volatile Run current;
 
-	private record Run(K6Scenario scenario, long couponId, Instant startedAt, Process process, Integer exitCode) {
+	private record Run(K6Scenario scenario, long couponId, Instant startedAt, Process process, Integer exitCode, Path logFile) {
 	}
 
 	@Override
@@ -55,7 +58,6 @@ public class K6TestServiceImpl implements K6TestService {
 		return Arrays.stream(K6Scenario.values()).map(K6ScenarioResponse::from).toList();
 	}
 
-	@Override
 	public K6StatusResponse start(K6RunRequest request) {
 		K6Scenario scenario = K6Scenario.fromId(request.scenarioId());
 		long couponId = request.couponId();
@@ -67,8 +69,8 @@ public class K6TestServiceImpl implements K6TestService {
 
 			ensureBakedIntoImage(scenario.getFile());
 			cleanupStaleContainer();
-			Process process = launch(scenario, request);
-			Run run = new Run(scenario, couponId, Instant.now(), process, null);
+			LaunchResult launched = launch(scenario, request);
+			Run run = new Run(scenario, couponId, Instant.now(), launched.process(), null, launched.logFile());
 			current = run;
 			watch(run);
 
@@ -164,22 +166,17 @@ public class K6TestServiceImpl implements K6TestService {
 		}
 	}
 
-	private Process launch(K6Scenario scenario, K6RunRequest request) {
-		List<String> command = new ArrayList<>(List.of("docker", "run", "--rm", "--name", CONTAINER_NAME, "--network", network,
-				// 고강도 테스트(수만 VU)에서 k6 컨테이너 자체가 파일 디스크립터/소켓 기본 한도(보통 1024)에
-				// 먼저 막혀 "status: 0"(연결 실패)이 대량 발생하는 걸 방지한다. backend 컨테이너에는
-				// docker-compose.yml에서 이미 ulimits를 걸어뒀는데, 형제 컨테이너로 뜨는 k6에는 별도로
-				// 걸어준 적이 없어서 여기서 명시한다.
-				"--ulimit", "nofile=65536:65536", "-e", "BASE_URL=" + baseUrl, "-e", "COUPON_ID=" + request.couponId()));
-		// 각 파라미터는 그 env var를 실제로 읽는 스크립트에만 넘긴다 - 안 읽는 스크립트에 넘겨도
-		// 무해하지만, 실행 로그만 봐도 어떤 조건으로 돌렸는지 분명하게 남기려는 것.
+	private record LaunchResult(Process process, Path logFile) {
+	}
+
+	private LaunchResult launch(K6Scenario scenario, K6RunRequest request) {
+		List<String> command = new ArrayList<>(List.of("docker", "run", "--rm", "--name", CONTAINER_NAME, "--network", network, "-e", "BASE_URL=" + baseUrl, "-e", "COUPON_ID=" + request.couponId()));
 		if (scenario.isConfigurable()) {
 			addEnv(command, "STOCK", request.stock());
 			addEnv(command, "MAX_VUS", request.maxVus());
 		}
 		if (scenario.isAdvanced()) {
 			addEnv(command, "REQUEST_RATIO", request.requestRatio());
-			addEnv(command, "REQUEST_COUNT", request.requestCount()); // 추가
 			addEnv(command, "ARRIVAL", request.arrival());
 			addEnv(command, "DURATION", request.duration());
 			addEnv(command, "SPAM_RATIO", request.spamRatio());
@@ -194,7 +191,7 @@ public class K6TestServiceImpl implements K6TestService {
 			pb.redirectOutput(ProcessBuilder.Redirect.to(logFile.toFile()));
 
 			log.info("k6 실행 : scenario={} couponId={} log={}", scenario.getId(), request.couponId(), logFile);
-			return pb.start();
+			return new LaunchResult(pb.start(), logFile);
 		}
 		catch (IOException e) {
 			log.error("k6 컨테이너 실행 실패", e);
@@ -230,7 +227,7 @@ public class K6TestServiceImpl implements K6TestService {
 
 			synchronized (lock) {
 				if (current == run) {
-					current = new Run(run.scenario(), run.couponId(), run.startedAt(), run.process(), exitCode);
+					current = new Run(run.scenario(), run.couponId(), run.startedAt(), run.process(), exitCode, run.logFile());
 				}
 			}
 			log.info("k6 종료 : scenario={} exitCode={}", run.scenario().getId(), exitCode);
@@ -242,5 +239,90 @@ public class K6TestServiceImpl implements K6TestService {
 	private K6StatusResponse toStatus(Run run) {
 		boolean running = run.exitCode() == null;
 		return new K6StatusResponse(running, run.scenario().getId(), run.scenario().getFile(), run.couponId(), run.startedAt(), run.exitCode());
+	}
+
+	@Override
+	public K6SummaryResponse summary() {
+		Run run = current;
+		if (run == null || run.exitCode() == null || run.logFile() == null) {
+			return K6SummaryResponse.unavailable();
+		}
+
+		try {
+			List<String> allLines = Files.readAllLines(run.logFile());
+			int startIdx = -1;
+			for (int i = allLines.size() - 1; i >= 0; i--) {
+				if (allLines.get(i).contains("TOTAL RESULTS")) {
+					startIdx = i;
+					break;
+				}
+			}
+			if (startIdx == -1) {
+				return K6SummaryResponse.unavailable();
+			}
+			List<String> summaryLines = allLines.subList(startIdx, allLines.size());
+			return new K6SummaryResponse(true, summaryLines, parseMetrics(summaryLines));
+		}
+		catch (IOException e) {
+			log.warn("k6 요약 로그 읽기 실패", e);
+			return K6SummaryResponse.unavailable();
+		}
+	}
+
+	/**
+	 * k6 콘솔 출력의 고정폭 텍스트에서 자주 쓰는 값만 정규식으로 뽑는다. 값을 못 찾으면 그 필드만 null로 두고, 나머지 파싱은 계속 진행한다(한 줄 포맷이 시나리오마다 조금씩 달라도 최대한 버틴다).
+	 */
+	private K6SummaryResponse.Metrics parseMetrics(List<String> lines) {
+		String joined = String.join("\n", lines);
+
+		Double throughputPerSecond = findThroughput(joined, "http_reqs");
+		Double totalDurationSeconds = findTotalDuration(joined);
+		Double iterationAvgMs = findMsValue(joined, "iteration_duration", "avg");
+		Double dataReceivedKb = findDataSizeKb(joined, "data_received");
+		Double dataSentKb = findDataSizeKb(joined, "data_sent");
+
+		return new K6SummaryResponse.Metrics(throughputPerSecond, totalDurationSeconds, iterationAvgMs, dataReceivedKb, dataSentKb);
+	}
+
+	/** "running (0m04.0s), 20000 complete ..." 형태에서 분/초를 뽑아 전체 초로 환산한다. */
+	private Double findTotalDuration(String text) {
+		Matcher m = Pattern.compile("running \\((\\d+)m([\\d.]+)s\\)").matcher(text);
+		if (!m.find())
+			return null;
+		int minutes = Integer.parseInt(m.group(1));
+		double seconds = Double.parseDouble(m.group(2));
+		return minutes * 60 + seconds;
+	}
+
+	/** "data_received..: 5.6 MB 1.4 MB/s" 형태에서 총량(MB/kB/B)만 kB로 환산한다. */
+	private Double findDataSizeKb(String text, String key) {
+		Matcher m = Pattern.compile(Pattern.quote(key) + "\\.*:\\s*([\\d.]+)\\s*(MB|kB|B)\\b").matcher(text);
+		if (!m.find())
+			return null;
+		double value = Double.parseDouble(m.group(1));
+		return switch (m.group(2)) {
+			case "MB" -> value * 1024;
+			case "B" -> value / 1024;
+			default -> value;
+		};
+	}
+
+	/** "http_req_duration..: avg=1.43s min=... p(95)=1.87s" 형태에서 특정 라벨의 값(ms로 환산)만. */
+	private Double findMsValue(String text, String metricLine, String label) {
+		Matcher lineMatcher = Pattern.compile(Pattern.quote(metricLine) + ".*").matcher(text);
+		if (!lineMatcher.find())
+			return null;
+		String line = lineMatcher.group();
+		Matcher valueMatcher = Pattern.compile(label + "=([\\d.]+)(ms|s)").matcher(line);
+		if (!valueMatcher.find())
+			return null;
+		double value = Double.parseDouble(valueMatcher.group(1));
+		return "s".equals(valueMatcher.group(2)) ? value * 1000 : value;
+	}
+
+	/** "http_reqs......: 20000 5014.8/s" 형태에서 초당 처리량만. */
+	private Double findThroughput(String text, String key) {
+		Matcher m = Pattern.compile(Pattern.quote(key) + "\\.*:\\s*\\d+\\s+([\\d.]+)/s").matcher(text);
+		return m.find() ? Double.parseDouble(m.group(1)) : null;
 	}
 }

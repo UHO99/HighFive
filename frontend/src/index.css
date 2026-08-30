@@ -527,6 +527,12 @@ body {
   letter-spacing: -0.02em;
 }
 
+.card-title-sub {
+  font: 500 calc(13px * var(--qhd-scale))/1.2 var(--font-ui), sans-serif;
+  color: var(--color-pebble);
+  letter-spacing: normal;
+}
+
 .card-title-tight {
   margin-bottom: 2px;
 }
@@ -679,6 +685,7 @@ body {
   display: block;
   margin-bottom: 3px;
 }
+
 
 /* ---------- horizontal latency / metric bars ---------- */
 
@@ -1151,6 +1158,20 @@ body {
   gap: 12px;
   border-width: 2px;
   box-shadow: 0 8px 28px rgba(159, 232, 112, 0.14);
+}
+
+/* k6 요약이 붙으면 카드 내용이 고정 높이(680px)를 훨씬 넘어서므로, 이 카드만 예외적으로
+   내용물 크기에 맞춰 늘어나게 하고 컬럼 전체가 스크롤을 담당하게 한다. */
+.coupon-main-full:has(.k6-result-block) .card {
+  height: auto;
+  flex: 0 0 auto;
+  overflow-y: visible;
+}
+.overview-main:has(.k6-result-block) {
+  height: auto;
+  min-height: 680px;
+  flex: 1 1 auto;
+  overflow-y: auto;
 }
 
 .coupon-main-full .card-title {
@@ -2700,3 +2721,55 @@ body {
   border-width: 2px;
 }
 
+
+/* ---------- loading overlay (더미데이터 적재 등, 취소 불가능한 작업 중 화면 전체 잠금) ---------- */
+
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(11, 18, 32, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.loading-overlay-box {
+  background: var(--color-paper);
+  border-radius: 24px;
+  padding: calc(72px * var(--qhd-scale)) calc(96px * var(--qhd-scale));
+  min-width: min(640px, calc(100vw - 48px));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.4);
+}
+
+.loading-overlay-spinner {
+  width: calc(88px * var(--qhd-scale));
+  height: calc(88px * var(--qhd-scale));
+  border: 8px solid var(--color-fog);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: loading-overlay-spin 0.8s linear infinite;
+}
+
+@keyframes loading-overlay-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-overlay-message {
+  font: 700 calc(26px * var(--qhd-scale))/1.4 var(--font-ui), sans-serif;
+  color: var(--color-forest-ink);
+  text-align: center;
+  white-space: pre-line;
+}
+
+.loading-overlay-timer {
+  font: 800 calc(40px * var(--qhd-scale))/1 "JetBrains Mono", monospace;
+  color: var(--color-primary);
+  letter-spacing: 0.04em;
+}

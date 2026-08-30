@@ -1,6 +1,12 @@
 import type { DashboardVals } from "../hooks/useMonitoringDashboard";
+import type { K6SummaryResponse } from "../lib/api";
 
-export function CouponStatusCard({ vals }: { vals: DashboardVals }) {
+interface Props {
+  vals: DashboardVals;
+  k6Summary: K6SummaryResponse | null;
+}
+
+export function CouponStatusCard({ vals, k6Summary }: Props) {
   return (
     <div className="card">
       <span className="card-title card-title-tight">쿠폰 발급 현황</span>
@@ -102,6 +108,48 @@ export function CouponStatusCard({ vals }: { vals: DashboardVals }) {
           {vals.s013ConfirmedLabel}
         </span>
       </div>
+
+      {k6Summary?.available && k6Summary.metrics && (
+        <div className="k6-result-block">
+          <span className="section-label-xs" style={{ marginTop: 10 }}>
+            마지막 테스트 결과 요약
+          </span>
+          <div className="tile-grid-2 tile-grid-2-tight" style={{ marginTop: 6 }}>
+            <div className="tile tile-sm">
+              <div className="tile-label-xs">소요 시간</div>
+              <div className="tile-value-xs">
+                {k6Summary.metrics.totalDurationSeconds != null
+                  ? `${k6Summary.metrics.totalDurationSeconds.toFixed(1)}초`
+                  : "-"}
+              </div>
+            </div>
+            <div className="tile tile-sm">
+              <div className="tile-label-xs">초당 처리량</div>
+              <div className="tile-value-xs">
+                {k6Summary.metrics.throughputPerSecond != null ? `${Math.round(k6Summary.metrics.throughputPerSecond)}/s` : "-"}
+              </div>
+            </div>
+            <div className="tile tile-sm">
+              <div className="tile-label-xs">반복당 시간</div>
+              <div className="tile-value-xs">
+                {k6Summary.metrics.iterationAvgMs != null ? `${Math.round(k6Summary.metrics.iterationAvgMs)}ms` : "-"}
+              </div>
+            </div>
+            <div className="tile tile-sm">
+              <div className="tile-label-xs">수신량</div>
+              <div className="tile-value-xs">
+                {k6Summary.metrics.dataReceivedKb != null ? `${(k6Summary.metrics.dataReceivedKb / 1024).toFixed(1)}MB` : "-"}
+              </div>
+            </div>
+            <div className="tile tile-sm">
+              <div className="tile-label-xs">송신량</div>
+              <div className="tile-value-xs">
+                {k6Summary.metrics.dataSentKb != null ? `${(k6Summary.metrics.dataSentKb / 1024).toFixed(1)}MB` : "-"}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
