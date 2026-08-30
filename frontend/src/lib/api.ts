@@ -405,6 +405,27 @@ export async function fetchK6Status(): Promise<K6StatusResponse> {
   return parseApiResponse<K6StatusResponse>(res, "k6 상태 조회 실패");
 }
 
+/** backend K6SummaryResponse(domain/test/dto)와 1:1로 대응한다. */
+export interface K6SummaryResponse {
+  available: boolean;
+  lines: string[];
+  metrics: K6SummaryMetrics | null;
+}
+
+/** backend K6SummaryResponse.Metrics와 1:1로 대응한다. 파싱에 실패한 값은 null. */
+export interface K6SummaryMetrics {
+  throughputPerSecond: number | null;
+  totalDurationSeconds: number | null;
+  iterationAvgMs: number | null;
+  dataReceivedKb: number | null;
+  dataSentKb: number | null;
+}
+
+export async function fetchK6Summary(): Promise<K6SummaryResponse> {
+  const res = await fetch(`${API_BASE}/api/admin/k6/summary`);
+  return parseApiResponse<K6SummaryResponse>(res, "k6 실행 요약 조회 실패");
+}
+
 /** backend MyCouponResponse(domain/couponissue/dto)와 1:1로 대응한다. */
 export interface MyCouponResponse {
   issueId: number;

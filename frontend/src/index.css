@@ -527,6 +527,12 @@ body {
   letter-spacing: -0.02em;
 }
 
+.card-title-sub {
+  font: 500 calc(13px * var(--qhd-scale))/1.2 var(--font-ui), sans-serif;
+  color: var(--color-pebble);
+  letter-spacing: normal;
+}
+
 .card-title-tight {
   margin-bottom: 2px;
 }
@@ -679,6 +685,7 @@ body {
   display: block;
   margin-bottom: 3px;
 }
+
 
 /* ---------- horizontal latency / metric bars ---------- */
 
@@ -1151,6 +1158,20 @@ body {
   gap: 12px;
   border-width: 2px;
   box-shadow: 0 8px 28px rgba(159, 232, 112, 0.14);
+}
+
+/* k6 요약이 붙으면 카드 내용이 고정 높이(680px)를 훨씬 넘어서므로, 이 카드만 예외적으로
+   내용물 크기에 맞춰 늘어나게 하고 컬럼 전체가 스크롤을 담당하게 한다. */
+.coupon-main-full:has(.k6-result-block) .card {
+  height: auto;
+  flex: 0 0 auto;
+  overflow-y: visible;
+}
+.overview-main:has(.k6-result-block) {
+  height: auto;
+  min-height: 680px;
+  flex: 1 1 auto;
+  overflow-y: auto;
 }
 
 .coupon-main-full .card-title {
