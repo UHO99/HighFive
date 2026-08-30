@@ -90,11 +90,11 @@ export function CouponIssueHistoryCard({ couponId, testRunning }: Props) {
     setLoading(true);
     fetchFairnessTimeline(couponId, target, PAGE_SIZE, filter)
       .then((result) => {
-        setRows(result.items);
-        setPage(result.page);
-        setTotalPages(result.totalPages);
-        setTotalElements(result.totalElements);
-        pageRef.current = result.page;
+        setRows(result.items ?? []);
+        setPage(result.page ?? target);
+        setTotalPages(result.totalPages ?? 0);
+        setTotalElements(result.totalElements ?? 0);
+        pageRef.current = result.page ?? target;
         setError(null);
       })
       .catch((e) => {
@@ -229,7 +229,7 @@ export function CouponIssueHistoryCard({ couponId, testRunning }: Props) {
               이전
             </button>
             <span className="pagination-label">
-              {totalPages === 0 ? "0 / 0" : `${page} / ${totalPages}`} 페이지 · 전체 {totalElements.toLocaleString("ko-KR")}건
+              {(totalPages ?? 0) === 0 ? "0 / 0" : `${page ?? 0} / ${totalPages ?? 0}`} 페이지 · 전체 {(totalElements ?? 0).toLocaleString("ko-KR")}건
             </span>
             <button type="button" className="pagination-btn" onClick={() => goToPage(page + 1)} disabled={!hasNext || loading}>
               다음

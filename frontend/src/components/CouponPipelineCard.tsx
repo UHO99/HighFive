@@ -64,7 +64,7 @@ export function CouponPipelineCard({ vals, onDrainPending, dummyDataCounts, befo
       <div className="pf-row">
         <div className="pf-node">
           <div className="pf-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ff6a3d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-forest-ink)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" />
             </svg>
           </div>
@@ -77,7 +77,7 @@ export function CouponPipelineCard({ vals, onDrainPending, dummyDataCounts, befo
 
         <div className="pf-node">
           <div className="pf-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ff6a3d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-forest-ink)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="4" y="4" width="16" height="4.5" rx="1.2" />
               <rect x="4" y="10.2" width="16" height="4.5" rx="1.2" />
               <rect x="4" y="16.4" width="16" height="4.5" rx="1.2" />
@@ -101,7 +101,7 @@ export function CouponPipelineCard({ vals, onDrainPending, dummyDataCounts, befo
 
         <div className="pf-node">
           <div className="pf-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ff6a3d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-forest-ink)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M4 5h9M4 9h9M4 13h5M14 5l6 7-6 7" />
             </svg>
           </div>
@@ -114,7 +114,7 @@ export function CouponPipelineCard({ vals, onDrainPending, dummyDataCounts, befo
 
         <div className="pf-node">
           <div className="pf-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ff6a3d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-forest-ink)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <ellipse cx="12" cy="6" rx="8" ry="3" />
               <path d="M4 6v12c0 1.66 3.58 3 8 3s8-1.34 8-3V6" />
               <path d="M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3" />

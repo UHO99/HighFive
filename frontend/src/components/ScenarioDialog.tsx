@@ -17,7 +17,7 @@ export function ScenarioDialog({ coupons, defaultCouponId, onCancel, onConfirm }
     coupons.some((c) => c.id === defaultCouponId) ? defaultCouponId : (coupons[0]?.id ?? null)
   );
   const [error, setError] = useState<string | null>(null);
-  const [maxVusInput, setMaxVusInput] = useState(50);
+  const [maxVusInput, setMaxVusInput] = useState(20000);
   // advanced 시나리오(main_test.js) 전용 - 기본값은 스크립트 기본값과 맞춰둔다.
   const [requestSizeMode, setRequestSizeMode] = useState<"ratio" | "count">("ratio");
   const [requestRatioInput, setRequestRatioInput] = useState(2);
@@ -59,7 +59,7 @@ export function ScenarioDialog({ coupons, defaultCouponId, onCancel, onConfirm }
 
   return (
     <div className="dialog-overlay" onClick={onCancel}>
-      <div className="dialog-panel" onClick={(e) => e.stopPropagation()}>
+      <div className="dialog-panel dialog-panel-xl" onClick={(e) => e.stopPropagation()}>
         <div className="dialog-header">
           <h2 className="dialog-title">K6 부하테스트 시나리오 선택</h2>
           <span className="dialog-subtitle">backend/k6 에 있는 스크립트와 대상 쿠폰을 골라 실행합니다.</span>
@@ -117,9 +117,9 @@ export function ScenarioDialog({ coupons, defaultCouponId, onCancel, onConfirm }
                   </ul>
                 )}
                 <div className="scenario-meta">
-                  <span>램프업 {scenario.rampUp}</span>
-                  <span>유지 {scenario.hold}</span>
-                  <span>{scenario.targetVus}</span>
+                  {scenario.rampUp && <span>램프업 {scenario.rampUp}</span>}
+                  {scenario.hold && <span>유지 {scenario.hold}</span>}
+                  {scenario.targetVus && <span>{scenario.targetVus}</span>}
                 </div>
               </div>
             </label>

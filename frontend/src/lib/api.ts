@@ -29,11 +29,14 @@ function resolveApiBase(): string {
     return normalized;
   }
 
+  const hostname = window.location.hostname;
+  const isDeployed = hostname.endsWith("github.io");
+  // 로컬 dev(192.168.* 포함)는 vite proxy("")로 CORS 회피 — GitHub Pages가 아니면 stored 무시
+  if (!isDeployed) return "";
+
   const stored = window.localStorage.getItem(API_BASE_STORAGE_KEY);
   if (stored) return stored;
-
-  const isLocalDev = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-  return isLocalDev ? "" : DEFAULT_LOCAL_BACKEND;
+  return DEFAULT_LOCAL_BACKEND;
 }
 
 export const API_BASE = resolveApiBase();
@@ -400,6 +403,27 @@ export async function stopK6Scenario(): Promise<K6StatusResponse> {
 export async function fetchK6Status(): Promise<K6StatusResponse> {
   const res = await fetch(`${API_BASE}/api/admin/k6/status`);
   return parseApiResponse<K6StatusResponse>(res, "k6 상태 조회 실패");
+}
+
+/** backend K6SummaryResponse(domain/test/dto)와 1:1로 대응한다. */
+export interface K6SummaryResponse {
+  available: boolean;
+  lines: string[];
+  metrics: K6SummaryMetrics | null;
+}
+
+/** backend K6SummaryResponse.Metrics와 1:1로 대응한다. 파싱에 실패한 값은 null. */
+export interface K6SummaryMetrics {
+  throughputPerSecond: number | null;
+  totalDurationSeconds: number | null;
+  iterationAvgMs: number | null;
+  dataReceivedKb: number | null;
+  dataSentKb: number | null;
+}
+
+export async function fetchK6Summary(): Promise<K6SummaryResponse> {
+  const res = await fetch(`${API_BASE}/api/admin/k6/summary`);
+  return parseApiResponse<K6SummaryResponse>(res, "k6 실행 요약 조회 실패");
 }
 
 /** backend MyCouponResponse(domain/couponissue/dto)와 1:1로 대응한다. */
