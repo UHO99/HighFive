@@ -2721,3 +2721,55 @@ body {
   border-width: 2px;
 }
 
+
+/* ---------- loading overlay (더미데이터 적재 등, 취소 불가능한 작업 중 화면 전체 잠금) ---------- */
+
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(11, 18, 32, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.loading-overlay-box {
+  background: var(--color-paper);
+  border-radius: 24px;
+  padding: calc(72px * var(--qhd-scale)) calc(96px * var(--qhd-scale));
+  min-width: min(640px, calc(100vw - 48px));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.4);
+}
+
+.loading-overlay-spinner {
+  width: calc(88px * var(--qhd-scale));
+  height: calc(88px * var(--qhd-scale));
+  border: 8px solid var(--color-fog);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: loading-overlay-spin 0.8s linear infinite;
+}
+
+@keyframes loading-overlay-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-overlay-message {
+  font: 700 calc(26px * var(--qhd-scale))/1.4 var(--font-ui), sans-serif;
+  color: var(--color-forest-ink);
+  text-align: center;
+  white-space: pre-line;
+}
+
+.loading-overlay-timer {
+  font: 800 calc(40px * var(--qhd-scale))/1 "JetBrains Mono", monospace;
+  color: var(--color-primary);
+  letter-spacing: 0.04em;
+}

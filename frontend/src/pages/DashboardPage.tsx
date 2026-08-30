@@ -8,6 +8,7 @@ import { CouponIssueHistoryCard } from "../components/CouponIssueHistoryCard";
 import { ConsistencyStatusCard } from "../components/ConsistencyStatusCard";
 import { CouponHistoryDialog } from "../components/CouponHistoryDialog";
 import { FloatingActionMenu } from "../components/FloatingActionMenu";
+import { LoadingOverlay } from "../components/LoadingOverlay";
 import { CouponManageDialog } from "../components/CouponManageDialog";
 import { ScenarioDialog } from "../components/ScenarioDialog";
 import { useMonitoringDashboard } from "../hooks/useMonitoringDashboard";
@@ -201,7 +202,7 @@ export function DashboardPage() {
     wasTestRunningRef.current = vals.testRunning;
     if (wasRunning && !vals.testRunning) {
       reloadDbCounts();
-      fetchK6Summary().then(setK6Summary).catch(() => {});
+      fetchK6Summary().then(setK6Summary).catch(() => { });
     }
   }, [vals.testRunning, reloadDbCounts]);
 
@@ -226,7 +227,8 @@ export function DashboardPage() {
     loadDummyData()
       .then((status) => {
         setDummyStatus(status);
-        startDummyPolling();   // 추가 - 시작하자마자 진행 상황을 보기 위해 폴링 개시
+        startDummyPolling();
+        window.alert("더미데이터 적재를 시작합니다.\n적재가 끝날 때까지 화면 조작이 잠깁니다.");
       })
       .catch((e) => {
         console.error("[HighFive] 데이터 적재 시작 실패", e);
@@ -449,6 +451,13 @@ export function DashboardPage() {
             setShowScenario(false);
             handleStartTest(scenario, targetCouponId, options);
           }}
+        />
+      )}
+      {dummyStatus.loading && (
+        <LoadingOverlay
+          message={"더미데이터 적재 중입니다.\n적재가 끝날 때까지 잠시만 기다려주세요."}
+          startedAt={dummyStatus.startedAt}
+          now={now}
         />
       )}
     </div>
