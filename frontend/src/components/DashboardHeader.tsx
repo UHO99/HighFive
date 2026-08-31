@@ -12,6 +12,14 @@ interface Props {
   loadingData: boolean;
 }
 
+/** 예약 없는(수동으로만 오픈/클로즈해온) 쿠폰이면 null - 칩에 툴팁 자체를 안 붙인다. */
+function scheduleTooltip(c: CouponSummary): string | undefined {
+  if (!c.startAt && !c.endAt) return undefined;
+  const open = c.startAt ? new Date(c.startAt).toLocaleString("ko-KR") : "수동";
+  const close = c.endAt ? new Date(c.endAt).toLocaleString("ko-KR") : "미예약";
+  return `오픈 ${open} → 마감 ${close}`;
+}
+
 /**
  * coupons는 항상 OPEN 상태만 받는다(DashboardPage가 status=OPEN으로 필터해서 넘김) - 쿠폰이
  * 아무리 많아져도 지금 실제로 열려있는 건 소수라, 드롭다운 대신 칩으로 그냥 다 펼쳐 보여준다.
@@ -19,6 +27,8 @@ interface Props {
  * 여기서는 "지금 뭘 보고 있나"만 다룬다.
  */
 export function DashboardHeader({ vals, error, couponMissing, coupons, couponId, onCouponChange, loadingData }: Props) {
+  const selected = coupons.find((c) => c.id === couponId);
+
   return (
     <div className="main-header">
       <div>
@@ -27,6 +37,14 @@ export function DashboardHeader({ vals, error, couponMissing, coupons, couponId,
           대규모 트래픽 선착순 쿠폰 발급 시스템 · 최종 갱신 {vals.clockText}
           {error && <span style={{ color: "#dc2626" }}> · 백엔드 연결 실패 ({error})</span>}
           {!error && couponMissing && <span style={{ color: "#8b8fa3" }}> · 모니터링할 쿠폰 없음</span>}
+          {!error && selected && (selected.startAt || selected.endAt) && (
+            <span style={{ color: "#8b8fa3" }}>
+              {" "}
+              · 오픈 {selected.startAt ? new Date(selected.startAt).toLocaleString("ko-KR") : "수동"}
+              {" → "}
+              마감 {selected.endAt ? new Date(selected.endAt).toLocaleString("ko-KR") : "미예약"}
+            </span>
+          )}
         </span>
       </div>
 
@@ -43,6 +61,7 @@ export function DashboardHeader({ vals, error, couponMissing, coupons, couponId,
                 aria-checked={c.id === couponId}
                 className={`coupon-chip ${c.id === couponId ? "active" : ""}`}
                 onClick={() => onCouponChange(c.id)}
+                title={scheduleTooltip(c)}
               >
                 #{c.id} · {c.name}
               </button>

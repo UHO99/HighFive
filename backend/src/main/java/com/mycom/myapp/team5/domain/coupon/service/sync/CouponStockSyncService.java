@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -22,14 +23,20 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class CouponStockSyncService {
 
+    public static final long INTERVAL_MS = 5_000;
+
     private final CouponRepository couponRepository;
     private final CouponIssueRepository couponIssueRepository;
     private final CouponStreamPendingChecker pendingChecker;
+    private final CouponConsistencyStatusHolder statusHolder;
 
-    @Scheduled(fixedDelay = 5000)
+    @Scheduled(fixedDelay = INTERVAL_MS)
     public void syncClosedCoupons() {
         List<Coupon> targets = couponRepository.findByStatusAndIssuedQuantityIsNull(CouponStatus.CLOSE);
         if (targets.isEmpty()) {
+            // 대상이 0건이어도 "이번 사이클도 살아서 돌았다"는 걸 남겨야 프론트에서 스케줄러가
+            // 멈춘 것과 "그냥 할 일이 없는 것"을 구분할 수 있다.
+            statusHolder.updateSync(Instant.now(), 0, 0);
             return;
         }
 
@@ -40,10 +47,12 @@ public class CouponStockSyncService {
                 .toList();
         if (drained.isEmpty()) {
             log.info("정합성 동기화 대기 - 드레인된 쿠폰 없음. 대상={}건", targets.size());
+            statusHolder.updateSync(Instant.now(), targets.size(), 0);
             return;
         }
 
         Map<Long, Long> issuedCounts = countIssued(drained);
+        Instant now = Instant.now();
         for (Coupon coupon : drained) {
             long issuedCount = issuedCounts.getOrDefault(coupon.getId(), 0L);
             Integer before = coupon.getIssuedQuantity();
@@ -51,7 +60,10 @@ public class CouponStockSyncService {
             couponRepository.save(coupon);
             log.info("쿠폰 정합성 동기화 완료 - couponId={}, issuedQuantity(전={}, 후={})",
                     coupon.getId(), before, issuedCount);
+            statusHolder.recordSyncCompletion(coupon.getId(), now, (int) issuedCount);
         }
+
+        statusHolder.updateSync(now, targets.size(), drained.size());
     }
 
     private boolean isDrained(long couponId) {

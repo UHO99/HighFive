@@ -16,9 +16,10 @@ interface Props {
 }
 
 /**
- * "사용"/"취소" 버튼은 ISSUED 상태인 건에만 뜬다 - 이미 USED/CANCELED/EXPIRED인 건은 버튼조차
- * 없다. 그래도 만약을 대비해 서버가 CI003(409)로 다시 막아주므로, 여기 조건은 UX용이고 실제
- * 방어는 CouponIssueServiceImpl에 있다.
+ * "사용"은 ISSUED(미사용) 상태에서만, "취소"는 USED(사용 완료) 상태에서만 뜬다 - 취소는 "사용 후
+ * 취소" 전용 액션이라 미사용 상태에서는 애초에 취소가 불가능하다(그 상태에선 "사용"만 가능).
+ * CANCELED/EXPIRED인 건은 둘 다 없다. 그래도 만약을 대비해 서버가 CI003(409)로 다시 막아주므로,
+ * 여기 조건은 UX용이고 실제 방어는 CouponIssueServiceImpl에 있다.
  */
 export function MyIssuanceList({ userId, coupons, onChanged }: Props) {
   const [pendingId, setPendingId] = useState<number | null>(null);
@@ -69,6 +70,11 @@ export function MyIssuanceList({ userId, coupons, onChanged }: Props) {
                   >
                     {pendingId === c.issueId ? "처리 중..." : "사용"}
                   </button>
+                </div>
+              )}
+
+              {c.status === "USED" && (
+                <div className="user-history-actions">
                   <button
                     type="button"
                     className="user-history-btn ghost"

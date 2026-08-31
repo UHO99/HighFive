@@ -1,10 +1,18 @@
 package com.mycom.myapp.team5.domain.monitoring.service;
 
+import com.mycom.myapp.team5.domain.coupon.dto.CouponConsistencyStatusResponse;
 import com.mycom.myapp.team5.domain.monitoring.dto.MonitoringDashboardResponse;
 
 public interface MonitoringService {
 
     MonitoringDashboardResponse getDashboard(long couponId);
+
+    /**
+     * 동기화(CouponStockSyncService)/검증(CouponStockValidationService) 배치가 지금 살아서 도는지 -
+     * couponId와 무관한 시스템 전체 상태라 getDashboard()와 별도로 독립 조회한다. 특정 쿠폰이 없어서
+     * getDashboard()가 실패하는 동안에도 이 값은 계속 갱신되어야 하기 때문이다.
+     */
+    CouponConsistencyStatusResponse getConsistencyStatus();
 
     /**
      * 대시보드 지표(HTTP/발급/DB insert 집계)만 0으로 되돌린다.

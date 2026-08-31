@@ -4,24 +4,16 @@ spring.datasource.url=
 spring.datasource.username=
 spring.datasource.password=
 
+# HikariCP - 기본값(10)은 대량 트래픽에서 병목이 될 수 있음
+spring.datasource.hikari.maximum-pool-size=50
+
 # session persistence
 server.servlet.session.persistent=false
 
 # JPA
 spring.jpa.open-in-view=false
 spring.jpa.hibernate.ddl-auto=validate
-spring.jpa.show-sql=true
-
-# Kafka (concurrency 검증용 프로토타입 - 정식 발급 경로는 Redis Stream 사용, 필요 시에만 true로 켜서 사용)
-app.kafka.enabled=false
-spring.kafka.bootstrap-servers=localhost:9092
-
-spring.kafka.consumer.auto-offset-reset=earliest
-spring.kafka.consumer.key-deserializer=org.apache.kafka.common.serialization.StringDeserializer
-spring.kafka.consumer.value-deserializer=org.apache.kafka.common.serialization.StringDeserializer
-
-spring.kafka.producer.key-serializer=org.apache.kafka.common.serialization.StringSerializer
-spring.kafka.producer.value-serializer=org.apache.kafka.common.serialization.StringSerializer
+spring.jpa.show-sql=false
 
 # Redis
 spring.data.redis.host=localhost
@@ -34,6 +26,6 @@ spring.flyway.baseline-version=0
 spring.flyway.locations=classpath:db/migration,classpath:db/seed
 
 # Tomcat
-server.tomcat.threads.max=1000
-server.tomcat.accept-count=2000
-server.tomcat.max-connections=20000
+server.tomcat.threads.max=2000
+server.tomcat.accept-count=4000
+server.tomcat.max-connections=50000

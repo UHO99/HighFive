@@ -6,6 +6,7 @@ import {
   MonitoringCouponNotFoundError,
   runK6Scenario,
   stopK6Scenario,
+  type K6RunOptions,
   type K6StatusResponse,
   type MonitoringDashboardResponse,
 } from "../lib/api";
@@ -18,8 +19,9 @@ import {
  * 실행 여부(testRunning)는 GET /api/admin/k6/status 폴링 결과를 그대로 반영한다 - 로컬 UI 상태가 아니다.
  */
 
-const DATA_POLL_INTERVAL_MS = 2000;
-const CLOCK_TICK_INTERVAL_MS = 1000;
+// 변경 후
+const DASHBOARD_POLL_INTERVAL_MS = 1000;
+const K6_STATUS_POLL_INTERVAL_MS = 2000;
 
 const ZERO_DASHBOARD: MonitoringDashboardResponse = {
   couponId: 0,
@@ -169,23 +171,26 @@ function toVals(data: MonitoringDashboardResponse, now: number, k6Status: K6Stat
 
 export interface UseMonitoringDashboardResult {
   vals: DashboardVals;
-  startTest: (scenarioId: string, targetCouponId: number, stock?: number, maxVus?: number) => Promise<void>;
+  startTest: (scenarioId: string, targetCouponId: number, options?: K6RunOptions) => Promise<void>;
   stopTest: () => Promise<void>;
+  /** 2초 자동 폴링과 별개로, 지금 당장 대시보드 전체(모니터링 + k6 상태)를 다시 조회한다. */
+  refresh: () => Promise<void>;
+  /** refresh() 진행 중 여부 - 버튼 중복 클릭 방지 및 "새로고침 중" 표시에 쓴다. */
+  refreshing: boolean;
   /** 진짜 연결 실패(네트워크 오류/5xx 등) - 헤더가 빨간 "백엔드 연결 실패"로 보여준다. */
   error: string | null;
   /** couponId가 DB에 없어서 404 - 오픈된 쿠폰이 없을 때 정상적으로 발생하므로 error와 분리해서 다룬다. */
   couponMissing: boolean;
 }
 
-export function useMonitoringDashboard(couponId: number): UseMonitoringDashboardResult {
+export function useMonitoringDashboard(couponId: number, now: number): UseMonitoringDashboardResult {
   const [data, setData] = useState<MonitoringDashboardResponse>(ZERO_DASHBOARD);
-  const [now, setNow] = useState(Date.now());
   const [k6Status, setK6Status] = useState<K6StatusResponse>(ZERO_K6_STATUS);
   const [error, setError] = useState<string | null>(null);
   const [couponMissing, setCouponMissing] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const dataPollRef = useRef<number | null>(null);
-  const clockTickRef = useRef<number | null>(null);
 
   // 쿠폰을 바꾸면 이전 쿠폰의 화면 값이 잠깐이라도 남아있지 않도록 0으로 되돌리고 새로 폴링을 시작한다.
   useEffect(() => {
@@ -216,7 +221,8 @@ export function useMonitoringDashboard(couponId: number): UseMonitoringDashboard
     };
 
     poll();
-    dataPollRef.current = window.setInterval(poll, DATA_POLL_INTERVAL_MS);
+    // 변경 후
+    dataPollRef.current = window.setInterval(poll, DASHBOARD_POLL_INTERVAL_MS);
 
     return () => {
       cancelled = true;
@@ -240,24 +246,18 @@ export function useMonitoringDashboard(couponId: number): UseMonitoringDashboard
     };
 
     poll();
-    const timer = window.setInterval(poll, DATA_POLL_INTERVAL_MS);
+    // 변경 후
+    const timer = window.setInterval(poll, K6_STATUS_POLL_INTERVAL_MS);
     return () => {
       cancelled = true;
       window.clearInterval(timer);
     };
   }, []);
 
-  useEffect(() => {
-    clockTickRef.current = window.setInterval(() => setNow(Date.now()), CLOCK_TICK_INTERVAL_MS);
-    return () => {
-      if (clockTickRef.current !== null) window.clearInterval(clockTickRef.current);
-    };
-  }, []);
-
   // couponId(이 훅이 모니터링 중인 쿠폰)와 별개로 targetCouponId를 명시적으로 받는다 - 대시보드에
   // 보이는 쿠폰과 다른 쿠폰을 대상으로 테스트를 시작할 수도 있어서(ScenarioDialog의 쿠폰 선택).
-  const startTest = useCallback(async (scenarioId: string, targetCouponId: number, stock?: number, maxVus?: number) => {
-    const next = await runK6Scenario(scenarioId, targetCouponId, stock, maxVus);
+  const startTest = useCallback(async (scenarioId: string, targetCouponId: number, options?: K6RunOptions) => {
+    const next = await runK6Scenario(scenarioId, targetCouponId, options);
     setK6Status(next);
   }, []);
 
@@ -266,5 +266,27 @@ export function useMonitoringDashboard(couponId: number): UseMonitoringDashboard
     setK6Status(next);
   }, []);
 
-  return { vals: toVals(data, now, k6Status), startTest, stopTest, error, couponMissing };
+  // 2초 자동 폴링과 별개로 즉시 한 번 더 조회한다 - 폴링 주기를 기다리지 않고 "지금 상태"를 바로 보고 싶을 때용.
+  const refresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const [next, k6Next] = await Promise.all([fetchMonitoringDashboard(couponId), fetchK6Status()]);
+      setData(next);
+      setError(null);
+      setCouponMissing(false);
+      setK6Status(k6Next);
+    } catch (e) {
+      if (e instanceof MonitoringCouponNotFoundError) {
+        setError(null);
+        setCouponMissing(true);
+      } else {
+        setError(e instanceof Error ? e.message : "모니터링 조회 실패");
+        setCouponMissing(false);
+      }
+    } finally {
+      setRefreshing(false);
+    }
+  }, [couponId]);
+
+  return { vals: toVals(data, now, k6Status), startTest, stopTest, refresh, refreshing, error, couponMissing };
 }

@@ -3,23 +3,25 @@ import type { DashboardVals } from "../hooks/useMonitoringDashboard";
 export function ApiResponseCard({ vals }: { vals: DashboardVals }) {
   return (
     <div className="card">
-      <span className="card-title">API 응답</span>
+      <span className="card-title">
+        API 응답 <span className="card-title-sub">(최근 1분간 요청 기준)</span>
+      </span>
 
       <div className="tile-grid-3">
         <div className="tile">
           <div className="tile-label-md">평균 응답시간</div>
-          <div className="tile-value-sm" style={{ color: "#171b2e" }}>
+          <div className="tile-value-sm" style={{ color: "var(--color-forest-ink)" }}>
             {vals.apiAvgFmt}ms
           </div>
         </div>
         <div className="tile">
-          <div className="tile-label-md">p95 / p99</div>
-          <div className="tile-value-p95">
+          <div className="tile-label-md" style={{ whiteSpace: "nowrap" }}>p95·p99</div>
+          <div className="tile-value-p95" style={{ whiteSpace: "nowrap" }}>
             {vals.p95Fmt}/{vals.p99Fmt}
           </div>
         </div>
         <div className="tile">
-          <div className="tile-label-md">Error Rate</div>
+          <div className="tile-label-md">응답 실패율</div>
           <div className="tile-value-sm" style={{ color: vals.errColor }}>
             {vals.errFmt}%
           </div>

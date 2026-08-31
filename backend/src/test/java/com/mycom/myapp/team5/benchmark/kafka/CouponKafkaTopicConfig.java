@@ -1,6 +1,5 @@
-package com.mycom.myapp.team5.global.config;
+package com.mycom.myapp.team5.benchmark.kafka;
 
-import com.mycom.myapp.team5.global.kafka.CouponRequestProducer;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
