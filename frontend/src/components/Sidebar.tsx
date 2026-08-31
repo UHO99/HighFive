@@ -91,18 +91,26 @@ export function Sidebar({ couponHistoryDisabled, onOpenCouponHistory, vals }: Pr
           </div>
 
           <div className="sidebar-card">
-            <span className="sidebar-card-title">API 응답</span>
+            <span className="sidebar-card-title">
+              API 응답 <span className="card-title-sub">(최근 1분)</span>
+            </span>
             <div className="sidebar-metrics">
               <div className="sidebar-metric">
                 <span className="sidebar-metric-label">평균</span>
                 <span className="sidebar-metric-value">{vals.apiAvgFmt}ms</span>
               </div>
               <div className="sidebar-metric">
-                <span className="sidebar-metric-label">p95</span>
-                <span className="sidebar-metric-value">{vals.p95Fmt}ms</span>
+                <span className="sidebar-metric-label" style={{ whiteSpace: "nowrap" }}>p95/p99</span>
+                <span
+                  className="sidebar-metric-value"
+                  style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: "calc(15px * var(--qhd-scale))" }}
+                >
+                  <span style={{ whiteSpace: "nowrap" }}>{vals.p95Fmt}ms</span>
+                  <span style={{ whiteSpace: "nowrap" }}>{vals.p99Fmt}ms</span>
+                </span>
               </div>
               <div className="sidebar-metric">
-                <span className="sidebar-metric-label">Error</span>
+                <span className="sidebar-metric-label">실패율</span>
                 <span className="sidebar-metric-value" style={{ color: vals.errColor }}>{vals.errFmt}%</span>
               </div>
             </div>
@@ -111,7 +119,7 @@ export function Sidebar({ couponHistoryDisabled, onOpenCouponHistory, vals }: Pr
                 <div className="sidebar-chart-error-fill" style={{ width: `${Math.min(100, parseFloat(vals.errFmt) * 20)}%`, background: vals.errColor }} />
               </div>
               <div className="sidebar-chart-error-labels">
-                <span>Error Rate</span>
+                <span>응답 실패율</span>
                 <span style={{ color: vals.errColor }}>{vals.errFmt}%</span>
               </div>
             </div>

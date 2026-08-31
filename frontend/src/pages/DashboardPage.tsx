@@ -8,13 +8,14 @@ import { CouponIssueHistoryCard } from "../components/CouponIssueHistoryCard";
 import { ConsistencyStatusCard } from "../components/ConsistencyStatusCard";
 import { CouponHistoryDialog } from "../components/CouponHistoryDialog";
 import { FloatingActionMenu } from "../components/FloatingActionMenu";
+import { LoadingOverlay } from "../components/LoadingOverlay";
 import { CouponManageDialog } from "../components/CouponManageDialog";
 import { ScenarioDialog } from "../components/ScenarioDialog";
 import { useMonitoringDashboard } from "../hooks/useMonitoringDashboard";
 import { useClock } from "../hooks/useClock";   // 추가
 import {
-  drainPendingStream, fetchCoupons, fetchDummyDataCounts, fetchDummyDataStatus, loadDummyData, resetMonitoringMetrics,
-  type CouponDetail, type CouponSummary, type DummyDataCounts, type DummyDataStatus, type K6RunOptions,
+  drainPendingStream, fetchCoupons, fetchDummyDataCounts, fetchDummyDataStatus, fetchK6Summary, loadDummyData, resetMonitoringMetrics,
+  type CouponDetail, type CouponSummary, type DummyDataCounts, type DummyDataStatus, type K6RunOptions, type K6SummaryResponse,
 } from "../lib/api";
 import type { K6Scenario } from "../lib/scenarios";
 
@@ -119,6 +120,9 @@ export function DashboardPage() {
     }, DUMMY_LOADING_POLL_INTERVAL_MS);
   }, [handleDummyStatus]);
 
+  // 마운트 시 1회만 확인한다 - 혹시 새로고침 직전에 다른 탭/사람이 적재를 시작해둔 상태라면
+  // (사용자가 1명이라도, 같은 브라우저에서 이 페이지를 새로고침하는 경우는 있을 수 있다),
+  // 그 진행 상황을 이어서 보여줘야 하므로 loading이면 폴링을 이어서 시작한다.
   useEffect(() => {
     Promise.all([fetchDummyDataStatus(), fetchDummyDataCounts()])
       .then(([status, counts]) => {
@@ -188,6 +192,9 @@ export function DashboardPage() {
     return () => window.clearInterval(timer);
   }, [refreshCoupons]);
 
+  // k6 실행 결과 요약 - 테스트가 방금 끝났을 때만 조회한다. 실행 중/한 번도 안 돌렸으면 null.
+  const [k6Summary, setK6Summary] = useState<K6SummaryResponse | null>(null);
+
   // 신규 추가 - 부하 테스트가 방금 끝난 순간에만 DB 건수를 다시 센다 (coupon_issue가 대량으로 늘었을 것)
   const wasTestRunningRef = useRef(vals.testRunning);
   useEffect(() => {
@@ -195,6 +202,7 @@ export function DashboardPage() {
     wasTestRunningRef.current = vals.testRunning;
     if (wasRunning && !vals.testRunning) {
       reloadDbCounts();
+      fetchK6Summary().then(setK6Summary).catch(() => { });
     }
   }, [vals.testRunning, reloadDbCounts]);
 
@@ -219,7 +227,8 @@ export function DashboardPage() {
     loadDummyData()
       .then((status) => {
         setDummyStatus(status);
-        startDummyPolling();   // 추가 - 시작하자마자 진행 상황을 보기 위해 폴링 개시
+        startDummyPolling();
+        window.alert("더미데이터 적재를 시작합니다.\n적재가 끝날 때까지 화면 조작이 잠깁니다.");
       })
       .catch((e) => {
         console.error("[HighFive] 데이터 적재 시작 실패", e);
@@ -369,7 +378,7 @@ export function DashboardPage() {
           <div className="overview-main">
             <div className="coupon-main-wrap coupon-main-full">
               <ExpandableCard id="coupon-status" expandedId={expandedCard} onToggle={toggleExpandCard}>
-                <CouponStatusCard vals={vals} />
+                <CouponStatusCard vals={vals} k6Summary={k6Summary} />
               </ExpandableCard>
             </div>
           </div>
@@ -442,6 +451,13 @@ export function DashboardPage() {
             setShowScenario(false);
             handleStartTest(scenario, targetCouponId, options);
           }}
+        />
+      )}
+      {dummyStatus.loading && (
+        <LoadingOverlay
+          message={"더미데이터 적재 중입니다.\n적재가 끝날 때까지 잠시만 기다려주세요."}
+          startedAt={dummyStatus.startedAt}
+          now={now}
         />
       )}
     </div>
