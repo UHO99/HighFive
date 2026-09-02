@@ -1,0 +1,69 @@
+networks:
+  highfive-net:
+    name: highfive-net
+
+services:
+  redis:
+    image: redis:latest
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - highfive-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mysql:
+    image: mysql:8.0.40
+    container_name: mysql
+    command: --local-infile=1
+    ports:
+      - "3308:3306"
+    networks:
+      - highfive-net
+    environment:
+      TZ: Asia/Seoul
+      MYSQL_DATABASE: highfive
+      MYSQL_USER: ${DB_USER:-ureca}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-ureca}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u${DB_USER:-ureca}", "-p${DB_PASSWORD:-ureca}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    # CD가 Docker Hub에서 pull해 오는 이미지를 그대로 실행한다 (로컬 build 없음).
+    image: ${DOCKERHUB_USERNAME}/highfive-backend:latest
+    container_name: backend
+    ports:
+      - "8080:8080"
+    networks:
+      - highfive-net
+    environment:
+      TZ: Asia/Seoul
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_USERNAME: ${DB_USER:-ureca}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-ureca}
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      # 부하테스트 기능(K6TestService)이 형제 컨테이너를 띄우기 위한 소켓 마운트.
+      # docker-compose.yml과 동일하게 유지했지만, 운영 EC2에 그대로 둘지는 재검토 필요.
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  mysql-data:
