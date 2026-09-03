@@ -52,7 +52,7 @@ jobs:
           target: "~/highfive-backend"
           strip_components: 1
 
-      # 새 이미지를 pull해서 backend 컨테이너만 재시작한다 (mysql/redis 데이터는 유지).
+      # 새 이미지 PULL
       - uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -63,4 +63,3 @@ jobs:
             export DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
             cd ~/highfive-backend
             docker compose -f docker-compose.prod.yml pull backend
-            docker compose -f docker-compose.prod.yml up -d
